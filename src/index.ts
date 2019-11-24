@@ -15,6 +15,7 @@ import { getUnitOfWorkHandler } from './utils/middlewares/unitOfWorkHandler';
 
 import schoolRoutes from './routes/schools.routes';
 import { KafkaService } from './services/KafkaService';
+import sectionsRoutes from './routes/sectionsRoutes';
 
 const logger = loggerFactory.getLogger('Index');
 
