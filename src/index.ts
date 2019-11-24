@@ -13,7 +13,7 @@ import {
 import { loggerHandler } from './utils/middlewares/loggerHandler';
 import { getUnitOfWorkHandler } from './utils/middlewares/unitOfWorkHandler';
 
-import skillRatingsRoutes from './routes/skillRatingsRoutes';
+import schoolRoutes from './routes/schools.routes';
 import { KafkaService } from './services/KafkaService';
 
 const logger = loggerFactory.getLogger('Index');
@@ -31,9 +31,9 @@ let server: import('http').Server;
   } catch (err) {
     logger.warn('createTopics', err);
   }
-  const streamsProcessor = new StreamsProcessor(kafkaService);
+  // const streamsProcessor = new StreamsProcessor(kafkaService);
 
-  await streamsProcessor.start();
+  // await streamsProcessor.start();
 
   app.proxy = true;
   app.use(loggerHandler);
@@ -58,7 +58,7 @@ let server: import('http').Server;
 
 
   // Routes ...
-  app.use(skillRatingsRoutes().mount('/'));
+  app.use(schoolRoutes().mount('/schools'));
 
   app.on('error', err => {
     logger.error('app_error', err);

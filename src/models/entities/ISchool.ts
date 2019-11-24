@@ -1,15 +1,22 @@
 import { ILocales, IAcademicTerm, IAuditable } from './Common';
+import { IEntity } from '@saal-oryx/unit-of-work';
 
-export interface ISchool extends IAuditable {
+export interface ISchool extends Partial<IAuditable>, IEntity {
   locales: ILocales;
   location: string;
-  license: ILicense;
+  license?: ILicense;
   academicTerms: IAcademicTerm[];
 }
 
 export interface ILicense {
-  max: number;
-  consumed: number;
+  students: {
+    max: number;
+    consumed: number;
+  };
+  teachers: {
+    max: number;
+    consumed: number;
+  };
   validFrom: Date;
   validTo: Date;
   reference: string;

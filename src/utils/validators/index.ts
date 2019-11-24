@@ -1,5 +1,5 @@
-import { validateFilter } from './filterSchema';
+import { validateSchool } from './SchoolsSchema';
 const validators = {
-  validateFilter
+  validateSchool
 };
 export default validators;

@@ -1,6 +1,6 @@
 import { IEntity } from '@saal-oryx/unit-of-work';
 
-export interface IAuditable extends IEntity {
+export interface IAuditable {
   createdAt: Date;
   updatedAt: Date;
 }

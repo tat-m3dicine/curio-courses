@@ -9,12 +9,12 @@ services:
       MONGO_DB_URL: mongodb://courses-mongodb:27017/saale-courses
       KAFKA_BROKERS: kafka:9092
     ports:
-      - 8094:80
+      - 8093:80
     volumes:
       - courses-node-modules-volume:/app/node_modules
       - ./src:/app/src
     deploy:
-      replicas: 2
+      replicas: 1
     depends_on:
       - courses-mongodb
       - kafka
@@ -27,7 +27,7 @@ services:
     volumes:
       - courses-mongodb-volume:/data/db
     ports:
-      - 23017:27017
+      - 21017:27017
     command:
       - mongod
 
