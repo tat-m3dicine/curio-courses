@@ -1,0 +1,76 @@
+version: "3"
+services:
+  courses:
+    image: courses:local
+    environment:
+      APP_PORT: 80
+      # NODE_ENV: production # to test production builds enable this.
+      KAFKA_TOPIC: rewards
+      MONGO_DB_URL: mongodb://courses-mongodb:27017/saale-courses
+      KAFKA_BROKERS: kafka:9092
+    ports:
+      - 8094:80
+    volumes:
+      - courses-node-modules-volume:/app/node_modules
+      - ./src:/app/src
+    deploy:
+      replicas: 2
+    depends_on:
+      - courses-mongodb
+      - kafka
+
+  courses-mongodb:
+    image: mongo:4.2-rc
+    environment:
+      MONGO_DATA_DIR: /data/db
+      MONGO_LOG_DIR: /dev/null
+    volumes:
+      - courses-mongodb-volume:/data/db
+    ports:
+      - 23017:27017
+    command:
+      - mongod
+
+  zoo-keeper:
+    image: wurstmeister/zookeeper
+    ports:
+      - "2181:2181"
+    environment:
+      ZOO_MY_ID: 1
+      ZOO_PORT: 2181
+      ZOO_SERVERS: zoo-keeper:2181
+    volumes:
+      - zoo-keeper-data-volume:/data
+      - zoo-keeper-datalog-volume:/datalog
+
+  kafka:
+    image: wurstmeister/kafka
+    ports:
+      - "9092:9092"
+      - "9094:9094"
+    environment:
+      HOSTNAME_COMMAND: "docker info | grep ^Name: | cut -d' ' -f 2"
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_ADVERTISED_LISTENERS: INSIDE://:9092,OUTSIDE://localhost:9094
+      KAFKA_LISTENERS: INSIDE://:9092,OUTSIDE://:9094
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INSIDE:PLAINTEXT,OUTSIDE:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INSIDE
+      KAFKA_ZOOKEEPER_CONNECT: "zoo-keeper:2181"
+      KAFKA_BROKER_ID: 1
+      KAFKA_LOG4J_LOGGERS: "kafka.controller=INFO,kafka.producer.async.DefaultEventHandler=INFO,state.change.logger=INFO"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_LOG_RETENTION_CHECK_INTERVAL_MS: 300000
+      KAFKA_LOG_CLEANUP_POLICY: compact
+      KAFKA_LOG_DIRS: "/kafka/kafka-logs"
+    volumes:
+      - kafka-data-volume:/kafka
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - zoo-keeper
+
+volumes:
+  courses-mongodb-volume:
+  courses-node-modules-volume:
+  kafka-data-volume:
+  zoo-keeper-data-volume:
+  zoo-keeper-datalog-volume:

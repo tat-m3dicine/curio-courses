@@ -1,0 +1,23 @@
+{
+  "extension": [
+      ".ts"
+  ],
+  "require": [
+      "ts-node/register"
+  ],
+  "include": [
+      "src/controllers/**/*.ts",
+      "src/models/**/*.ts",
+      "src/services/**/*.ts"
+
+  ],
+  "exclude": [
+      "**/*.d.ts"
+  ],
+  "reporter": [
+      "html",
+      "cobertura",
+      "text"
+  ],
+  "all": true
+}
