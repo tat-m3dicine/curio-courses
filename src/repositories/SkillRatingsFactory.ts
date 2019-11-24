@@ -2,18 +2,18 @@ import { MongoClient, ClientSession, Collection } from 'mongodb';
 
 import loggerFactory from '../utils/logging';
 import { BaseRepository } from '@saal-oryx/unit-of-work';
-import { ISkillRating } from '../models/entities/ISkillRating';
+import { ISection } from '../models/entities/ISection';
 const logger = loggerFactory.getLogger('RepositoryFactory');
 
-export const getSkillRatingsFactory = () => {
+export const getSectionsFactory = () => {
   return (name: string, client: MongoClient, session?: ClientSession) => {
-    const collection = client.db().collection('SkillRatings', { session }, (err, r) => r);
-    return new SkillRatingsRepository(collection);
+    const collection = client.db().collection('Sections', { session }, (err, r) => r);
+    return new SectionssRepository(collection);
   };
 };
 
-export class SkillRatingsRepository extends BaseRepository<ISkillRating> {
+export class SectionssRepository extends BaseRepository<ISection> {
   constructor(collection: Collection) {
-    super('SkillRatings', collection);
+    super('Sections', collection);
   }
 }

@@ -13,8 +13,8 @@ import {
 import { loggerHandler } from './utils/middlewares/loggerHandler';
 import { getUnitOfWorkHandler } from './utils/middlewares/unitOfWorkHandler';
 
-import skillRatingsRoutes from './routes/skillRatingsRoutes';
 import { KafkaService } from './services/KafkaService';
+import sectionsRoutes from './routes/sectionsRoutes';
 
 const logger = loggerFactory.getLogger('Index');
 
@@ -58,7 +58,7 @@ let server: import('http').Server;
 
 
   // Routes ...
-  app.use(skillRatingsRoutes().mount('/'));
+  app.use(sectionsRoutes().mount('/'));
 
   app.on('error', err => {
     logger.error('app_error', err);
