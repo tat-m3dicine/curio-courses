@@ -13,7 +13,7 @@ export interface ICourse extends Partial<IAuditable>, IEntity {
   teachers: ITeacher[];
   students: ICourseStudent[];
   kg: {
-    id: string;
+    _id: string;
     chapters: any[];
   };
   academicTerm: IAcademicTerm;

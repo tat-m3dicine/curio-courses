@@ -26,12 +26,12 @@ export default () => {
       const controller = new SectionsController(new SectionsService(ctx.uow));
       return controller.delete(ctx, next);
     })
-    .post('/schools/:school_id/sections/:section_id/students/register', (ctx: Koa.Context, next: () => void) => {
+    .post('/:id/students/register', (ctx: Koa.Context, next: () => void) => {
       if (!ctx.user) throw new ForbiddenError();
       const controller = new SectionsController(new SectionsService(ctx.uow));
       return controller.registerStudents(ctx, next);
     })
-    .post('/schools/:school_id/sections/:section_id/students/remove', (ctx: Koa.Context, next: () => void) => {
+    .post('/:id/students/remove', (ctx: Koa.Context, next: () => void) => {
       if (!ctx.user) throw new ForbiddenError();
       const controller = new SectionsController(new SectionsService(ctx.uow));
       return controller.removeStudents(ctx, next);

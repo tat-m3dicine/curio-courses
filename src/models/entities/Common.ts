@@ -1,12 +1,10 @@
-import { IEntity } from '@saal-oryx/unit-of-work';
-
 export interface IAuditable {
   createdAt: Date;
   updatedAt: Date;
 }
 
 export interface ITeacher {
-  id: string;
+  _id: string;
   role: string;
   profile: IProfile;
   joinDate: Date;
@@ -14,8 +12,8 @@ export interface ITeacher {
 }
 
 export interface IStudent {
-  id: string;
-  profile: IProfile;
+  _id: string;
+  profile?: IProfile;
 }
 
 export interface ICourseStudent extends IStudent {
@@ -29,7 +27,7 @@ export interface IProfile {
 }
 
 export interface IAcademicTerm {
-  id: string;
+  _id: string;
   year: string;
   term: string;
   startDate: Date;
@@ -44,4 +42,3 @@ export interface ILocales {
     description: string;
   };
 }
-

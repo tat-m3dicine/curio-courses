@@ -43,20 +43,16 @@ export class SectionsController {
   }
 
   async registerStudents(ctx: Context, next: () => void) {
-    const { school_id, section_id } = ctx.params;
-    const { students } = ctx.body;
-    const result = await this.sectionsService.registerStudents(school_id, section_id, students, ctx.user);
-    if (!result) throw new ServerError(`Couldn't register students in school '${school_id}' section '${section_id}'`);
+    const result = await this.sectionsService.registerStudents(ctx.params.id, ctx.request.body.students, ctx.user);
+    if (!result) throw new ServerError(`Couldn't register students in section '${ctx.params.id}'`);
     ctx.status = 200;
     ctx.body = { ok: true, result };
     ctx.type = 'json';
   }
 
   async removeStudents(ctx: Context, next: () => void) {
-    const { school_id, section_id } = ctx.params;
-    const { students } = ctx.body;
-    const result = await this.sectionsService.removeStudents(school_id, section_id, students, ctx.user);
-    if (!result) throw new ServerError(`Couldn't remove students from school '${school_id}' section '${section_id}'`);
+    const result = await this.sectionsService.removeStudents(ctx.params.id, ctx.request.body.students, ctx.user);
+    if (!result) throw new ServerError(`Couldn't register students in section '${ctx.params.id}'`);
     ctx.status = 200;
     ctx.body = { ok: true, result };
     ctx.type = 'json';
