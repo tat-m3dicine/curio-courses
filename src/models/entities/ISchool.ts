@@ -10,23 +10,25 @@ export interface ISchool extends Partial<IAuditable>, IEntity {
 
 export interface ILicense {
   students: {
-    max: number;
+    max: number; // *
     consumed: number;
   };
   teachers: {
-    max: number;
+    max: number; // *
     consumed: number;
   };
   validFrom: Date;
-  validTo: Date;
+  validTo: Date; // *
   reference: string;
-  isEnabled: boolean;
-  package: IPackage;
+  isEnabled: boolean; // enable/disable
+  package: IPackage; // *
 }
 
 export interface IPackage {
-  curriculums: string[];
-  subjects: string[];
-  grades: string[];
+  grades: {
+    [grade: string]: {
+      [subject: string]: string[] // curriculums
+    }
+  }[];
   features: string[];
 }
