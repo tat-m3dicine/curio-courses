@@ -12,15 +12,23 @@ export default () => {
     })
     .get('/', (ctx: Koa.Context, next: () => void) => {
       const controller = new SchoolsController(new SchoolsService(ctx.uow));
-      return controller.create(ctx, next);
+      return controller.list(ctx, next);
     })
-    .put('/', (ctx: Koa.Context, next: () => void) => {
+    .get('/:id', (ctx: Koa.Context, next: () => void) => {
       const controller = new SchoolsController(new SchoolsService(ctx.uow));
-      return controller.create(ctx, next);
+      return controller.get(ctx, next);
     })
-    .delete('/', (ctx: Koa.Context, next: () => void) => {
+    .put('/:id', (ctx: Koa.Context, next: () => void) => {
       const controller = new SchoolsController(new SchoolsService(ctx.uow));
-      return controller.create(ctx, next);
+      return controller.update(ctx, next);
+    })
+    .patch('/:id', (ctx: Koa.Context, next: () => void) => {
+      const controller = new SchoolsController(new SchoolsService(ctx.uow));
+      return controller.patch(ctx, next);
+    })
+    .delete('/:id', (ctx: Koa.Context, next: () => void) => {
+      const controller = new SchoolsController(new SchoolsService(ctx.uow));
+      return controller.delete(ctx, next);
     });
 
   return schoolRoutes;

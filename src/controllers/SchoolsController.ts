@@ -18,23 +18,33 @@ export class SchoolsController {
     ctx.type = 'json';
   }
   async update(ctx: Context, next: () => void) {
+    const result = await this.schoolService.update(ctx.request.body, ctx.params.id, ctx.user);
     ctx.status = 200;
-    ctx.body = { result: 'result', ok: true };
+    ctx.body = { result, ok: true };
+    ctx.type = 'json';
+  }
+  async patch(ctx: Context, next: () => void) {
+    const result = await this.schoolService.patch(ctx.request.body, ctx.params.id, ctx.user);
+    ctx.status = 200;
+    ctx.body = { result, ok: true };
     ctx.type = 'json';
   }
   async list(ctx: Context, next: () => void) {
+    const result = await this.schoolService.list(this.extractPaging(ctx.request.query), ctx.user);
     ctx.status = 200;
-    ctx.body = { result: 'result', ok: true };
+    ctx.body = result;
     ctx.type = 'json';
   }
   async get(ctx: Context, next: () => void) {
+    const result = await this.schoolService.get(ctx.params.id);
     ctx.status = 200;
-    ctx.body = { result: 'result', ok: true };
+    ctx.body = result;
     ctx.type = 'json';
   }
   async delete(ctx: Context, next: () => void) {
+    const { result } = await this.schoolService.delete(ctx.params.id, ctx.user);
     ctx.status = 200;
-    ctx.body = { result: 'result', ok: true };
+    ctx.body = { result, ok: true };
     ctx.type = 'json';
   }
 

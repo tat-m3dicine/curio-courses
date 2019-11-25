@@ -5,7 +5,7 @@ export interface ISchool extends Partial<IAuditable>, IEntity {
   locales: ILocales;
   location: string;
   license?: ILicense;
-  academicTerms: IAcademicTerm[];
+  academicTerms?: IAcademicTerm[];
 }
 
 export interface ILicense {

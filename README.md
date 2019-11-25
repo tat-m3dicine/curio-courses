@@ -53,3 +53,4 @@ Node.js Koa backend with MongoDb clsuter and Kafka.
 * **80**
 
 ## API
+[Postman API Docs](https://documenter.getpostman.com/view/4856492/SW7dVRS9?version=latest)

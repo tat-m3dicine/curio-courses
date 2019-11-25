@@ -1,8 +1,9 @@
 import Validator from 'fastest-validator';
 import { ValidationError } from '../../exceptions/ValidationError';
 import { ICreateSchoolRequest } from '../../models/requests/ICreateSchoolRequest';
+import { IUpdateSchoolRequest } from '../../models/requests/IUpdateSchoolRequest';
 
-const lcoaleSchema = {
+const localeSchema = {
   type: 'object',
   optional: true,
   props: {
@@ -12,13 +13,13 @@ const lcoaleSchema = {
   }
 };
 
-const schoolsSchema = {
+const createSchoolsSchema = {
   locales: {
     type: 'object',
     strict: true,
     props: {
-      en: { ...lcoaleSchema, optional: false },
-      ar: lcoaleSchema
+      en: { ...localeSchema, optional: false },
+      ar: localeSchema
     }
   },
   location: {
@@ -27,11 +28,37 @@ const schoolsSchema = {
   $$strict: true
 };
 
-const validator = new Validator();
-const validateCreate = validator.compile(schoolsSchema);
+const updateSchoolsSchema = {
+  locales: {
+    type: 'object',
+    strict: true,
+    props: {
+      en: localeSchema,
+      ar: localeSchema
+    }
+  },
+  location: {
+    type: 'string',
+    optional: true
+  },
+  $$strict: true
+};
 
-export const validateSchool = (request: ICreateSchoolRequest) => {
+const validator = new Validator();
+const validateCreate = validator.compile(createSchoolsSchema);
+const validateUpdate = validator.compile(updateSchoolsSchema);
+
+export const validateCreateSchool = (request: ICreateSchoolRequest) => {
   const isValidationPassed = validateCreate(request);
+  if (typeof isValidationPassed === 'boolean') {
+    return isValidationPassed;
+  } else {
+    throw new ValidationError(isValidationPassed);
+  }
+};
+
+export const validateUpdateSchool = (request: IUpdateSchoolRequest) => {
+  const isValidationPassed = validateUpdate(request);
   if (typeof isValidationPassed === 'boolean') {
     return isValidationPassed;
   } else {

@@ -1,5 +1,6 @@
-import { validateSchool } from './SchoolsSchema';
+import { validateCreateSchool, validateUpdateSchool } from './SchoolsSchema';
 const validators = {
-  validateSchool
+  validateCreateSchool,
+  validateUpdateSchool
 };
 export default validators;

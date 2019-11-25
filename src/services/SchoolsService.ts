@@ -6,6 +6,8 @@ import { ICreateSchoolRequest } from '../models/requests/ICreateSchoolRequest';
 import { UnauthorizedError } from '../exceptions/UnauthorizedError';
 import generate = require('nanoid/non-secure/generate');
 import validators from '../utils/validators';
+import { InvalidRequestError } from '../exceptions/InvalidRequestError';
+import { IUpdateSchoolRequest } from '../models/requests/IUpdateSchoolRequest';
 
 export class SchoolsService {
 
@@ -20,7 +22,9 @@ export class SchoolsService {
     return this.schoolsRepo.findById(id);
   }
 
-  async delete(id: string) {
+  async delete(id: string, byUser: IUserToken) {
+    const isAuthorized = await this.authorize(byUser);
+    if (!isAuthorized) throw new UnauthorizedError();
     return this.schoolsRepo.delete({ _id: id });
   }
 
@@ -33,40 +37,31 @@ export class SchoolsService {
     const isAuthorized = await this.authorize(byUser);
     if (!isAuthorized) throw new UnauthorizedError();
     const defaultLocale = createObj.locales.en || Object.values(createObj.locales)[0];
-    validators.validateSchool(createObj);
+    validators.validateCreateSchool(createObj);
     return this.schoolsRepo.add({
       _id: this.newSchoolId(defaultLocale.name),
       locales: createObj.locales,
-      location: createObj.location,
-      academicTerms: []
+      location: createObj.location
     });
   }
 
-  // async patch(id: string, data: Partial<ITicketIssuerUpdateRequest>, byUser: IUserToken) {
-  //   const isAuthorized = await this.authorize(byUser);
-  //   if (!isAuthorized) throw new UnauthorizedError();
-  //   if (!data) throw new InvalidRequestError('Request should not be empty!');
-  //   await this.validatorUpdateIssuer(data);
-  //   delete data._id;
-  //   delete data.secret;
-  //   return this.repo.patch({ _id: id }, data, false);
-  // }
+  async update(updateObj: IUpdateSchoolRequest, id: string, byUser: IUserToken) {
+    const isAuthorized = await this.authorize(byUser);
+    if (!isAuthorized) throw new UnauthorizedError();
+    validators.validateUpdateSchool(updateObj);
+    return this.schoolsRepo.update({_id: id}, {$set: updateObj});
+  }
 
-
-
-  // async validate(id: string, secret: string) {
-  //   const issuer = await this.repo.findById(id);
-  //   if (!issuer) return undefined;
-  //   if (issuer.secret !== secret) return undefined;
-  //   if (!issuer.isEnabled) return undefined;
-  //   return issuer;
-  // }
-
-  // async validatorUpdateIssuer(request: Partial<ITicketIssuerUpdateRequest>) {
-  //   return Promise.resolve(validators.validateUpdateIssuer(request));
-  // }
+  async patch(updateObj: IUpdateSchoolRequest, id: string, byUser: IUserToken) {
+    const isAuthorized = await this.authorize(byUser);
+    if (!isAuthorized) throw new UnauthorizedError();
+    if (!updateObj) throw new InvalidRequestError('Request should not be empty!');
+    validators.validateUpdateSchool(updateObj);
+    return this.schoolsRepo.patch({ _id: id }, updateObj);
+  }
 
   async authorize(byUser: IUserToken) {
+    if (!byUser) throw new InvalidRequestError('Access token is required!');
     return byUser.role.split(',').includes(config.authorizedRole);
   }
 
