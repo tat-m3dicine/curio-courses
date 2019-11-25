@@ -8,6 +8,7 @@ import generate = require('nanoid/non-secure/generate');
 import validators from '../utils/validators';
 import { InvalidRequestError } from '../exceptions/InvalidRequestError';
 import { ILicense } from '../models/entities/ISchool';
+import { ForbiddenError } from '../exceptions/ForbiddenError';
 
 export class SchoolsService {
 
@@ -64,6 +65,7 @@ export class SchoolsService {
     const isAuthorized = await this.authorize(byUser);
     if (!isAuthorized) throw new UnauthorizedError();
     validators.validateCreateLicense(licenseObj);
+    // ToDo: Validate `package.grade.subject.curriculums`
     const license: ILicense = {
       students: { max: licenseObj.students, consumed: 0 },
       teachers: { max: licenseObj.teachers, consumed: 0 },
@@ -77,7 +79,7 @@ export class SchoolsService {
   }
 
   async authorize(byUser: IUserToken) {
-    if (!byUser) throw new InvalidRequestError('Access token is required!');
+    if (!byUser) throw new ForbiddenError('access token is required!');
     return byUser.role.split(',').includes(config.authorizedRole);
   }
 

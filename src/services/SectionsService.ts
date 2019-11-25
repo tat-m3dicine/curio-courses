@@ -11,6 +11,7 @@ import { NotFoundError } from '../exceptions/NotFoundError';
 import { ISection } from '../models/entities/ISection';
 import { IStudent } from '../models/entities/Common';
 import { CoursesRepository } from '../repositories/CoursesRepository';
+import { ForbiddenError } from '../exceptions/ForbiddenError';
 
 export class SectionsService {
 
@@ -87,7 +88,8 @@ export class SectionsService {
   }
 
   protected async authorize(byUser: IUserToken) {
-    return byUser && byUser.role && byUser.role.split(',').includes(config.authorizedRole);
+    if (!byUser) throw new ForbiddenError('access token is required!');
+    return byUser.role && byUser.role.split(',').includes(config.authorizedRole);
   }
 
   protected newSectionId(section: ICreateSectionRequest) {
