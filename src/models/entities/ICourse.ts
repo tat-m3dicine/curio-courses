@@ -12,9 +12,5 @@ export interface ICourse extends Partial<IAuditable>, IEntity {
   isEnabled: boolean;
   teachers: ITeacher[];
   students: ICourseStudent[];
-  kg: {
-    _id: string;
-    chapters: any[];
-  };
   academicTerm: IAcademicTerm;
 }
