@@ -15,7 +15,7 @@ import { getUnitOfWorkHandler } from './utils/middlewares/unitOfWorkHandler';
 
 import schoolRoutes from './routes/schools.routes';
 import { KafkaService } from './services/KafkaService';
-import sectionsRoutes from './routes/sectionsRoutes';
+import sectionsRoutes from './routes/sections.routes';
 
 const logger = loggerFactory.getLogger('Index');
 
@@ -60,6 +60,7 @@ let server: import('http').Server;
 
   // Routes ...
   app.use(schoolRoutes().mount('/schools'));
+  app.use(sectionsRoutes().mount('/sections'));
 
   app.on('error', err => {
     logger.error('app_error', err);

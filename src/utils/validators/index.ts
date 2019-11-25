@@ -1,6 +1,8 @@
 import { validateCreateSchool, validateUpdateSchool } from './SchoolsSchema';
+import { validateCreateSection } from './SectionsSchema';
 const validators = {
   validateCreateSchool,
-  validateUpdateSchool
+  validateUpdateSchool,
+  validateCreateSection
 };
 export default validators;
