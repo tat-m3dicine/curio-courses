@@ -1,10 +1,10 @@
 import 'koa-body';
 import { Context } from 'koa';
 import loggerFactory from '../utils/logging';
-import { SkillRatingsService as SectionsService } from '../services/SkillRatingsService';
+import { SectionsService } from '../services/SectionsService';
 import { ServerError } from '../exceptions/ServerError';
 
-const logger = loggerFactory.getLogger('SkillRatingsController');
+const logger = loggerFactory.getLogger('SectionsController');
 
 export class SectionsController {
 

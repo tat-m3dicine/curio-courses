@@ -22,9 +22,10 @@ export const getDbClient = async () => {
       .then(async result => {
         // Collections..
         await result.db().createCollection('Schools');
+        await result.db().createCollection('Sections');
 
         // Indices..
-        // await result.db().collection('Schools').createIndex({ user_id: 1, skill_id: 1 });
+        // await result.db().collection('Schools').createIndex({ user_id: 1 });
 
         logger.info('Database is ready...');
         return result;

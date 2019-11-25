@@ -1,8 +1,8 @@
 # Onboarding Checklist
 
 ## Development :-
-*  Microservice source [repository link](https://github.com/saaltech/skill-rating).
-    * `https://github.com/saaltech/skill-rating`
+*  Microservice source [repository link](https://github.com/saaltech/curio-courses).
+    * `https://github.com/saaltech/curio-courses`
 *  The service must be dockerized.
     * YES
 *  Are there appropriate linting, unit(50% coverage), integration, and end-to-end tests in place for the microservice?
@@ -22,7 +22,7 @@
     * Client facing
 
 *  Are the environment variables,configurations etc documented and has appropriate default values ?
-    * [YES](https://github.com/saaltech/skill-rating#environment-variables)
+    * [YES](https://github.com/saaltech/curio-courses#environment-variables)
 
 *  How does this microservice mitigate dependency failures?
     * **Mongo is manditory**: MongoDb has to be online for this service to function, it will try to connect on each request if the connection is lost.
