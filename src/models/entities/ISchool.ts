@@ -29,6 +29,6 @@ export interface IPackage {
     [grade: string]: {
       [subject: string]: string[] // curriculums
     }
-  }[];
+  };
   features: string[];
 }

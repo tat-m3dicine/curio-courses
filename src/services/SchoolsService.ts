@@ -2,12 +2,12 @@ import { IUnitOfWork, defaultPaging } from '@saal-oryx/unit-of-work';
 import { IUserToken } from '../models/IUserToken';
 import { SchoolsRepository } from '../repositories/SchoolsRepository';
 import config from '../config';
-import { ICreateSchoolRequest } from '../models/requests/ICreateSchoolRequest';
+import { ICreateSchoolRequest, IUpdateSchoolRequest, ICreateLicenseRequest } from '../models/requests/ISchoolRequests';
 import { UnauthorizedError } from '../exceptions/UnauthorizedError';
 import generate = require('nanoid/non-secure/generate');
 import validators from '../utils/validators';
 import { InvalidRequestError } from '../exceptions/InvalidRequestError';
-import { IUpdateSchoolRequest } from '../models/requests/IUpdateSchoolRequest';
+import { ILicense } from '../models/entities/ISchool';
 
 export class SchoolsService {
 
@@ -49,7 +49,7 @@ export class SchoolsService {
     const isAuthorized = await this.authorize(byUser);
     if (!isAuthorized) throw new UnauthorizedError();
     validators.validateUpdateSchool(updateObj);
-    return this.schoolsRepo.update({_id: id}, {$set: updateObj});
+    return this.schoolsRepo.update({ _id: id }, { $set: updateObj });
   }
 
   async patch(updateObj: IUpdateSchoolRequest, id: string, byUser: IUserToken) {
@@ -58,6 +58,22 @@ export class SchoolsService {
     if (!updateObj) throw new InvalidRequestError('Request should not be empty!');
     validators.validateUpdateSchool(updateObj);
     return this.schoolsRepo.patch({ _id: id }, updateObj);
+  }
+
+  async addLicense(licenseObj: ICreateLicenseRequest, id: string, byUser: IUserToken) {
+    const isAuthorized = await this.authorize(byUser);
+    if (!isAuthorized) throw new UnauthorizedError();
+    validators.validateCreateLicense(licenseObj);
+    const license: ILicense = {
+      students: { max: licenseObj.students, consumed: 0 },
+      teachers: { max: licenseObj.teachers, consumed: 0 },
+      isEnabled: licenseObj.isEnabled,
+      validFrom: new Date(),
+      validTo: new Date(licenseObj.validTo),
+      reference: licenseObj.reference || byUser.sub,
+      package: licenseObj.package
+    };
+    return this.schoolsRepo.update({ _id: id }, { $set: { license } });
   }
 
   async authorize(byUser: IUserToken) {

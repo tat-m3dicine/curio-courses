@@ -1,7 +1,6 @@
 import Validator from 'fastest-validator';
 import { ValidationError } from '../../exceptions/ValidationError';
-import { ICreateSchoolRequest } from '../../models/requests/ICreateSchoolRequest';
-import { IUpdateSchoolRequest } from '../../models/requests/IUpdateSchoolRequest';
+import { ICreateSchoolRequest, IUpdateSchoolRequest } from '../../models/requests/ISchoolRequests';
 
 const localeSchema = {
   type: 'object',

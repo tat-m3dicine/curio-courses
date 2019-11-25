@@ -10,6 +10,10 @@ export default () => {
       const controller = new SchoolsController(new SchoolsService(ctx.uow));
       return controller.create(ctx, next);
     })
+    .post('/:id/license', (ctx: Koa.Context, next: () => void) => {
+      const controller = new SchoolsController(new SchoolsService(ctx.uow));
+      return controller.addLicense(ctx, next);
+    })
     .get('/', (ctx: Koa.Context, next: () => void) => {
       const controller = new SchoolsController(new SchoolsService(ctx.uow));
       return controller.list(ctx, next);
