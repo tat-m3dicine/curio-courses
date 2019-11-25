@@ -1,5 +1,6 @@
 import { MongoClient, ClientSession } from 'mongodb';
 import { SchoolsRepository } from './SchoolsRepository';
+import { CourseRepository } from './CourseRepository';
 
 import loggerFactory from '../utils/logging';
 const logger = loggerFactory.getLogger('RepositoryFactory');
@@ -11,6 +12,8 @@ export const getFactory = () => {
     switch (name) {
       case 'Schools':
         return new SchoolsRepository(client.db().collection('Schools', { session }, (err, r) => r));
+      case 'Course':
+        return new CourseRepository(client.db().collection('Course', { session }, (err, r) => r));
       default: throw new Error('unknown repository');
     }
   };
