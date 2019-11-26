@@ -25,7 +25,6 @@ const sectionsSchema = {
   },
   schoolId: 'string',
   grade: 'string',
-  curriculum: 'string',
   $$strict: true
 };
 
