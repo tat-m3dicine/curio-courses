@@ -14,53 +14,59 @@ export class SectionsController {
   }
 
   async create(ctx: Context, next: () => void) {
-    const result = await this.sectionsService.create(ctx.request.body, ctx.user);
+    const createObject = { ...ctx.request.body, schoolId: ctx.params.schoolId };
+    const result = await this.sectionsService.create(createObject, ctx.user);
     ctx.status = 200;
     ctx.body = { ok: true, result };
     ctx.type = 'json';
   }
 
   async get(ctx: Context, next: () => void) {
-    const result = await this.sectionsService.get(ctx.params.id, ctx.user);
-    if (!result) throw new NotFoundError(`Couldn't find section '${ctx.params.id}'`);
+    const { schoolId, sectionId } = ctx.params;
+    const result = await this.sectionsService.get(schoolId, sectionId, ctx.user);
+    if (!result) throw new NotFoundError(`Couldn't find section '${sectionId}' in school '${sectionId}'`);
     ctx.status = 200;
     ctx.body = { ok: true, result };
     ctx.type = 'json';
   }
 
   async list(ctx: Context, next: () => void) {
-    const result = await this.sectionsService.list(this.extractPaging(ctx.query), ctx.user);
+    const result = await this.sectionsService.list(ctx.params.schoolId, this.extractPaging(ctx.query), ctx.user);
     ctx.status = 200;
     ctx.body = { ok: true, result };
     ctx.type = 'json';
   }
 
   async delete(ctx: Context, next: () => void) {
-    await this.sectionsService.delete(ctx.params.id, ctx.user);
+    const { schoolId, sectionId } = ctx.params;
+    await this.sectionsService.delete(schoolId, sectionId, ctx.user);
     ctx.status = 200;
     ctx.body = { ok: true };
     ctx.type = 'json';
   }
 
   async getStudents(ctx: Context, next: () => void) {
-    const result = await this.sectionsService.getStudents(ctx.params.id, ctx.user);
-    if (!result) throw new NotFoundError(`Couldn't find section '${ctx.params.id}'`);
+    const { schoolId, sectionId } = ctx.params;
+    const result = await this.sectionsService.getStudents(schoolId, sectionId, ctx.user);
+    if (!result) throw new NotFoundError(`Couldn't find section '${sectionId}' of '${schoolId}' school`);
     ctx.status = 200;
     ctx.body = { ok: true, result };
     ctx.type = 'json';
   }
 
   async registerStudents(ctx: Context, next: () => void) {
-    const result = await this.sectionsService.registerStudents(ctx.params.id, ctx.request.body.students, ctx.user);
-    if (!result) throw new ServerError(`Couldn't register students in section '${ctx.params.id}'`);
+    const { schoolId, sectionId } = ctx.params;
+    const result = await this.sectionsService.registerStudents(schoolId, sectionId, ctx.request.body.students, ctx.user);
+    if (!result) throw new ServerError(`Couldn't register students in section '${sectionId}' of '${schoolId}' school`);
     ctx.status = 200;
     ctx.body = { ok: true, result };
     ctx.type = 'json';
   }
 
   async removeStudents(ctx: Context, next: () => void) {
-    const result = await this.sectionsService.removeStudents(ctx.params.id, ctx.request.body.students, ctx.user);
-    if (!result) throw new ServerError(`Couldn't register students in section '${ctx.params.id}'`);
+    const { schoolId, sectionId } = ctx.params;
+    const result = await this.sectionsService.removeStudents(schoolId, sectionId, ctx.request.body.students, ctx.user);
+    if (!result) throw new ServerError(`Couldn't register students in section '${sectionId}' of '${schoolId}' school`);
     ctx.status = 200;
     ctx.body = { ok: true, result };
     ctx.type = 'json';

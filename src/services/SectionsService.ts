@@ -36,51 +36,51 @@ export class SectionsService {
     });
   }
 
-  async get(_id: string, byUser: IUserToken) {
+  async get(schoolId: string, sectionId: string, byUser: IUserToken) {
     this.authorize(byUser);
-    return this.sectionsRepo.findById(_id);
+    return this.sectionsRepo.findOne({ _id: sectionId, schoolId });
   }
 
-  async list(paging: IPaging, byUser: IUserToken) {
+  async list(schoolId: string, paging: IPaging, byUser: IUserToken) {
     this.authorize(byUser);
-    return this.sectionsRepo.findManyPage({}, paging);
+    return this.sectionsRepo.findManyPage({ schoolId }, paging);
   }
 
-  async delete(_id: string, byUser: IUserToken) {
+  async delete(schoolId: string, sectionId: string, byUser: IUserToken) {
     this.authorize(byUser);
-    return this.sectionsRepo.delete({ _id });
+    return this.sectionsRepo.delete({ _id: sectionId });
   }
 
-  async getStudents(_id: string, byUser: IUserToken) {
+  async getStudents(schoolId: string, sectionId: string, byUser: IUserToken) {
     this.authorize(byUser);
-    const section = await this.sectionsRepo.findById(_id);
+    const section = await this.sectionsRepo.findOne({ _id: sectionId, schoolId });
     return section ? section.students : undefined;
   }
 
-  async registerStudents(_id: string, studentIds: string[], byUser: IUserToken) {
+  async registerStudents(schoolId: string, sectionId: string, studentIds: string[], byUser: IUserToken) {
     this.authorize(byUser);
-    const section: ISection | undefined = await this.sectionsRepo.findById(_id);
-    if (!section) throw new NotFoundError(`Couldn't find section '${_id}'`);
+    const section: ISection | undefined = await this.sectionsRepo.findOne({ _id: sectionId, schoolId });
+    if (!section) throw new NotFoundError(`Couldn't find section '${sectionId}' in school '${schoolId}'`);
 
     studentIds = studentIds.filter(_id => !section.students.some(student => student._id === _id));
     const dbStudents: IStudent[] = await this.studentsRepo.findMany({ _id: { $in: studentIds } });
     const students: IStudent[] = studentIds.map(_id => dbStudents.find(student => student._id === _id) || { _id });
 
-    return this.sectionsRepo.update({ _id }, {
+    return this.sectionsRepo.update({ _id: sectionId, schoolId }, {
       $push: { students: { $each: students } }
     });
   }
 
-  async removeStudents(_id: string, studentIds: string[], byUser: IUserToken) {
+  async removeStudents(schoolId: string, sectionId: string, studentIds: string[], byUser: IUserToken) {
     this.authorize(byUser);
-    const section: ISection | undefined = await this.sectionsRepo.findById(_id);
-    if (!section) throw new NotFoundError(`Couldn't find section '${_id}'`);
+    const section: ISection | undefined = await this.sectionsRepo.findOne({ _id: sectionId, schoolId });
+    if (!section) throw new NotFoundError(`Couldn't find section '${sectionId}' in school '${schoolId}'`);
 
     const coursesRepoWithTransactions = this._uow.getRepository('Courses', true) as CoursesRepository;
     const sectionsRepoWithTransactions = this._uow.getRepository('Sections', true) as SectionsRepository;
 
-    await coursesRepoWithTransactions.finishStudentsCourses(_id, studentIds);
-    const updatedSection = await sectionsRepoWithTransactions.update({ _id }, {
+    await coursesRepoWithTransactions.finishStudentsCourses({ _id: sectionId, schoolId }, studentIds);
+    const updatedSection = await sectionsRepoWithTransactions.update({ _id: sectionId, schoolId }, {
       $pull: { students: { _id: { $in: studentIds } } }
     });
     await this._uow.commit();

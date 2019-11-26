@@ -10,8 +10,8 @@ export class CoursesRepository extends AduitableRepository<ICourse & IEntity & P
     super('Courses', collection);
   }
 
-  async finishStudentsCourses(sectionId: string, studentIds: string[]) {
-    return this.update({ sectionId }, {
+  async finishStudentsCourses(filter: object, studentIds: string[]) {
+    return this.update(filter, {
       $set: {
         'students.$[student].finishDate': new Date()
       }
