@@ -62,7 +62,7 @@ let server: import('http').Server;
 
   // Routes ...
   app.use(schoolRoutes(commandsProcessor).mount('/schools'));
-  app.use(sectionsRoutes().mount('/schools'));
+  app.use(sectionsRoutes(commandsProcessor).mount('/schools'));
 
   app.on('error', err => {
     logger.error('app_error', err);

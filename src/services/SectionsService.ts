@@ -15,10 +15,11 @@ import { SchoolsRepository } from '../repositories/SchoolsRepository';
 import { ISchool } from '../models/entities/ISchool';
 import { InvalidLicenseError } from '../exceptions/InvalidLicenseError';
 import { ForbiddenError } from '../exceptions/ForbiddenError';
+import { CommandsProcessor } from './CommandsProcessor';
 
 export class SectionsService {
 
-  constructor(protected _uow: IUnitOfWork) {
+  constructor(protected _uow: IUnitOfWork, protected _commandsProcessor: CommandsProcessor) {
   }
 
   protected get schoolsRepo() {
@@ -37,11 +38,14 @@ export class SectionsService {
     this.authorize(byUser);
     validators.validateCreateSection(section);
     await this.validateLicense(section);
-    return this.sectionsRepo.add({
+    return this._commandsProcessor.sendCommand('sections', this.doCreate, {
       _id: this.newSectionId(section),
       students: [],
       ...section
     });
+  }
+  private async doCreate(section: ISection) {
+    return this.sectionsRepo.add(section);
   }
 
   async get(schoolId: string, sectionId: string, byUser: IUserToken) {
