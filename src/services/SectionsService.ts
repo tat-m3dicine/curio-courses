@@ -11,11 +11,18 @@ import { NotFoundError } from '../exceptions/NotFoundError';
 import { ISection } from '../models/entities/ISection';
 import { IStudent } from '../models/entities/Common';
 import { CoursesRepository } from '../repositories/CoursesRepository';
+import { SchoolsRepository } from '../repositories/SchoolsRepository';
+import { ISchool } from '../models/entities/ISchool';
+import { InvalidLicenseError } from '../exceptions/InvalidLicenseError';
 import { ForbiddenError } from '../exceptions/ForbiddenError';
 
 export class SectionsService {
 
   constructor(protected _uow: IUnitOfWork) {
+  }
+
+  protected get schoolsRepo() {
+    return this._uow.getRepository('Schools') as SchoolsRepository;
   }
 
   protected get sectionsRepo() {
@@ -29,6 +36,7 @@ export class SectionsService {
   async create(section: ICreateSectionRequest, byUser: IUserToken) {
     this.authorize(byUser);
     validators.validateCreateSection(section);
+    await this.validateLicense(section);
     return this.sectionsRepo.add({
       _id: this.newSectionId(section),
       students: [],
@@ -95,5 +103,13 @@ export class SectionsService {
 
   protected newSectionId(section: ICreateSectionRequest) {
     return `${section.grade}_${section.schoolId}_${generate('0123456789abcdef', 5)}`.toLocaleLowerCase().replace(/\s/g, '');
+  }
+
+  protected async validateLicense(section: ICreateSectionRequest) {
+    const { schoolId, grade } = section;
+    const school: ISchool | undefined = await this.schoolsRepo.findOne({ _id: schoolId });
+    if (!school || !school.license || !school.license.package || !(grade in school.license.package)) {
+      throw new InvalidLicenseError(`'${schoolId}' school doesn't have a valid license for grade '${grade}'`);
+    }
   }
 }
