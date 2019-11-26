@@ -16,7 +16,7 @@ export class SectionsController {
   async create(ctx: Context, next: () => void) {
     const createObject = { ...ctx.request.body, schoolId: ctx.params.schoolId };
     const result = await this.sectionsService.create(createObject, ctx.user);
-    ctx.status = result.done ? 200 : 202;
+    ctx.status = result.done ? 201 : 202;
     ctx.body = { ok: true, result: result.data };
     ctx.type = 'json';
   }

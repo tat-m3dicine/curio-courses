@@ -9,7 +9,6 @@ import validators from '../utils/validators';
 import { InvalidRequestError } from '../exceptions/InvalidRequestError';
 import { ILicense, ISchool } from '../models/entities/ISchool';
 import { ForbiddenError } from '../exceptions/ForbiddenError';
-import { KafkaService } from './KafkaService';
 import { CommandsProcessor } from './CommandsProcessor';
 
 
@@ -63,7 +62,7 @@ export class SchoolsService {
     if (!isAuthorized) throw new UnauthorizedError();
     if (!updateObj) throw new InvalidRequestError('Request should not be empty!');
     validators.validateUpdateSchool(updateObj);
-    return this.schoolsRepo.patch({ _id: id }, updateObj);
+    return this._commandsProcessor.sendCommand('schools', this.doPatch, id, updateObj);
   }
 
   async addLicense(licenseObj: ICreateLicenseRequest, id: string, byUser: IUserToken) {
@@ -72,6 +71,11 @@ export class SchoolsService {
     validators.validateCreateLicense(licenseObj);
     // ToDo: Validate `package.grade.subject.curriculums`
     const license: ILicense = {
+      // ToDo: this is not correct, you can't send consumed = 0.
+      // suppose that a licence is already there, this will reset the consumed to 0.
+      // instead you can send the key 'students.max' : licenseObj.students, which will
+      // only update the max students.
+      // consumed should only be set to 0 on $setOnInsert
       students: { max: licenseObj.students, consumed: 0 },
       teachers: { max: licenseObj.teachers, consumed: 0 },
       isEnabled: licenseObj.isEnabled,
@@ -80,7 +84,7 @@ export class SchoolsService {
       reference: licenseObj.reference || byUser.sub,
       package: licenseObj.package
     };
-    return this.schoolsRepo.update({ _id: id }, { $set: { license } });
+    return this._commandsProcessor.sendCommand('schools', this.doUpdate, id, license);
   }
 
   async authorize(byUser: IUserToken) {
@@ -92,13 +96,15 @@ export class SchoolsService {
     return `${name.toLocaleLowerCase().replace(/\s/g, '')}_${generate('0123456789abcdef', 5)}`;
   }
 
-
-
   private async doAdd(school: ISchool) {
     return this.schoolsRepo.add(school);
   }
 
   private async doUpdate(id: string, updateObj: any) {
     return this.schoolsRepo.update({ _id: id }, { $set: updateObj });
+  }
+
+  private async doPatch(id: string, school: ISchool) {
+    return this.schoolsRepo.patch({ _id: id }, school);
   }
 }

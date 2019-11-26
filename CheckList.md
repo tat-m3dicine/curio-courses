@@ -75,7 +75,7 @@
 *  Are there any other resource requirements that are specific to this microservice?
     * Diskspace for MonogDb.
 *  What are the resource bottlenecks of this microservice?
-    * Identity Provider.
+    * N/A.
 *  Does this microservice need to be scaled vertically, horizontally, or both?
     * horizontally only.
 

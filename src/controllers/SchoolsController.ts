@@ -13,13 +13,13 @@ export class SchoolsController {
 
   async create(ctx: Context, next: () => void) {
     const result = await this.schoolService.add(ctx.request.body, ctx.user);
-    ctx.status = 200;
+    ctx.status = result.done ? 201 : 202;
     ctx.body = { result, ok: true };
     ctx.type = 'json';
   }
   async update(ctx: Context, next: () => void) {
     const result = await this.schoolService.update(ctx.request.body, ctx.params.id, ctx.user);
-    ctx.status = 200;
+    ctx.status = result.done ? 201 : 202;
     ctx.body = { result, ok: true };
     ctx.type = 'json';
   }
