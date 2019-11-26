@@ -16,6 +16,7 @@ import { getUnitOfWorkHandler } from './utils/middlewares/unitOfWorkHandler';
 import schoolRoutes from './routes/schools.routes';
 import { KafkaService } from './services/KafkaService';
 import sectionsRoutes from './routes/sections.routes';
+import { CommandsProcessor } from './services/CommandsProcessor';
 
 const logger = loggerFactory.getLogger('Index');
 
@@ -32,9 +33,10 @@ let server: import('http').Server;
   } catch (err) {
     logger.warn('createTopics', err);
   }
-  // const streamsProcessor = new StreamsProcessor(kafkaService);
 
-  // await streamsProcessor.start();
+  const commandsProcessor = new CommandsProcessor(kafkaService);
+  const streamsProcessor = new StreamsProcessor(kafkaService, commandsProcessor);
+  await streamsProcessor.start();
 
   app.proxy = true;
   app.use(loggerHandler);
@@ -59,7 +61,7 @@ let server: import('http').Server;
 
 
   // Routes ...
-  app.use(schoolRoutes().mount('/schools'));
+  app.use(schoolRoutes(commandsProcessor).mount('/schools'));
   app.use(sectionsRoutes().mount('/schools'));
 
   app.on('error', err => {

@@ -11,12 +11,15 @@ const config: {
   authorizedRole: string;
   contributionsScaler: number;
   historyLength: number;
+  kafkaCommandsTopic: string;
+  comamndsTimeout: number;
 } = <any>{
   port: 80,
   production: false,
   kafkaClientId: 'courses',
   kafkaProducersGroup: 'courses-producers-group',
-  kafkaRewardTopic: 'rewards_transactions',
+  kafkaCommandsTopic: 'courses_commands',
+  comamndsTimeout: 3 * 1000,
   authorizedRole: 'root',
   contributionsScaler: 5,
   historyLength: 50

@@ -7,12 +7,15 @@ import { UnauthorizedError } from '../exceptions/UnauthorizedError';
 import generate = require('nanoid/non-secure/generate');
 import validators from '../utils/validators';
 import { InvalidRequestError } from '../exceptions/InvalidRequestError';
-import { ILicense } from '../models/entities/ISchool';
+import { ILicense, ISchool } from '../models/entities/ISchool';
 import { ForbiddenError } from '../exceptions/ForbiddenError';
+import { KafkaService } from './KafkaService';
+import { CommandsProcessor } from './CommandsProcessor';
+
 
 export class SchoolsService {
 
-  constructor(protected _uow: IUnitOfWork) {
+  constructor(protected _uow: IUnitOfWork, protected _commandsProcessor: CommandsProcessor) {
   }
 
   protected get schoolsRepo() {
@@ -37,20 +40,22 @@ export class SchoolsService {
   async add(createObj: ICreateSchoolRequest, byUser: IUserToken) {
     const isAuthorized = await this.authorize(byUser);
     if (!isAuthorized) throw new UnauthorizedError();
-    const defaultLocale = createObj.locales.en || Object.values(createObj.locales)[0];
     validators.validateCreateSchool(createObj);
-    return this.schoolsRepo.add({
+    const defaultLocale = createObj.locales.en || Object.values(createObj.locales)[0];
+    const school: ISchool = {
       _id: this.newSchoolId(defaultLocale.name),
       locales: createObj.locales,
-      location: createObj.location
-    });
+      location: createObj.location,
+      academicTerms: []
+    };
+    return this._commandsProcessor.sendCommand('schools', this.doAdd, school);
   }
 
   async update(updateObj: IUpdateSchoolRequest, id: string, byUser: IUserToken) {
     const isAuthorized = await this.authorize(byUser);
     if (!isAuthorized) throw new UnauthorizedError();
     validators.validateUpdateSchool(updateObj);
-    return this.schoolsRepo.update({ _id: id }, { $set: updateObj });
+    return this._commandsProcessor.sendCommand('schools', this.doUpdate, id, updateObj);
   }
 
   async patch(updateObj: IUpdateSchoolRequest, id: string, byUser: IUserToken) {
@@ -87,4 +92,13 @@ export class SchoolsService {
     return `${name.toLocaleLowerCase().replace(/\s/g, '')}_${generate('0123456789abcdef', 5)}`;
   }
 
+
+
+  private async doAdd(school: ISchool) {
+    return this.schoolsRepo.add(school);
+  }
+
+  private async doUpdate(id: string, updateObj: any) {
+    return this.schoolsRepo.update({ _id: id }, { $set: updateObj });
+  }
 }

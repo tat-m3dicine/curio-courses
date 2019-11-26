@@ -1,12 +1,13 @@
 import { KafkaStreams } from 'kafka-streams';
 import { KafkaService } from '../KafkaService';
-import { SkillRatingsAggregatorStream } from './SkillsRatingAggregatorStream';
+import { CommandsStream } from './CommandsStream';
 import { getNativeConfig } from './config';
+import { CommandsProcessor } from '../CommandsProcessor';
 
 export class StreamsProcessor {
 
   private _streams: any[] = [];
-  constructor(protected kafakService: KafkaService) {
+  constructor(protected _kafakService: KafkaService, protected _commandsProcessor: CommandsProcessor) {
 
   }
 
@@ -14,12 +15,12 @@ export class StreamsProcessor {
 
     const promises: any[] = [];
 
-    const skillsRatingAggregatorKafkaStreams = new KafkaStreams(
-      <any>getNativeConfig('SkillsRatingAggregatorStream', 'SkillsRatingAggregatorStream')
+    const commandsKafkaStreams = new KafkaStreams(
+      <any>getNativeConfig('CoursesCommandsStreams', 'CoursesCommandsStreams')
     );
-    const skillsRatingAggregatorStream = new SkillRatingsAggregatorStream(skillsRatingAggregatorKafkaStreams);
-    promises.push(skillsRatingAggregatorStream.start());
-    this._streams.push(skillsRatingAggregatorStream);
+    const commandsStream = new CommandsStream(commandsKafkaStreams, this._commandsProcessor);
+    promises.push(commandsStream.start());
+    this._streams.push(commandsStream);
 
     return Promise.all(promises);
   }
