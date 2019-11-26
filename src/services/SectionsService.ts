@@ -27,8 +27,7 @@ export class SectionsService {
   }
 
   async create(section: ICreateSectionRequest, byUser: IUserToken) {
-    const isAuthorized = await this.authorize(byUser);
-    if (!isAuthorized) throw new UnauthorizedError();
+    this.authorize(byUser);
     validators.validateCreateSection(section);
     return this.sectionsRepo.add({
       _id: this.newSectionId(section),
@@ -38,26 +37,28 @@ export class SectionsService {
   }
 
   async get(_id: string, byUser: IUserToken) {
-    const isAuthorized = await this.authorize(byUser);
-    if (!isAuthorized) throw new UnauthorizedError();
+    this.authorize(byUser);
     return this.sectionsRepo.findById(_id);
   }
 
   async list(paging: IPaging, byUser: IUserToken) {
-    const isAuthorized = await this.authorize(byUser);
-    if (!isAuthorized) throw new UnauthorizedError();
+    this.authorize(byUser);
     return this.sectionsRepo.findManyPage({}, paging);
   }
 
   async delete(_id: string, byUser: IUserToken) {
-    const isAuthorized = await this.authorize(byUser);
-    if (!isAuthorized) throw new UnauthorizedError();
+    this.authorize(byUser);
     return this.sectionsRepo.delete({ _id });
   }
 
+  async getStudents(_id: string, byUser: IUserToken) {
+    this.authorize(byUser);
+    const section = await this.sectionsRepo.findById(_id);
+    return section ? section.students : undefined;
+  }
+
   async registerStudents(_id: string, studentIds: string[], byUser: IUserToken) {
-    const isAuthorized = await this.authorize(byUser);
-    if (!isAuthorized) throw new UnauthorizedError();
+    this.authorize(byUser);
     const section: ISection | undefined = await this.sectionsRepo.findById(_id);
     if (!section) throw new NotFoundError(`Couldn't find section '${_id}'`);
 
@@ -70,26 +71,26 @@ export class SectionsService {
     });
   }
 
-  async removeStudents(id: string, studentIds: string[], byUser: IUserToken) {
-    const isAuthorized = await this.authorize(byUser);
-    if (!isAuthorized) throw new UnauthorizedError();
-    const section: ISection | undefined = await this.sectionsRepo.findById(id);
-    if (!section) throw new NotFoundError(`Couldn't find section '${id}'`);
+  async removeStudents(_id: string, studentIds: string[], byUser: IUserToken) {
+    this.authorize(byUser);
+    const section: ISection | undefined = await this.sectionsRepo.findById(_id);
+    if (!section) throw new NotFoundError(`Couldn't find section '${_id}'`);
 
     const coursesRepoWithTransactions = this._uow.getRepository('Courses', true) as CoursesRepository;
     const sectionsRepoWithTransactions = this._uow.getRepository('Sections', true) as SectionsRepository;
 
-    await coursesRepoWithTransactions.finishStudentsCourses(id, studentIds);
-    const updatedSection = await sectionsRepoWithTransactions.update({ _id: id }, {
+    await coursesRepoWithTransactions.finishStudentsCourses(_id, studentIds);
+    const updatedSection = await sectionsRepoWithTransactions.update({ _id }, {
       $pull: { students: { _id: { $in: studentIds } } }
     });
     await this._uow.commit();
     return updatedSection;
   }
 
-  protected async authorize(byUser: IUserToken) {
+  protected authorize(byUser: IUserToken) {
     if (!byUser) throw new ForbiddenError('access token is required!');
-    return byUser.role && byUser.role.split(',').includes(config.authorizedRole);
+    const isAuthorized = byUser.role.split(',').includes(config.authorizedRole);
+    if (!isAuthorized) throw new UnauthorizedError('you are not authorized!');
   }
 
   protected newSectionId(section: ICreateSectionRequest) {

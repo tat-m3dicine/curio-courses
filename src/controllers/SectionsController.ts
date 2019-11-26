@@ -42,6 +42,14 @@ export class SectionsController {
     ctx.type = 'json';
   }
 
+  async getStudents(ctx: Context, next: () => void) {
+    const result = await this.sectionsService.getStudents(ctx.params.id, ctx.user);
+    if (!result) throw new NotFoundError(`Couldn't find section '${ctx.params.id}'`);
+    ctx.status = 200;
+    ctx.body = { ok: true, result };
+    ctx.type = 'json';
+  }
+
   async registerStudents(ctx: Context, next: () => void) {
     const result = await this.sectionsService.registerStudents(ctx.params.id, ctx.request.body.students, ctx.user);
     if (!result) throw new ServerError(`Couldn't register students in section '${ctx.params.id}'`);

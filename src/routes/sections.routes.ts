@@ -26,6 +26,10 @@ export default () => {
       const controller = new SectionsController(new SectionsService(ctx.uow));
       return controller.delete(ctx, next);
     })
+    .get('/:id/students', (ctx: Koa.Context, next: () => void) => {
+      const controller = new SectionsController(new SectionsService(ctx.uow));
+      return controller.getStudents(ctx, next);
+    })
     .post('/:id/students/register', (ctx: Koa.Context, next: () => void) => {
       if (!ctx.user) throw new ForbiddenError();
       const controller = new SectionsController(new SectionsService(ctx.uow));
