@@ -1,6 +1,6 @@
 import Validator from 'fastest-validator';
 import { ValidationError } from '../../exceptions/ValidationError';
-import { ICreateSectionRequest } from '../../models/requests/ICreateSectionRequest';
+import { ICreateSectionRequest } from '../../models/requests/ISectionRequests';
 
 const localeSchema = {
   type: 'object',

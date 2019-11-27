@@ -21,15 +21,6 @@ export class SectionsController {
     ctx.type = 'json';
   }
 
-  async get(ctx: Context, next: () => void) {
-    const { schoolId, sectionId } = ctx.params;
-    const result = await this.sectionsService.get(schoolId, sectionId, ctx.user);
-    if (!result) throw new NotFoundError(`Couldn't find section '${sectionId}' in school '${sectionId}'`);
-    ctx.status = 200;
-    ctx.body = { ok: true, result };
-    ctx.type = 'json';
-  }
-
   async list(ctx: Context, next: () => void) {
     const result = await this.sectionsService.list(ctx.params.schoolId, this.extractPaging(ctx.query), ctx.user);
     ctx.status = 200;
@@ -37,10 +28,19 @@ export class SectionsController {
     ctx.type = 'json';
   }
 
+  async get(ctx: Context, next: () => void) {
+    const { schoolId, sectionId } = ctx.params;
+    const result = await this.sectionsService.get(schoolId, sectionId, ctx.user);
+    if (!result) throw new NotFoundError(`Couldn't find section '${sectionId}' in school '${schoolId}'`);
+    ctx.status = 200;
+    ctx.body = { ok: true, result };
+    ctx.type = 'json';
+  }
+
   async delete(ctx: Context, next: () => void) {
     const { schoolId, sectionId } = ctx.params;
-    await this.sectionsService.delete(schoolId, sectionId, ctx.user);
-    ctx.status = 200;
+    const result = await this.sectionsService.delete(schoolId, sectionId, ctx.user);
+    ctx.status = result.done ? 200 : 202;
     ctx.body = { ok: true };
     ctx.type = 'json';
   }

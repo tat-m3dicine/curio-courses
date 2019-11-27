@@ -6,7 +6,7 @@ import { IUserToken } from '../models/IUserToken';
 import { SectionsRepository } from '../repositories/SectionsRepository';
 import { StudentsRepository } from '../repositories/StudentsRepository';
 import generate = require('nanoid/non-secure/generate');
-import { ICreateSectionRequest } from '../models/requests/ICreateSectionRequest';
+import { ICreateSectionRequest } from '../models/requests/ISectionRequests';
 import { NotFoundError } from '../exceptions/NotFoundError';
 import { ISection } from '../models/entities/ISection';
 import { IStudent } from '../models/entities/Common';
@@ -38,10 +38,11 @@ export class SectionsService {
     this.authorize(byUser);
     validators.validateCreateSection(section);
     await this.validateLicense(section);
+    const students = section.students ? await this.getStudentsFromDb(section.students) : [];
     return this._commandsProcessor.sendCommand('sections', this.doCreate, {
       _id: this.newSectionId(section),
-      students: [],
-      ...section
+      ...section,
+      students
     });
   }
   private async doCreate(section: ISection) {
@@ -60,6 +61,12 @@ export class SectionsService {
 
   async delete(schoolId: string, sectionId: string, byUser: IUserToken) {
     this.authorize(byUser);
+    const section = await this.sectionsRepo.findOne({ _id: sectionId, schoolId });
+    if (!section) throw new NotFoundError(`Couldn't find section '${sectionId}' in school '${schoolId}'`);
+    return this._commandsProcessor.sendCommand('sections', this.doDelete, sectionId);
+  }
+
+  private async doDelete(sectionId: string) {
     return this.sectionsRepo.delete({ _id: sectionId });
   }
 
@@ -75,8 +82,7 @@ export class SectionsService {
     if (!section) throw new NotFoundError(`Couldn't find section '${sectionId}' in school '${schoolId}'`);
 
     studentIds = studentIds.filter(_id => !section.students.some(student => student._id === _id));
-    const dbStudents: IStudent[] = await this.studentsRepo.findMany({ _id: { $in: studentIds } });
-    const students: IStudent[] = studentIds.map(_id => dbStudents.find(student => student._id === _id) || { _id });
+    const students = this.getStudentsFromDb(studentIds);
 
     return this.sectionsRepo.update({ _id: sectionId, schoolId }, {
       $push: { students: { $each: students } }
@@ -97,6 +103,11 @@ export class SectionsService {
     });
     await this._uow.commit();
     return updatedSection;
+  }
+
+  protected async getStudentsFromDb(ids: string[]): Promise<IStudent[]> {
+    const dbStudents: IStudent[] = await this.studentsRepo.findMany({ _id: { $in: ids } });
+    return ids.map(_id => dbStudents.find(student => student._id === _id) || { _id });
   }
 
   protected authorize(byUser: IUserToken) {
