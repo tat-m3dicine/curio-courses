@@ -32,7 +32,7 @@ export class CommandsProcessor {
       v: '1.0.0',
       key: commandKey
     };
-    await this._kafkaService.send(config.kafkaCommandsTopic, event);
+    await this._kafkaService.send(config.kafkaCommandsTopic, 0, event);
     return new Promise((resolve, reject) => {
       setTimeout(() => {
         this._commandsMap.delete(commandKey);

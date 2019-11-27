@@ -5,8 +5,6 @@ import { getDbClient } from '../../utils/getDbClient';
 import { fromPromise } from 'most';
 import { UnitOfWork } from '@saal-oryx/unit-of-work';
 import { getFactory } from '../../repositories/RepositoryFactory';
-import { ISchool } from '../../models/entities/ISchool';
-import { SchoolsRepository } from '../../repositories/SchoolsRepository';
 import { IAppEvent } from '../../models/events/IAppEvent';
 import { CommandsProcessor } from '../CommandsProcessor';
 import { SchoolsService } from '../SchoolsService';
@@ -33,7 +31,15 @@ export class CommandsStream {
     const uow = new UnitOfWork(client, getFactory(), { useTransactions: false });
     this._services.set('schools', new SchoolsService(uow, this._commandsProcessor));
     this._services.set('sections', new SectionsService(uow, this._commandsProcessor));
-    return Promise.all([this.rawStart(), this.failuresStart()]);
+    const reesult = await Promise.all([this.rawStart(), this.failuresStart()]);
+    // tslint:disable-next-line: no-string-literal
+    const kafkaConsumer = this._stream['kafka']['consumer'];
+    console.log('getAssignedPartitions out', kafkaConsumer.getAssignedPartitions());
+    kafkaConsumer.consumer.on('rebalance', () => {
+      console.log('rebalance', arguments);
+      console.log('getAssignedPartitions', kafkaConsumer.getAssignedPartitions());
+    });
+    return reesult;
   }
 
   protected async rawStart() {

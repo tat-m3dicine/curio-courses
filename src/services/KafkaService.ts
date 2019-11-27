@@ -32,14 +32,15 @@ export class KafkaService {
     });
   }
 
-  async send(topic: string, event: IAppEvent) {
+  async send(topic: string, partition: number, event: IAppEvent) {
     await this._producer.connect();
     return this._producer.send({
       topic,
       messages: [{
         timestamp: event.timestamp.toString(),
         key: event.key || this.getNewKey(),
-        value: JSON.stringify(event)
+        value: JSON.stringify(event),
+        partition
       }]
     });
   }

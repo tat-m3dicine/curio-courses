@@ -49,7 +49,7 @@ const nativeConfig = {
     'fetch.wait.max.ms': 1000,
     'queue.buffering.max.ms': 1000,
 
-    'batch.num.messages': 10000
+    'batch.num.messages': 10000,
   },
   tconf: {
     'offset.store.method': 'broker',
