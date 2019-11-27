@@ -5,12 +5,11 @@ import { getDbClient } from '../../utils/getDbClient';
 import { fromPromise } from 'most';
 import { UnitOfWork } from '@saal-oryx/unit-of-work';
 import { getFactory } from '../../repositories/RepositoryFactory';
-import { ISchool } from '../../models/entities/ISchool';
-import { SchoolsRepository } from '../../repositories/SchoolsRepository';
 import { IAppEvent } from '../../models/events/IAppEvent';
 import { CommandsProcessor } from '../CommandsProcessor';
 import { SchoolsService } from '../SchoolsService';
 import { SectionsService } from '../SectionsService';
+import { CoursesService } from '../CoursesService';
 import { ServerError } from '../../exceptions/ServerError';
 
 const logger = loggerFactory.getLogger('CommandsStream');
@@ -20,7 +19,7 @@ export class CommandsStream {
   protected _stream: KStream;
   protected _failuresStream: KStream;
 
-  protected _services = new Map<string, SchoolsService | SectionsService>();
+  protected _services = new Map<string, SchoolsService | SectionsService | CoursesService>();
 
   constructor(protected _kafkaStreams: KafkaStreams, protected _commandsProcessor: CommandsProcessor) {
     logger.debug('Init ...');
@@ -33,6 +32,7 @@ export class CommandsStream {
     const uow = new UnitOfWork(client, getFactory(), { useTransactions: false });
     this._services.set('schools', new SchoolsService(uow, this._commandsProcessor));
     this._services.set('sections', new SectionsService(uow, this._commandsProcessor));
+    this._services.set('courses', new CoursesService(uow, this._commandsProcessor));
     return Promise.all([this.rawStart(), this.failuresStart()]);
   }
 
