@@ -16,6 +16,7 @@ import { ISchool } from '../models/entities/ISchool';
 import { InvalidLicenseError } from '../exceptions/InvalidLicenseError';
 import { ForbiddenError } from '../exceptions/ForbiddenError';
 import { CommandsProcessor } from './CommandsProcessor';
+import { InvalidRequestError } from '../exceptions/InvalidRequestError';
 
 export class SectionsService {
 
@@ -37,14 +38,16 @@ export class SectionsService {
   async create(section: ICreateSectionRequest, byUser: IUserToken) {
     this.authorize(byUser);
     validators.validateCreateSection(section);
-    await this.validateLicense(section);
-    const students = section.students ? await this.getStudentsFromDb(section.students) : [];
-    return this._commandsProcessor.sendCommand('sections', this.doCreate, {
+    if (section.students) {
+      await this.validateStudentsInSchool(section.students, section.schoolId);
+    } else section.students = [];
+    await this.validateWithSchoolLicense(section.grade, section.schoolId);
+    return this._commandsProcessor.sendCommand('sections', this.doCreate, <ISection>{
       _id: this.newSectionId(section),
-      ...section,
-      students
+      ...section
     });
   }
+
   private async doCreate(section: ISection) {
     return this.sectionsRepo.add(section);
   }
@@ -78,14 +81,19 @@ export class SectionsService {
 
   async registerStudents(schoolId: string, sectionId: string, studentIds: string[], byUser: IUserToken) {
     this.authorize(byUser);
+    if (!studentIds || studentIds.length === 0) return new InvalidRequestError('No students were provided!');
     const section: ISection | undefined = await this.sectionsRepo.findOne({ _id: sectionId, schoolId });
     if (!section) throw new NotFoundError(`Couldn't find section '${sectionId}' in school '${schoolId}'`);
 
-    studentIds = studentIds.filter(_id => !section.students.some(student => student._id === _id));
-    const students = this.getStudentsFromDb(studentIds);
+    studentIds = studentIds.filter(studentId => !section.students.includes(studentId));
+    if (studentIds.length === 0) return new InvalidRequestError(`All students were already registered in section ${sectionId}`);
+    await this.validateStudentsInSchool(studentIds, sectionId);
+    return this._commandsProcessor.sendCommand('sections', this.doRegisterStudents, sectionId, schoolId, studentIds);
+  }
 
+  private async doRegisterStudents(sectionId: string, schoolId: string, studentIds: string[]) {
     return this.sectionsRepo.update({ _id: sectionId, schoolId }, {
-      $push: { students: { $each: students } }
+      $addToSet: { students: studentIds }
     });
   }
 
@@ -93,7 +101,10 @@ export class SectionsService {
     this.authorize(byUser);
     const section: ISection | undefined = await this.sectionsRepo.findOne({ _id: sectionId, schoolId });
     if (!section) throw new NotFoundError(`Couldn't find section '${sectionId}' in school '${schoolId}'`);
+    return this._commandsProcessor.sendCommand('sections', this.doRemoveStudents, sectionId, schoolId, studentIds);
+  }
 
+  private async doRemoveStudents(sectionId: string, schoolId: string, studentIds: string[]) {
     const coursesRepoWithTransactions = this._uow.getRepository('Courses', true) as CoursesRepository;
     const sectionsRepoWithTransactions = this._uow.getRepository('Sections', true) as SectionsRepository;
 
@@ -103,11 +114,6 @@ export class SectionsService {
     });
     await this._uow.commit();
     return updatedSection;
-  }
-
-  protected async getStudentsFromDb(ids: string[]): Promise<IStudent[]> {
-    const dbStudents: IStudent[] = await this.studentsRepo.findMany({ _id: { $in: ids } });
-    return ids.map(_id => dbStudents.find(student => student._id === _id) || { _id });
   }
 
   protected authorize(byUser: IUserToken) {
@@ -120,8 +126,15 @@ export class SectionsService {
     return `${section.grade}_${section.schoolId}_${generate('0123456789abcdef', 5)}`.toLocaleLowerCase().replace(/\s/g, '');
   }
 
-  protected async validateLicense(section: ICreateSectionRequest) {
-    const { schoolId, grade } = section;
+  protected async validateStudentsInSchool(studentIds: string[], schoolId: string) {
+    const dbStudents: IStudent[] = await this.studentsRepo.findMany({ '_id': { $in: studentIds }, 'registration.schoolId': schoolId });
+    if (studentIds.length !== dbStudents.length) {
+      const notRegistered = studentIds.filter(_id => dbStudents.find(student => student._id === _id));
+      throw new InvalidRequestError(`Students [${notRegistered.join(',')}] aren't registered in school ${schoolId}!`);
+    }
+  }
+
+  protected async validateWithSchoolLicense(schoolId: string, grade: string) {
     const school: ISchool | undefined = await this.schoolsRepo.findOne({ _id: schoolId });
     if (!school || !school.license || !school.license.package || !(grade in school.license.package)) {
       throw new InvalidLicenseError(`'${schoolId}' school doesn't have a valid license for grade '${grade}'`);

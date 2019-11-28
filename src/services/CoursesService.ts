@@ -31,7 +31,7 @@ export class CoursesService {
   }
 
   protected get coursesRepo() {
-    return this._uow.getRepository('Courses') as StudentsRepository;
+    return this._uow.getRepository('Courses') as CoursesRepository;
   }
 
   async create(course: ICreateCourseRequest, byUser: IUserToken) {

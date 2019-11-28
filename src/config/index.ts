@@ -13,6 +13,8 @@ const config: {
   historyLength: number;
   kafkaCommandsTopic: string;
   comamndsTimeout: number;
+  redisHost: string;
+  redisPort: number;
 } = <any>{
   port: 80,
   production: false,
@@ -30,6 +32,19 @@ if (process.env.NODE_ENV) config.production = process.env.NODE_ENV === 'producti
 if (process.env.KAFKA_PRODUCERS_GROUP) config.kafkaProducersGroup = process.env.KAFKA_PRODUCERS_GROUP;
 if (process.env.KAFKA_CLIENT_ID) config.kafkaClientId = process.env.KAFKA_CLIENT_ID;
 if (process.env.AUTHORIZED_ROLE) config.authorizedRole = process.env.AUTHORIZED_ROLE;
+
+if (process.env.REDIS_PORT) config.redisPort = parseInt(process.env.REDIS_PORT);
+else {
+  logger.error('Missing parameter: REDIS_PORT! Exiting...');
+  process.exit(1);
+}
+
+if (process.env.REDIS_HOST) config.redisHost = process.env.REDIS_HOST;
+else {
+  logger.error('Missing parameter: REDIS_HOST! Exiting...');
+  process.exit(1);
+}
+
 if (process.env.CONTRIBUTIONS_SCALER) {
   const scaler = parseInt(process.env.CONTRIBUTIONS_SCALER);
   if (scaler > 1) config.contributionsScaler = scaler;

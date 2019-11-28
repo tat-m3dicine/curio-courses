@@ -5,5 +5,5 @@ export interface ISection extends Partial<IAuditable>, IEntity {
   locales: ILocales;
   schoolId: string;
   grade: string;
-  students: IStudent[];
+  students: string[];
 }
