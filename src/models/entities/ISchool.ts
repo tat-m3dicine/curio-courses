@@ -11,11 +11,11 @@ export interface ISchool extends Partial<IAuditable>, IEntity {
 export interface ILicense {
   students: {
     max: number; // *
-    consumed: number;
+    consumed?: number;
   };
   teachers: {
     max: number; // *
-    consumed: number;
+    consumed?: number;
   };
   validFrom: Date;
   validTo: Date; // *

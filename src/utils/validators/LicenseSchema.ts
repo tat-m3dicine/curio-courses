@@ -1,6 +1,7 @@
 import Validator from 'fastest-validator';
 import { ValidationError } from '../../exceptions/ValidationError';
 import { ICreateLicenseRequest } from '../../models/requests/ISchoolRequests';
+const validator = new Validator();
 
 const createLicenseSchema = {
   students: {
@@ -10,8 +11,23 @@ const createLicenseSchema = {
     type: 'number'
   },
   validTo: {
-    type: 'date',
-    convert: true
+    type: 'custom',
+    convert: true,
+    check(value: any, schema: any) {
+      if (schema.convert === true && !(value instanceof Date)) {
+        value = new Date(value);
+      }
+
+      if (!(value instanceof Date)) {
+        return validator.makeError('date');
+      }
+
+      if (isNaN(value.getTime())) {
+        return validator.makeError('date');
+      }
+      if (new Date(value) <= new Date()) return validator.makeError(`validTo should greated than current Date!`);
+      return true;
+    }
   },
   reference: {
     type: 'string'
@@ -23,14 +39,20 @@ const createLicenseSchema = {
     type: 'object',
     props: {
       grades: {
-        type: 'object'
+        type: 'custom',
+        check(value: any) {
+          const _grades = Object.keys(value);
+          if (_grades.length === 0) return validator.makeError('Grades are required!');
+          if (!_grades.every(_grade => Object.keys(value[_grade]).length > 0)) return validator.makeError('Subjects are required!');
+          if (_grades.map(_grade => Object.keys(value[_grade]).map(subject => value[_grade][subject]))[0][0].length === 0) return validator.makeError('curriculums are required!');
+          return true;
+        }
       }
     }
   },
   $$strict: true
 };
 
-const validator = new Validator();
 const validateCreate = validator.compile(createLicenseSchema);
 
 export const validateCreateLicense = (request: ICreateLicenseRequest) => {

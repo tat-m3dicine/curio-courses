@@ -69,22 +69,16 @@ export class SchoolsService {
     const isAuthorized = await this.authorize(byUser);
     if (!isAuthorized) throw new UnauthorizedError();
     validators.validateCreateLicense(licenseObj);
-    // ToDo: Validate `package.grade.subject.curriculums`
     const license: ILicense = {
-      // ToDo: this is not correct, you can't send consumed = 0.
-      // suppose that a licence is already there, this will reset the consumed to 0.
-      // instead you can send the key 'students.max' : licenseObj.students, which will
-      // only update the max students.
-      // consumed should only be set to 0 on $setOnInsert
-      students: { max: licenseObj.students, consumed: 0 },
-      teachers: { max: licenseObj.teachers, consumed: 0 },
+      students: { max: licenseObj.students },
+      teachers: { max: licenseObj.teachers },
       isEnabled: licenseObj.isEnabled,
       validFrom: new Date(),
       validTo: new Date(licenseObj.validTo),
       reference: licenseObj.reference || byUser.sub,
       package: licenseObj.package
     };
-    return this._commandsProcessor.sendCommand('schools', this.doUpdate, id, license);
+    return this._commandsProcessor.sendCommand('schools', this.doPatch, id, license);
   }
 
   async authorize(byUser: IUserToken) {
@@ -104,7 +98,7 @@ export class SchoolsService {
     return this.schoolsRepo.update({ _id: id }, { $set: updateObj });
   }
 
-  private async doPatch(id: string, school: ISchool) {
+  private async doPatch(id: string, school: Partial<ISchool>) {
     return this.schoolsRepo.patch({ _id: id }, school);
   }
 }
