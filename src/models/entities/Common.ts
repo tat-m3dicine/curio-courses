@@ -1,3 +1,5 @@
+import { IEntity } from '@saal-oryx/unit-of-work';
+
 export interface IAuditable {
   createdAt: Date;
   updatedAt: Date;
@@ -11,12 +13,15 @@ export interface ITeacher {
   finishedDate?: Date;
 }
 
-export interface IStudent {
-  _id: string;
-  profile?: IProfile;
+export interface IStudent extends IEntity {
+  profile: IProfile;
+  registration: {
+    schoolId: string,
+    joinDate: Date
+  };
 }
 
-export interface ICourseStudent extends IStudent {
+export interface IStudentCourseInfo {
   joinDate: Date;
   isEnabled: boolean;
 }
