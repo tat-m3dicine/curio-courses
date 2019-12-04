@@ -1,4 +1,4 @@
-import { ILocales, IStudent, ITeacher } from '../entities/Common';
+import { ILocales } from '../entities/Common';
 
 export interface ICreateCourseRequest {
   schoolId: string;
@@ -9,7 +9,7 @@ export interface ICreateCourseRequest {
   locales: ILocales;
   defaultLocale?: string;
   isEnabled?: boolean;
-  teachers?: ITeacher[];
-  students?: IStudent[];
-  academicTerm: string;
+  teachers?: string[];
+  students?: string[];
+  academicTermId?: string;
 }

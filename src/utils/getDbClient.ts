@@ -24,7 +24,7 @@ export const getDbClient = async () => {
         await result.db().createCollection('Schools');
         await result.db().createCollection('Sections');
         await result.db().createCollection('Courses');
-        await result.db().createCollection('Students');
+        await result.db().createCollection('Users');
 
         // Indices..
         // await result.db().collection('Schools').createIndex({ user_id: 1 });
