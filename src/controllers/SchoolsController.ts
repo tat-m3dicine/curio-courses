@@ -47,7 +47,7 @@ export class SchoolsController {
     ctx.body = { result, ok: true };
     ctx.type = 'json';
   }
-  async patchLicense(ctx: Context, next: () => void) {
+  async addLicense(ctx: Context, next: () => void) {
     const result = await this.schoolService.patchLicense(ctx.request.body, ctx.params.id, ctx.user);
     ctx.status = 200;
     ctx.body = { result, ok: true };

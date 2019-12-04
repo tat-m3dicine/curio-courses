@@ -79,8 +79,13 @@ export class SchoolsService {
       reference: licenseObj.reference || byUser.sub,
       package: licenseObj.package
     };
-    if (licenseObj.students_consumed) license.students_consumed = licenseObj.students_consumed;
-    if (licenseObj.teachers_consumed) license.teachers_consumed = licenseObj.teachers_consumed;
+    if (licenseObj.students_consumed) license.students = { consumed: licenseObj.students_consumed };
+    if (licenseObj.teachers_consumed) license.teachers = { consumed: licenseObj.teachers_consumed };
+    /**
+     * If validFrom is less than existing license valid from
+     */
+    const isLicenseConflicts = await this.schoolsRepo.findOne({ '_id': id, 'license.validTo': { $gte: license.validTo } });
+    if (isLicenseConflicts) throw new InvalidRequestError('ValidTo is conflicts with existing license validTo date, validTo should be greater than');
     return this._commandsProcessor.sendCommand('schools', this.doPatch, id, { license });
   }
 
