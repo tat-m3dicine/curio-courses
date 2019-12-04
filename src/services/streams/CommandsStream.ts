@@ -38,7 +38,7 @@ export class CommandsStream {
 
   protected async rawStart() {
     this._stream
-      .mapJSONConvenience()
+      .map(mapToProperJSON)
       .concatMap(message => {
         logger.debug('raw-db-sink', message.offset, message.value.key);
         const result = this.process(message).then(async result => {
@@ -56,7 +56,7 @@ export class CommandsStream {
 
   protected async failuresStart() {
     this._failuresStream
-      .mapJSONConvenience()
+      .map(mapToProperJSON)
       .concatMap(message => {
         logger.debug('failed-db-sink', message.offset, message.value.key);
         const result = this.process(message)
@@ -106,4 +106,20 @@ export class CommandsStream {
       };
     }
   }
+}
+
+
+function mapToProperJSON(message: any) {
+  const newValue = JSON.parse(message.value, reviver);
+  const newMessage = { ...message, value: newValue };
+  return newMessage;
+}
+
+const dateFormat = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{3}Z$/;
+
+function reviver(key: string, value: any) {
+  if (typeof value === 'string' && dateFormat.test(value)) {
+    return new Date(value);
+  }
+  return value;
 }

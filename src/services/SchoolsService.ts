@@ -10,6 +10,7 @@ import { InvalidRequestError } from '../exceptions/InvalidRequestError';
 import { ILicense, ISchool } from '../models/entities/ISchool';
 import { ForbiddenError } from '../exceptions/ForbiddenError';
 import { CommandsProcessor } from './CommandsProcessor';
+import { ILicenseRequest } from '../models/requests/ILicenseRequest';
 
 import { IAcademicTerm } from '../models/entities/Common';
 
@@ -55,7 +56,7 @@ export class SchoolsService {
     const isAuthorized = await this.authorize(byUser);
     if (!isAuthorized) throw new UnauthorizedError();
     validators.validateUpdateSchool(updateObj);
-    return this._commandsProcessor.sendCommand('schools', this.doUpdate, id, updateObj);
+    return this._commandsProcessor.sendCommand('schools', this.doUpdate, { _id: id }, { $set: updateObj });
   }
 
   async updateAcademics(updateObj: IAcademicTerm, id: string, byUser: IUserToken) {
@@ -69,8 +70,39 @@ export class SchoolsService {
       endDate: new Date(updateObj.endDate),
       gracePeriod: updateObj.gracePeriod,
       isEnabled: updateObj.isEnabled
-     };
-    validators.validateUpdateAcademicsSchool({academicTerms});
+    };
+    validators.validateUpdateAcademicsSchool({ academicTerms });
+    const { filterObj, updateAcademicTerm } = this.transformAcademics(id, updateObj, academicTerms);
+    return this._commandsProcessor.sendCommand('schools', this.doUpdate, filterObj, updateAcademicTerm);
+  }
+
+  async patch(updateObj: IUpdateSchoolRequest, id: string, byUser: IUserToken) {
+    const isAuthorized = await this.authorize(byUser);
+    if (!isAuthorized) throw new UnauthorizedError();
+    if (!updateObj) throw new InvalidRequestError('Request should not be empty!');
+    validators.validateUpdateSchool(updateObj);
+    return this._commandsProcessor.sendCommand('schools', this.doPatch, id, updateObj);
+  }
+
+  async patchLicense(licenseObj: ICreateLicenseRequest, id: string, byUser: IUserToken) {
+    const isAuthorized = await this.authorize(byUser);
+    if (!isAuthorized) throw new UnauthorizedError();
+    validators.validateCreateLicense(licenseObj);
+    const license: ILicenseRequest = {
+      students: { max: licenseObj.students },
+      teachers: { max: licenseObj.teachers },
+      isEnabled: licenseObj.isEnabled,
+      validFrom: new Date(),
+      validTo: new Date(licenseObj.validTo),
+      reference: licenseObj.reference || byUser.sub,
+      package: licenseObj.package
+    };
+    if (licenseObj.students_consumed) license.students_consumed = licenseObj.students_consumed;
+    if (licenseObj.teachers_consumed) license.teachers_consumed = licenseObj.teachers_consumed;
+    return this._commandsProcessor.sendCommand('schools', this.doPatch, id, { license });
+  }
+
+  transformAcademics(id: string, updateObj: any, academicTerms: IAcademicTerm) {
     const filterObj = {
       _id: id,
       academicTerms: {
@@ -100,6 +132,12 @@ export class SchoolsService {
                   { endDate: { $gt: new Date(updateObj.startDate) } },
                   { endDate: { $lt: new Date(updateObj.endDate) } },
                 ]
+              },
+              {
+                $and: [
+                  { startDate: { $eq: new Date(updateObj.startDate) } },
+                  { endDate: { $eq: new Date(updateObj.endDate) } },
+                ]
               }
             ]
           }
@@ -109,33 +147,8 @@ export class SchoolsService {
     const updateAcademicTerm = {
       $addToSet: { academicTerms }
     };
-   return this._commandsProcessor.sendCommand('schools', this.doUpdateAcademics, id, { filterObj, updateAcademicTerm });
+    return { filterObj, updateAcademicTerm };
   }
-
-  async patch(updateObj: IUpdateSchoolRequest, id: string, byUser: IUserToken) {
-    const isAuthorized = await this.authorize(byUser);
-    if (!isAuthorized) throw new UnauthorizedError();
-    if (!updateObj) throw new InvalidRequestError('Request should not be empty!');
-    validators.validateUpdateSchool(updateObj);
-    return this._commandsProcessor.sendCommand('schools', this.doPatch, id, updateObj);
-  }
-
-  async addLicense(licenseObj: ICreateLicenseRequest, id: string, byUser: IUserToken) {
-    const isAuthorized = await this.authorize(byUser);
-    if (!isAuthorized) throw new UnauthorizedError();
-    validators.validateCreateLicense(licenseObj);
-    const license: ILicense = {
-      students: { max: licenseObj.students },
-      teachers: { max: licenseObj.teachers },
-      isEnabled: licenseObj.isEnabled,
-      validFrom: new Date(),
-      validTo: new Date(licenseObj.validTo),
-      reference: licenseObj.reference || byUser.sub,
-      package: licenseObj.package
-    };
-    return this._commandsProcessor.sendCommand('schools', this.doPatch, id, license);
-  }
-
   async authorize(byUser: IUserToken) {
     if (!byUser) throw new ForbiddenError('access token is required!');
     return byUser.role.split(',').includes(config.authorizedRole);
@@ -149,15 +162,11 @@ export class SchoolsService {
     return this.schoolsRepo.add(school);
   }
 
-  private async doUpdate(id: string, updateObj: any) {
-    return this.schoolsRepo.update({ _id: id }, { $set: updateObj });
+  private async doUpdate(filter: any, updateObj: any) {
+    return this.schoolsRepo.update(filter, updateObj);
   }
 
   private async doPatch(id: string, school: Partial<ISchool>) {
     return this.schoolsRepo.patch({ _id: id }, school);
-  }
-
-  private async doUpdateAcademics(id: string, updateObj: any) {
-    return this.schoolsRepo.update({ _id: id }, { $addToSet: updateObj });
   }
 }
