@@ -23,6 +23,12 @@ export class SchoolsController {
     ctx.body = { result, ok: true };
     ctx.type = 'json';
   }
+  async updateAcademics(ctx: Context, next: () => void) {
+    const result = await this.schoolService.updateAcademics(ctx.request.body, ctx.params.id, ctx.user);
+    ctx.status = 200;
+    ctx.body = { result, ok: true };
+    ctx.type = 'json';
+  }
   async patch(ctx: Context, next: () => void) {
     const result = await this.schoolService.patch(ctx.request.body, ctx.params.id, ctx.user);
     ctx.status = 200;

@@ -32,7 +32,7 @@ export interface IProfile {
 }
 
 export interface IAcademicTerm {
-  _id: string;
+  _id?: string;
   year: string;
   term: string;
   startDate: Date;

@@ -11,6 +11,7 @@ import { ILicense, ISchool } from '../models/entities/ISchool';
 import { ForbiddenError } from '../exceptions/ForbiddenError';
 import { CommandsProcessor } from './CommandsProcessor';
 
+import { IAcademicTerm } from '../models/entities/Common';
 
 export class SchoolsService {
 
@@ -57,6 +58,60 @@ export class SchoolsService {
     return this._commandsProcessor.sendCommand('schools', this.doUpdate, id, updateObj);
   }
 
+  async updateAcademics(updateObj: IAcademicTerm, id: string, byUser: IUserToken) {
+    const isAuthorized = await this.authorize(byUser);
+    if (!isAuthorized) throw new UnauthorizedError();
+    const academicTerms: IAcademicTerm = {
+      _id: generate('0123456789abcdef', 10),
+      year: updateObj.year,
+      term: updateObj.term,
+      startDate: new Date(updateObj.startDate),
+      endDate: new Date(updateObj.endDate),
+      gracePeriod: updateObj.gracePeriod,
+      isEnabled: updateObj.isEnabled
+     };
+    validators.validateUpdateAcademicsSchool({academicTerms});
+    const filterObj = {
+      _id: id,
+      academicTerms: {
+        $not: {
+          $elemMatch: {
+            $or: [
+              {
+                $and: [
+                  { startDate: { $gt: new Date(updateObj.startDate) } },
+                  { startDate: { $lt: new Date(updateObj.endDate) } },
+                ]
+              },
+              {
+                $and: [
+                  { startDate: { $lt: new Date(updateObj.startDate) } },
+                  { endDate: { $gt: new Date(updateObj.endDate) } },
+                ]
+              },
+              {
+                $and: [
+                  { startDate: { $gt: new Date(updateObj.startDate) } },
+                  { endDate: { $lt: new Date(updateObj.endDate) } },
+                ]
+              },
+              {
+                $and: [
+                  { endDate: { $gt: new Date(updateObj.startDate) } },
+                  { endDate: { $lt: new Date(updateObj.endDate) } },
+                ]
+              }
+            ]
+          }
+        }
+      }
+    };
+    const updateAcademicTerm = {
+      $addToSet: { academicTerms }
+    };
+   return this._commandsProcessor.sendCommand('schools', this.doUpdateAcademics, id, { filterObj, updateAcademicTerm });
+  }
+
   async patch(updateObj: IUpdateSchoolRequest, id: string, byUser: IUserToken) {
     const isAuthorized = await this.authorize(byUser);
     if (!isAuthorized) throw new UnauthorizedError();
@@ -100,5 +155,9 @@ export class SchoolsService {
 
   private async doPatch(id: string, school: Partial<ISchool>) {
     return this.schoolsRepo.patch({ _id: id }, school);
+  }
+
+  private async doUpdateAcademics(id: string, updateObj: any) {
+    return this.schoolsRepo.update({ _id: id }, { $addToSet: updateObj });
   }
 }

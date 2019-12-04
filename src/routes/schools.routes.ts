@@ -15,6 +15,10 @@ export default (commandsProccessor: CommandsProcessor) => {
       const controller = new SchoolsController(new SchoolsService(ctx.uow, commandsProccessor));
       return controller.addLicense(ctx, next);
     })
+    .post('/:id/academics', (ctx: Koa.Context, next: () => void) => {
+      const controller = new SchoolsController(new SchoolsService(ctx.uow, commandsProccessor));
+      return controller.updateAcademics(ctx, next);
+    })
     .get('/', (ctx: Koa.Context, next: () => void) => {
       const controller = new SchoolsController(new SchoolsService(ctx.uow, commandsProccessor));
       return controller.list(ctx, next);
