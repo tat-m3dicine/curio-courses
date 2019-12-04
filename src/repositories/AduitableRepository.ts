@@ -22,6 +22,7 @@ export abstract class AduitableRepository<T extends IEntity & Partial<IAuditable
 
   patch(filter: any, item: Partial<T>): Promise<T | undefined> {
     item.updatedAt = new Date();
+    console.log('item >>>>>>>>>', item);
     return super.patch(filter, item, false);
   }
 

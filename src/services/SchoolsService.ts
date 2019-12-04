@@ -10,6 +10,7 @@ import { InvalidRequestError } from '../exceptions/InvalidRequestError';
 import { ILicense, ISchool } from '../models/entities/ISchool';
 import { ForbiddenError } from '../exceptions/ForbiddenError';
 import { CommandsProcessor } from './CommandsProcessor';
+import { ILicenseRequest } from '../models/requests/ILicenseRequest';
 
 
 export class SchoolsService {
@@ -65,11 +66,11 @@ export class SchoolsService {
     return this._commandsProcessor.sendCommand('schools', this.doPatch, id, updateObj);
   }
 
-  async addLicense(licenseObj: ICreateLicenseRequest, id: string, byUser: IUserToken) {
+  async patchLicense(licenseObj: ICreateLicenseRequest, id: string, byUser: IUserToken) {
     const isAuthorized = await this.authorize(byUser);
     if (!isAuthorized) throw new UnauthorizedError();
     validators.validateCreateLicense(licenseObj);
-    const license: ILicense = {
+    const license: ILicenseRequest = {
       students: { max: licenseObj.students },
       teachers: { max: licenseObj.teachers },
       isEnabled: licenseObj.isEnabled,
@@ -78,7 +79,9 @@ export class SchoolsService {
       reference: licenseObj.reference || byUser.sub,
       package: licenseObj.package
     };
-    return this._commandsProcessor.sendCommand('schools', this.doPatch, id, license);
+    if (licenseObj.students_consumed) license.students_consumed = licenseObj.students_consumed;
+    if (licenseObj.teachers_consumed) license.teachers_consumed = licenseObj.teachers_consumed;
+    return this._commandsProcessor.sendCommand('schools', this.doPatch, id, { license });
   }
 
   async authorize(byUser: IUserToken) {

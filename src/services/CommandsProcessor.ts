@@ -35,7 +35,7 @@ export class CommandsProcessor {
   }
 
   async sendCommand(serviceName: string, proccessingFunction: Func<Promise<any>>, ...args: any[]): Promise<{ done: boolean, data: any }> {
-    const event = await this.sendCommandAsync(serviceName, proccessingFunction);
+    const event = await this.sendCommandAsync(serviceName, proccessingFunction, ...args);
     return new Promise((resolve, reject) => {
       setTimeout(() => {
         this._commandsMap.delete(event.key);
