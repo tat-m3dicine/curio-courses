@@ -41,11 +41,14 @@ export class SectionsService {
     validators.validateCreateSection(section);
     if (section.students) {
       await this.validateStudentsInSchool(section.students, section.schoolId);
-    } else section.students = [];
+    }
     await this.validateWithSchoolLicense(section.grade, section.schoolId);
     return this._commandsProcessor.sendCommand('sections', this.doCreate, <ISection>{
       _id: this.newSectionId(section),
-      ...section
+      locales: section.locales,
+      schoolId: section.schoolId,
+      grade: section.grade,
+      students: section.students || []
     });
   }
 
@@ -136,7 +139,7 @@ export class SectionsService {
   }
 
   protected async validateWithSchoolLicense(schoolId: string, grade: string) {
-    const school: ISchool | undefined = await this.schoolsRepo.findOne({ _id: schoolId });
+    const school: ISchool | undefined = await this.schoolsRepo.findById(schoolId);
     if (!school || !school.license || !school.license.package || !(grade in school.license.package)) {
       throw new InvalidLicenseError(`'${schoolId}' school doesn't have a valid license for grade '${grade}'`);
     }

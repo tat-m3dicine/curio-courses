@@ -10,12 +10,12 @@ import { ICourse } from '../models/entities/ICourse';
 import { IUser, IAcademicTerm } from '../models/entities/Common';
 import { UsersRepository } from '../repositories/UsersRepository';
 import { CoursesRepository } from '../repositories/CoursesRepository';
-import { SectionsRepository } from '../repositories/SectionsRepository';
 import { SchoolsRepository } from '../repositories/SchoolsRepository';
-import { ISchool } from '../models/entities/ISchool';
 import { InvalidLicenseError } from '../exceptions/InvalidLicenseError';
 import { ForbiddenError } from '../exceptions/ForbiddenError';
 import { CommandsProcessor } from './CommandsProcessor';
+import { InvalidRequestError } from '../exceptions/InvalidRequestError';
+import { Role } from '../models/Role';
 
 export class CoursesService {
 
@@ -26,8 +26,8 @@ export class CoursesService {
     return this._uow.getRepository('Schools') as SchoolsRepository;
   }
 
-  protected get sectionsRepo() {
-    return this._uow.getRepository('Sections') as SectionsRepository;
+  protected get usersRepo() {
+    return this._uow.getRepository('Users') as UsersRepository;
   }
 
   protected get coursesRepo() {
@@ -37,11 +37,46 @@ export class CoursesService {
   async create(course: ICreateCourseRequest, byUser: IUserToken) {
     this.authorize(byUser);
     validators.validateCreateCourse(course);
-    await this.validateLicense(course);
-    return this._commandsProcessor.sendCommand('courses', this.doCreate, {
-      _id: this.newSectionId(course),
-      students: [],
-      ...course
+    const { schoolId, sectionId, curriculum, grade, subject, academicTermId, teachers = [], students = [] } = course;
+    const school = await this.schoolsRepo.findById(schoolId);
+    if (!school || !school.license || !school.license.package) throw new InvalidLicenseError(`'${schoolId}' school doesn't have a vaild license!`);
+    const gradePackage = school.license.package[grade];
+    if (!gradePackage || !gradePackage[subject] || !(gradePackage[subject] instanceof Array) || !gradePackage[subject].includes(curriculum)) {
+      throw new InvalidLicenseError(`Grade '${grade}', subject '${subject}', curriculum '${curriculum}' aren't included in '${schoolId}' school's license package!`);
+    }
+
+    const now = new Date();
+    let academicTerm: IAcademicTerm | undefined;
+    if (academicTermId) {
+      academicTerm = school.academicTerms.find(term => term._id === academicTermId);
+      if (!academicTerm) throw new InvalidLicenseError(`'${academicTermId}' academic term was not found in '${schoolId}' school's registered terms!`);
+      if (academicTerm.endDate < now) throw new InvalidLicenseError(`'${academicTermId}' academic term has already ended!`);
+    } else {
+      academicTerm = school.academicTerms.find(term => term.startDate < now && now < term.endDate);
+      if (!academicTerm) throw new InvalidLicenseError(`No active academic term was found in '${schoolId}' school!`);
+    }
+
+    const usersIds = [...teachers, ...students];
+    const studentsObj: IUser[] = [], teachersObj: IUser[] = [];
+    if (usersIds.length > 0) {
+      const users: IUser[] = await this.usersRepo.findMany({ '_id': { $in: usersIds }, 'registration.schoolId': schoolId });
+      const usersMap: { [_id: string]: IUser } = users.reduce((map, user) => ({ ...map, [user._id]: user }), {});
+
+      students.forEach(id => usersMap[id] && usersMap[id].role.includes(Role.student) && studentsObj.push(usersMap[id]));
+      if (studentsObj.length !== students.length) throw new InvalidRequestError(`Some students aren't registered in school ${schoolId}!`);
+
+      teachers.forEach(id => usersMap[id] && usersMap[id].role.includes(Role.teacher) && teachersObj.push(usersMap[id]));
+      if (teachersObj.length !== teachers.length) throw new InvalidRequestError(`Some teachers aren't registered in school ${schoolId}!`);
+    }
+
+    return this._commandsProcessor.sendCommand('courses', this.doCreate, <ICourse>{
+      _id: this.newSectionId(grade, sectionId),
+      schoolId, sectionId, curriculum, grade, subject, academicTerm,
+      defaultLocale: course.defaultLocale || Object.keys(course.locales)[0] || 'en',
+      isEnabled: course.isEnabled === undefined ? true : course.isEnabled,
+      locales: course.locales,
+      teachers: teachersObj,
+      students: studentsObj
     });
   }
   private async doCreate(course: ICourse) {
@@ -85,11 +120,7 @@ export class CoursesService {
     if (!isAuthorized) throw new UnauthorizedError('you are not authorized!');
   }
 
-  protected newSectionId(section: ICreateCourseRequest) {
-    return `${section.grade}_${section.sectionId}_${generate('0123456789abcdef', 5)}`.toLocaleLowerCase().replace(/\s/g, '');
-  }
-
-  protected async validateLicense(course: ICreateCourseRequest) {
-    // Implement course creation license validation
+  protected newSectionId(grade: string, sectionId: string) {
+    return `${grade}_${sectionId}_${generate('0123456789abcdef', 5)}`.toLocaleLowerCase().replace(/\s/g, '');
   }
 }
