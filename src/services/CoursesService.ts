@@ -79,6 +79,7 @@ export class CoursesService {
       students: studentsObj
     });
   }
+
   private async doCreate(course: ICourse) {
     return this.coursesRepo.add(course);
   }
@@ -112,6 +113,22 @@ export class CoursesService {
 
   private async doDelete(courseId: string) {
     return this.coursesRepo.delete({ _id: courseId });
+  }
+
+  async enrollStudent(schoolId: string, sectionId: string, courseId: string, studentId: string, byUser: IUserToken) {
+    this.authorize(byUser);
+    const student: IUser | undefined = await this.usersRepo.findOne({ '_id': studentId, 'registration.schoolId': schoolId, 'role': Role.student });
+    if (!student) throw new NotFoundError(`Student '${studentId}' was not found in '${schoolId}' school!`);
+    return this._commandsProcessor.sendCommand('courses', this.doEnrollStudent, schoolId, sectionId, courseId, student);
+  }
+
+  private async doEnrollStudent(schoolId: string, sectionId: string, courseId: string, student: IUser) {
+    return this.coursesRepo.update({
+      _id: courseId, schoolId, sectionId,
+      students: { $not: { $elemMatch: { _id: student._id } } }
+    }, {
+      $addToSet: { students: student }
+    });
   }
 
   protected authorize(byUser: IUserToken) {

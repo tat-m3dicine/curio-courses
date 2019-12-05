@@ -54,6 +54,14 @@ export class CoursesController {
     ctx.type = 'json';
   }
 
+  async enrollStudent(ctx: Context, next: () => void) {
+    const { schoolId, sectionId, courseId, studentId } = ctx.params;
+    const result = await this.coursesService.enrollStudent(schoolId, sectionId, courseId, studentId, ctx.user);
+    ctx.status = 200;
+    ctx.body = { ok: true, result: result.data };
+    ctx.type = 'json';
+  }
+
   protected extractPaging(query: any) {
     const { index, size } = query;
     let parsedIndex = parseInt(index);

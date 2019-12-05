@@ -29,11 +29,11 @@ export default (commandsProccessor: CommandsProcessor) => {
     .delete('/:schoolId/sections/:sectionId/courses/:courseId', (ctx: Koa.Context, next: () => void) => {
       const controller = new CoursesController(new CoursesService(ctx.uow, commandsProccessor));
       return controller.delete(ctx, next);
+    })
+    .post('/:schoolId/sections/:sectionId/courses/:courseId/enroll/students/:studentId', (ctx: Koa.Context, next: () => void) => {
+      const controller = new CoursesController(new CoursesService(ctx.uow, commandsProccessor));
+      return controller.enrollStudent(ctx, next);
     });
-  // .post('/:schoolId/sections/:sectionId/courses/:courseId/enroll/students/:studentId', (ctx: Koa.Context, next: () => void) => {
-  //   const controller = new CoursesController(new CoursesService(ctx.uow, commandsProccessor));
-  //   return controller.enrollStudent(ctx, next);
-  // })
   // .post('/:schoolId/sections/:sectionId/courses/:courseId/drop/students/:studentId', (ctx: Koa.Context, next: () => void) => {
   //   const controller = new CoursesController(new CoursesService(ctx.uow, commandsProccessor));
   //   return controller.dropStudent(ctx, next);
