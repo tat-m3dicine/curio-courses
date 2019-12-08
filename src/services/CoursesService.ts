@@ -16,6 +16,7 @@ import { ForbiddenError } from '../exceptions/ForbiddenError';
 import { CommandsProcessor } from './CommandsProcessor';
 import { InvalidRequestError } from '../exceptions/InvalidRequestError';
 import { Role } from '../models/Role';
+import { IUserRequest } from '../models/requests/IUserRequest';
 
 export class CoursesService {
 
@@ -115,19 +116,55 @@ export class CoursesService {
     return this.coursesRepo.delete({ _id: courseId });
   }
 
-  async enrollStudent(schoolId: string, sectionId: string, courseId: string, studentId: string, byUser: IUserToken) {
-    this.authorize(byUser);
-    const student: IUser | undefined = await this.usersRepo.findOne({ '_id': studentId, 'registration.schoolId': schoolId, 'role': Role.student });
-    if (!student) throw new NotFoundError(`Student '${studentId}' was not found in '${schoolId}' school!`);
-    return this._commandsProcessor.sendCommand('courses', this.doEnrollStudent, schoolId, sectionId, courseId, student);
+  async enrollStudent(requestParams: IUserRequest, byUser: IUserToken) {
+    return this.enrollUser({ ...requestParams, role: Role.student }, byUser);
   }
 
-  private async doEnrollStudent(schoolId: string, sectionId: string, courseId: string, student: IUser) {
+  async enrollTeacher(requestParams: IUserRequest, byUser: IUserToken) {
+    return this.enrollUser({ ...requestParams, role: Role.teacher }, byUser);
+  }
+
+  private async enrollUser(requestParams: IUserRequest, byUser: IUserToken) {
+    this.authorize(byUser);
+    const { schoolId, userId, role } = requestParams;
+    const userObj: IUser | undefined = await this.usersRepo.findOne({ '_id': userId, 'registration.schoolId': schoolId, role });
+    if (!userObj) throw new NotFoundError(`${role} '${userId}' was not found in '${schoolId}' school!`);
+    return this._commandsProcessor.sendCommand('courses', this.doEnrollUser, requestParams, userObj);
+  }
+
+  private async doEnrollUser({ schoolId, sectionId, courseId, userId, role }: IUserRequest, userObj: IUser) {
+    const users = `${role}s`;
     return this.coursesRepo.update({
       _id: courseId, schoolId, sectionId,
-      students: { $not: { $elemMatch: { _id: student._id } } }
+      [users]: { $not: { $elemMatch: { _id: userId } } }
     }, {
-      $addToSet: { students: student }
+      $push: { [users]: userObj }
+    });
+  }
+
+  async dropStudent(requestParams: IUserRequest, byUser: IUserToken) {
+    return this.dropUser({ ...requestParams, role: Role.student }, byUser);
+  }
+
+  async dropTeacher(requestParams: IUserRequest, byUser: IUserToken) {
+    return this.dropUser({ ...requestParams, role: Role.teacher }, byUser);
+  }
+
+  private async dropUser(requestParams: IUserRequest, byUser: IUserToken) {
+    this.authorize(byUser);
+    const { schoolId, userId, role } = requestParams;
+    const userObj: IUser | undefined = await this.usersRepo.findOne({ '_id': userId, 'registration.schoolId': schoolId, role });
+    if (!userObj) throw new NotFoundError(`${role} '${userId}' was not found in '${schoolId}' school!`);
+    return this._commandsProcessor.sendCommand('courses', this.doDropUser, requestParams);
+  }
+
+  private async doDropUser({ schoolId, sectionId, courseId, userId, role }: IUserRequest) {
+    const users = `${role}s`;
+    return this.coursesRepo.update({
+      _id: courseId, schoolId, sectionId,
+      [users]: { $elemMatch: { _id: userId } }
+    }, {
+      $pull: { [users]: { _id: userId } }
     });
   }
 

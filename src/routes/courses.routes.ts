@@ -30,14 +30,22 @@ export default (commandsProccessor: CommandsProcessor) => {
       const controller = new CoursesController(new CoursesService(ctx.uow, commandsProccessor));
       return controller.delete(ctx, next);
     })
-    .post('/:schoolId/sections/:sectionId/courses/:courseId/enroll/students/:studentId', (ctx: Koa.Context, next: () => void) => {
+    .post('/:schoolId/sections/:sectionId/courses/:courseId/enroll/students/:userId', (ctx: Koa.Context, next: () => void) => {
       const controller = new CoursesController(new CoursesService(ctx.uow, commandsProccessor));
       return controller.enrollStudent(ctx, next);
+    })
+    .post('/:schoolId/sections/:sectionId/courses/:courseId/drop/students/:userId', (ctx: Koa.Context, next: () => void) => {
+      const controller = new CoursesController(new CoursesService(ctx.uow, commandsProccessor));
+      return controller.dropStudent(ctx, next);
+    })
+    .post('/:schoolId/sections/:sectionId/courses/:courseId/enroll/teachers/:userId', (ctx: Koa.Context, next: () => void) => {
+      const controller = new CoursesController(new CoursesService(ctx.uow, commandsProccessor));
+      return controller.enrollTeacher(ctx, next);
+    })
+    .post('/:schoolId/sections/:sectionId/courses/:courseId/drop/teachers/:userId', (ctx: Koa.Context, next: () => void) => {
+      const controller = new CoursesController(new CoursesService(ctx.uow, commandsProccessor));
+      return controller.dropTeacher(ctx, next);
     });
-  // .post('/:schoolId/sections/:sectionId/courses/:courseId/drop/students/:studentId', (ctx: Koa.Context, next: () => void) => {
-  //   const controller = new CoursesController(new CoursesService(ctx.uow, commandsProccessor));
-  //   return controller.dropStudent(ctx, next);
-  // })
   // .post('/:schoolId/sections/:sectionId/courses/:courseId/enroll/students', (ctx: Koa.Context, next: () => void) => {
   //   const controller = new CoursesController(new CoursesService(ctx.uow, commandsProccessor));
   //   return controller.enrollStudents(ctx, next);
