@@ -44,7 +44,7 @@ const updateSchoolsSchema = {
   $$strict: true
 };
 
-const updateSchoolsWithAcademicsSchema = {
+const updateAcademicsSchema = {
   academicTerms: {
     type: 'object',
     optional: true,
@@ -75,7 +75,7 @@ const updateSchoolsWithAcademicsSchema = {
 const validator = new Validator();
 const validateCreate = validator.compile(createSchoolsSchema);
 const validateUpdate = validator.compile(updateSchoolsSchema);
-const validateUpdateAcademics = validator.compile(updateSchoolsWithAcademicsSchema);
+const validateUpdateAcademics = validator.compile(updateAcademicsSchema);
 
 export const validateCreateSchool = (request: ICreateSchoolRequest) => {
   const isValidationPassed = validateCreate(request);

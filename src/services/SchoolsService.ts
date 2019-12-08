@@ -107,7 +107,7 @@ export class SchoolsService {
     return this._commandsProcessor.sendCommand('schools', this.doPatch, id, { license });
   }
 
-  academicFilters(id: string, updateObj: any, academicTerms: IAcademicTerm) {
+  academicFilters(id: string, updateObj: IAcademicTermRequest, academicTerms: IAcademicTerm) {
     const filterObj = {
       _id: id,
       academicTerms: {

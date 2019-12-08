@@ -34,7 +34,6 @@ export interface IPackage {
 }
 
 export interface IAcademicTermRequest {
-  _id?: string;
   year: string;
   term: string;
   startDate: Date;
