@@ -27,6 +27,7 @@ const courseCreateSchema = {
   schoolId: 'string',
   sectionId: 'string',
   curriculum: 'string',
+  grade: 'string',
   subject: 'string',
   defaultLocale: {
     type: 'string',
@@ -34,6 +35,20 @@ const courseCreateSchema = {
   },
   isEnabled: {
     type: 'boolean',
+    optional: true
+  },
+  teachers: {
+    type: 'array',
+    items: 'string',
+    optional: true
+  },
+  students: {
+    type: 'array',
+    items: 'string',
+    optional: true
+  },
+  academicTermId: {
+    type: 'string',
     optional: true
   },
   $$strict: true
@@ -62,11 +77,13 @@ const validateUpdate = validator.compile(courseUpdateSchema);
 
 export const validateCreateCourse = (request: ICreateCourseRequest) => {
   const isValidationPassed = validateCreate(request);
-  if (typeof isValidationPassed === 'boolean') {
-    return isValidationPassed;
-  } else {
+  if (typeof isValidationPassed !== 'boolean') {
     throw new ValidationError(isValidationPassed);
   }
+  if (Object.keys(request.locales).length === 0) {
+    throw new ValidationError([validator.makeError('No locales were sent!')]);
+  }
+  return isValidationPassed;
 };
 
 export const validateUpdateCourse = (request: Partial<ICourse>) => {
@@ -77,3 +94,4 @@ export const validateUpdateCourse = (request: Partial<ICourse>) => {
     throw new ValidationError(isValidationPassed);
   }
 };
+

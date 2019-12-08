@@ -7,7 +7,7 @@ import { UnauthorizedError } from '../exceptions/UnauthorizedError';
 import generate = require('nanoid/non-secure/generate');
 import validators from '../utils/validators';
 import { InvalidRequestError } from '../exceptions/InvalidRequestError';
-import { ILicense, ISchool } from '../models/entities/ISchool';
+import { ILicense, ISchool, IAcademicTermRequest } from '../models/entities/ISchool';
 import { ForbiddenError } from '../exceptions/ForbiddenError';
 import { CommandsProcessor } from './CommandsProcessor';
 import { ILicenseRequest } from '../models/requests/ILicenseRequest';
@@ -59,7 +59,7 @@ export class SchoolsService {
     return this._commandsProcessor.sendCommand('schools', this.doUpdate, { _id: id }, { $set: updateObj });
   }
 
-  async updateAcademics(updateObj: IAcademicTerm, id: string, byUser: IUserToken) {
+  async updateAcademics(updateObj: IAcademicTermRequest, id: string, byUser: IUserToken) {
     const isAuthorized = await this.authorize(byUser);
     if (!isAuthorized) throw new UnauthorizedError();
     const academicTerms: IAcademicTerm = {
@@ -72,7 +72,7 @@ export class SchoolsService {
       isEnabled: updateObj.isEnabled
     };
     validators.validateUpdateAcademicsSchool({ academicTerms });
-    const { filterObj, updateAcademicTerm } = this.transformAcademics(id, updateObj, academicTerms);
+    const { filterObj, updateAcademicTerm } = this.academicFilters(id, updateObj, academicTerms);
     return this._commandsProcessor.sendCommand('schools', this.doUpdate, filterObj, updateAcademicTerm);
   }
 
@@ -97,12 +97,17 @@ export class SchoolsService {
       reference: licenseObj.reference || byUser.sub,
       package: licenseObj.package
     };
-    if (licenseObj.students_consumed) license.students_consumed = licenseObj.students_consumed;
-    if (licenseObj.teachers_consumed) license.teachers_consumed = licenseObj.teachers_consumed;
+    if (licenseObj.students_consumed) license.students = { consumed: licenseObj.students_consumed };
+    if (licenseObj.teachers_consumed) license.teachers = { consumed: licenseObj.teachers_consumed };
+    /**
+     * If validFrom is less than existing license valid from
+     */
+    const isLicenseConflicts = await this.schoolsRepo.findOne({ '_id': id, 'license.validTo': { $gte: license.validTo } });
+    if (isLicenseConflicts) throw new InvalidRequestError('ValidTo is conflicts with existing license validTo date, validTo should be greater than');
     return this._commandsProcessor.sendCommand('schools', this.doPatch, id, { license });
   }
 
-  transformAcademics(id: string, updateObj: any, academicTerms: IAcademicTerm) {
+  academicFilters(id: string, updateObj: any, academicTerms: IAcademicTerm) {
     const filterObj = {
       _id: id,
       academicTerms: {
@@ -145,10 +150,11 @@ export class SchoolsService {
       }
     };
     const updateAcademicTerm = {
-      $addToSet: { academicTerms }
+      $push: { academicTerms }
     };
     return { filterObj, updateAcademicTerm };
   }
+
   async authorize(byUser: IUserToken) {
     if (!byUser) throw new ForbiddenError('access token is required!');
     return byUser.role.split(',').includes(config.authorizedRole);

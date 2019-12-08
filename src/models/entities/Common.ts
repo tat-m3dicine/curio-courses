@@ -5,19 +5,13 @@ export interface IAuditable {
   updatedAt: Date;
 }
 
-export interface ITeacher {
-  _id: string;
-  role: string;
+export interface IUser extends IEntity {
   profile: IProfile;
-  joinDate: Date;
-  finishedDate?: Date;
-}
-
-export interface IStudent extends IEntity {
-  profile: IProfile;
+  role: string[];
   registration: {
-    schoolId: string,
-    joinDate: Date
+    schoolId: string;
+    joinDate: Date;
+    finishedDate?: Date;
   };
 }
 
@@ -32,7 +26,7 @@ export interface IProfile {
 }
 
 export interface IAcademicTerm {
-  _id?: string;
+  _id: string;
   year: string;
   term: string;
   startDate: Date;

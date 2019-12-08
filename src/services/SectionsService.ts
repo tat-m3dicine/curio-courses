@@ -4,12 +4,12 @@ import { UnauthorizedError } from '../exceptions/UnauthorizedError';
 import config from '../config';
 import { IUserToken } from '../models/IUserToken';
 import { SectionsRepository } from '../repositories/SectionsRepository';
-import { StudentsRepository } from '../repositories/StudentsRepository';
+import { UsersRepository } from '../repositories/UsersRepository';
 import generate = require('nanoid/non-secure/generate');
 import { ICreateSectionRequest } from '../models/requests/ISectionRequests';
 import { NotFoundError } from '../exceptions/NotFoundError';
 import { ISection } from '../models/entities/ISection';
-import { IStudent } from '../models/entities/Common';
+import { IUser } from '../models/entities/Common';
 import { CoursesRepository } from '../repositories/CoursesRepository';
 import { SchoolsRepository } from '../repositories/SchoolsRepository';
 import { ISchool } from '../models/entities/ISchool';
@@ -17,6 +17,7 @@ import { InvalidLicenseError } from '../exceptions/InvalidLicenseError';
 import { ForbiddenError } from '../exceptions/ForbiddenError';
 import { CommandsProcessor } from './CommandsProcessor';
 import { InvalidRequestError } from '../exceptions/InvalidRequestError';
+import { Role } from '../models/Role';
 
 export class SectionsService {
 
@@ -31,8 +32,8 @@ export class SectionsService {
     return this._uow.getRepository('Sections') as SectionsRepository;
   }
 
-  protected get studentsRepo() {
-    return this._uow.getRepository('Students') as StudentsRepository;
+  protected get usersRepo() {
+    return this._uow.getRepository('Users') as UsersRepository;
   }
 
   async create(section: ICreateSectionRequest, byUser: IUserToken) {
@@ -40,11 +41,14 @@ export class SectionsService {
     validators.validateCreateSection(section);
     if (section.students) {
       await this.validateStudentsInSchool(section.students, section.schoolId);
-    } else section.students = [];
+    }
     await this.validateWithSchoolLicense(section.grade, section.schoolId);
     return this._commandsProcessor.sendCommand('sections', this.doCreate, <ISection>{
       _id: this.newSectionId(section),
-      ...section
+      locales: section.locales,
+      schoolId: section.schoolId,
+      grade: section.grade,
+      students: section.students || []
     });
   }
 
@@ -127,7 +131,7 @@ export class SectionsService {
   }
 
   protected async validateStudentsInSchool(studentIds: string[], schoolId: string) {
-    const dbStudents: IStudent[] = await this.studentsRepo.findMany({ '_id': { $in: studentIds }, 'registration.schoolId': schoolId });
+    const dbStudents: IUser[] = await this.usersRepo.findMany({ '_id': { $in: studentIds }, 'registration.schoolId': schoolId, 'role': Role.student });
     if (studentIds.length !== dbStudents.length) {
       const notRegistered = studentIds.filter(_id => dbStudents.find(student => student._id === _id));
       throw new InvalidRequestError(`Students [${notRegistered.join(',')}] aren't registered in school ${schoolId}!`);
@@ -135,7 +139,7 @@ export class SectionsService {
   }
 
   protected async validateWithSchoolLicense(schoolId: string, grade: string) {
-    const school: ISchool | undefined = await this.schoolsRepo.findOne({ _id: schoolId });
+    const school: ISchool | undefined = await this.schoolsRepo.findById(schoolId);
     if (!school || !school.license || !school.license.package || !(grade in school.license.package)) {
       throw new InvalidLicenseError(`'${schoolId}' school doesn't have a valid license for grade '${grade}'`);
     }

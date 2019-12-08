@@ -17,6 +17,7 @@ import schoolRoutes from './routes/schools.routes';
 import { KafkaService } from './services/KafkaService';
 import sectionsRoutes from './routes/sections.routes';
 import { CommandsProcessor } from './services/CommandsProcessor';
+import coursesRoutes from './routes/courses.routes';
 
 const logger = loggerFactory.getLogger('Index');
 
@@ -63,6 +64,7 @@ let server: import('http').Server;
   // Routes ...
   app.use(schoolRoutes(commandsProcessor).mount('/schools'));
   app.use(sectionsRoutes(commandsProcessor).mount('/schools'));
+  app.use(coursesRoutes(commandsProcessor).mount('/schools'));
 
   app.on('error', err => {
     logger.error('app_error', err);

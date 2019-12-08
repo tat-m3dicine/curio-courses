@@ -13,7 +13,7 @@ export default (commandsProccessor: CommandsProcessor) => {
     })
     .post('/:id/license', (ctx: Koa.Context, next: () => void) => {
       const controller = new SchoolsController(new SchoolsService(ctx.uow, commandsProccessor));
-      return controller.patchLicense(ctx, next);
+      return controller.addLicense(ctx, next);
     })
     .post('/:id/academics', (ctx: Koa.Context, next: () => void) => {
       const controller = new SchoolsController(new SchoolsService(ctx.uow, commandsProccessor));
