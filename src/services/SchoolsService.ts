@@ -7,11 +7,12 @@ import { UnauthorizedError } from '../exceptions/UnauthorizedError';
 import generate = require('nanoid/non-secure/generate');
 import validators from '../utils/validators';
 import { InvalidRequestError } from '../exceptions/InvalidRequestError';
-import { ILicense, ISchool } from '../models/entities/ISchool';
+import { ILicense, ISchool, IAcademicTermRequest } from '../models/entities/ISchool';
 import { ForbiddenError } from '../exceptions/ForbiddenError';
 import { CommandsProcessor } from './CommandsProcessor';
 import { ILicenseRequest } from '../models/requests/ILicenseRequest';
 
+import { IAcademicTerm } from '../models/entities/Common';
 
 export class SchoolsService {
 
@@ -55,7 +56,24 @@ export class SchoolsService {
     const isAuthorized = await this.authorize(byUser);
     if (!isAuthorized) throw new UnauthorizedError();
     validators.validateUpdateSchool(updateObj);
-    return this._commandsProcessor.sendCommand('schools', this.doUpdate, id, updateObj);
+    return this._commandsProcessor.sendCommand('schools', this.doUpdate, { _id: id }, { $set: updateObj });
+  }
+
+  async updateAcademics(updateObj: IAcademicTermRequest, id: string, byUser: IUserToken) {
+    const isAuthorized = await this.authorize(byUser);
+    if (!isAuthorized) throw new UnauthorizedError();
+    const academicTerms: IAcademicTerm = {
+      _id: generate('0123456789abcdef', 10),
+      year: updateObj.year,
+      term: updateObj.term,
+      startDate: new Date(updateObj.startDate),
+      endDate: new Date(updateObj.endDate),
+      gracePeriod: updateObj.gracePeriod,
+      isEnabled: updateObj.isEnabled
+    };
+    validators.validateUpdateAcademicsSchool({ academicTerms });
+    const { filterObj, updateAcademicTerm } = this.academicFilters(id, updateObj, academicTerms);
+    return this._commandsProcessor.sendCommand('schools', this.doUpdate, filterObj, updateAcademicTerm);
   }
 
   async patch(updateObj: IUpdateSchoolRequest, id: string, byUser: IUserToken) {
@@ -89,6 +107,54 @@ export class SchoolsService {
     return this._commandsProcessor.sendCommand('schools', this.doPatch, id, { license });
   }
 
+  academicFilters(id: string, updateObj: IAcademicTermRequest, academicTerms: IAcademicTerm) {
+    const filterObj = {
+      _id: id,
+      academicTerms: {
+        $not: {
+          $elemMatch: {
+            $or: [
+              {
+                $and: [
+                  { startDate: { $gt: new Date(updateObj.startDate) } },
+                  { startDate: { $lt: new Date(updateObj.endDate) } },
+                ]
+              },
+              {
+                $and: [
+                  { startDate: { $lt: new Date(updateObj.startDate) } },
+                  { endDate: { $gt: new Date(updateObj.endDate) } },
+                ]
+              },
+              {
+                $and: [
+                  { startDate: { $gt: new Date(updateObj.startDate) } },
+                  { endDate: { $lt: new Date(updateObj.endDate) } },
+                ]
+              },
+              {
+                $and: [
+                  { endDate: { $gt: new Date(updateObj.startDate) } },
+                  { endDate: { $lt: new Date(updateObj.endDate) } },
+                ]
+              },
+              {
+                $and: [
+                  { startDate: { $eq: new Date(updateObj.startDate) } },
+                  { endDate: { $eq: new Date(updateObj.endDate) } },
+                ]
+              }
+            ]
+          }
+        }
+      }
+    };
+    const updateAcademicTerm = {
+      $push: { academicTerms }
+    };
+    return { filterObj, updateAcademicTerm };
+  }
+
   async authorize(byUser: IUserToken) {
     if (!byUser) throw new ForbiddenError('access token is required!');
     return byUser.role.split(',').includes(config.authorizedRole);
@@ -102,8 +168,8 @@ export class SchoolsService {
     return this.schoolsRepo.add(school);
   }
 
-  private async doUpdate(id: string, updateObj: any) {
-    return this.schoolsRepo.update({ _id: id }, { $set: updateObj });
+  private async doUpdate(filter: any, updateObj: any) {
+    return this.schoolsRepo.update(filter, updateObj);
   }
 
   private async doPatch(id: string, school: Partial<ISchool>) {
