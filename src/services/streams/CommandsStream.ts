@@ -30,7 +30,7 @@ export class CommandsStream {
   async start() {
     const client = await getDbClient();
     const uow = new UnitOfWork(client, getFactory(), { useTransactions: false });
-    this._services.set('schools', new SchoolsService(uow, this._commandsProcessor));
+    this._services.set('schools', new SchoolsService(uow, this._commandsProcessor, new CoursesService(uow, this._commandsProcessor)));
     this._services.set('sections', new SectionsService(uow, this._commandsProcessor));
     this._services.set('courses', new CoursesService(uow, this._commandsProcessor));
     return Promise.all([this.rawStart(), this.failuresStart()]);

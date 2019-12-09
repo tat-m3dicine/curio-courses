@@ -3,6 +3,7 @@ import { Context } from 'koa';
 import loggerFactory from '../utils/logging';
 import { IPaging } from '@saal-oryx/unit-of-work';
 import { SchoolsService } from '../services/SchoolsService';
+import { ConditionalBadRequest } from '../exceptions/CoditionalBadRequest';
 
 const logger = loggerFactory.getLogger('SkillRatingsController');
 
@@ -27,6 +28,13 @@ export class SchoolsController {
     const result = await this.schoolService.updateAcademics(ctx.request.body, ctx.params.id, ctx.user);
     ctx.status = 200;
     ctx.body = { result, ok: true };
+    ctx.type = 'json';
+  }
+  async deleteAcademics(ctx: Context, next: () => void) {
+    const result  = await this.schoolService.deleteAcademics(ctx.params, ctx.user);
+    if (!result.done) throw new ConditionalBadRequest('Unable to delete the Academic Term because Courses are active with this academic term');
+    ctx.status =  200;
+    ctx.body =  { result, ok: true };
     ctx.type = 'json';
   }
   async patch(ctx: Context, next: () => void) {

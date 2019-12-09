@@ -94,6 +94,11 @@ export class CoursesService {
     return this.coursesRepo.findOne({ _id: courseId, sectionId, schoolId });
   }
 
+  async getAcademicTermCourse(academicTermId: string, byUser: IUserToken) {
+    this.authorize(byUser);
+    return this.coursesRepo.findOne({ 'academicTerm._id': academicTermId });
+  }
+
   async update(schoolId: string, sectionId: string, courseId: string, updateObj: Partial<ICourse>, byUser: IUserToken) {
     this.authorize(byUser);
     validators.validateUpdateCourse(updateObj);

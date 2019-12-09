@@ -21,3 +21,8 @@ export interface ICreateLicenseRequest {
   students_consumed?: number;
   teachers_consumed?: number;
 }
+
+export interface IDeleteAcademics {
+  id: string;
+  academicTermId: string;
+}
