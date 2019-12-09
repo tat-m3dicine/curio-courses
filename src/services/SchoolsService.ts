@@ -1,27 +1,31 @@
-import { IUnitOfWork, defaultPaging } from '@saal-oryx/unit-of-work';
-import { IUserToken } from '../models/IUserToken';
-import { SchoolsRepository } from '../repositories/SchoolsRepository';
 import config from '../config';
-import { ICreateSchoolRequest, IUpdateSchoolRequest, ICreateLicenseRequest, IDeleteAcademicTermRequest } from '../models/requests/ISchoolRequests';
-import { UnauthorizedError } from '../exceptions/UnauthorizedError';
-import generate = require('nanoid/non-secure/generate');
 import validators from '../utils/validators';
-import { InvalidRequestError } from '../exceptions/InvalidRequestError';
-import { ILicense, ISchool, IAcademicTermRequest } from '../models/entities/ISchool';
-import { ForbiddenError } from '../exceptions/ForbiddenError';
-import { CommandsProcessor } from './CommandsProcessor';
-import { ILicenseRequest } from '../models/requests/ILicenseRequest';
+import generate from 'nanoid/non-secure/generate';
 
+import { IUserToken } from '../models/IUserToken';
 import { IAcademicTerm } from '../models/entities/Common';
-import { CoursesService } from './CoursesService';
+import { ILicenseRequest } from '../models/requests/ILicenseRequest';
+import { ISchool, IAcademicTermRequest } from '../models/entities/ISchool';
+import { ICreateSchoolRequest, IUpdateSchoolRequest, ICreateLicenseRequest, IDeleteAcademicTermRequest } from '../models/requests/ISchoolRequests';
+import { CommandsProcessor } from './CommandsProcessor';
+import { IUnitOfWork, defaultPaging } from '@saal-oryx/unit-of-work';
+import { SchoolsRepository } from '../repositories/SchoolsRepository';
+import { CoursesRepository } from '../repositories/CoursesRepository';
+import { ForbiddenError } from '../exceptions/ForbiddenError';
+import { UnauthorizedError } from '../exceptions/UnauthorizedError';
+import { InvalidRequestError } from '../exceptions/InvalidRequestError';
 
 export class SchoolsService {
 
-  constructor(protected _uow: IUnitOfWork, protected _commandsProcessor: CommandsProcessor, protected _courseService: CoursesService) {
+  constructor(protected _uow: IUnitOfWork, protected _commandsProcessor: CommandsProcessor) {
   }
 
   protected get schoolsRepo() {
     return this._uow.getRepository('Schools') as SchoolsRepository;
+  }
+
+  protected get coursesRepo() {
+    return this._uow.getRepository('Courses') as CoursesRepository;
   }
 
   async get(id: string) {
@@ -85,9 +89,8 @@ export class SchoolsService {
     const transformDeleteObj = {
       $pull: { academicTerms: { _id: academicTermId } }
     };
-
-    const eligibility = await this._courseService.getAcademicTermCourses(academicTermId, byUser);
-    if (!eligibility) {
+    const result = await this.isAcademicTermActive(academicTermId, byUser);
+    if (!result) {
       return this._commandsProcessor.sendCommand('schools', this.doUpdate, { _id: id }, transformDeleteObj);
     }
     return { done: false };
@@ -191,5 +194,10 @@ export class SchoolsService {
 
   private async doPatch(id: string, school: Partial<ISchool>) {
     return this.schoolsRepo.patch({ _id: id }, school);
+  }
+
+  async isAcademicTermActive(academicTermId: string, byUser: IUserToken) {
+    this.authorize(byUser);
+    return this.coursesRepo.findOne({ 'academicTerm._id': academicTermId });
   }
 }
