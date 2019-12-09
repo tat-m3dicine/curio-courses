@@ -6,7 +6,7 @@ import { IUserToken } from '../models/IUserToken';
 import generate = require('nanoid/non-secure/generate');
 import { ICreateCourseRequest } from '../models/requests/ICourseRequests';
 import { NotFoundError } from '../exceptions/NotFoundError';
-import { ICourse } from '../models/entities/ICourse';
+import { ICourse, IUserCourseInfo } from '../models/entities/ICourse';
 import { IUser, IAcademicTerm } from '../models/entities/Common';
 import { UsersRepository } from '../repositories/UsersRepository';
 import { CoursesRepository } from '../repositories/CoursesRepository';
@@ -116,56 +116,54 @@ export class CoursesService {
     return this.coursesRepo.delete({ _id: courseId });
   }
 
-  async enrollStudent(requestParams: IUserRequest, byUser: IUserToken) {
-    return this.enrollUser({ ...requestParams, role: Role.student }, byUser);
+  async enrollStudents(requestParams: IUserRequest, byUser: IUserToken) {
+    return this.enrollUsers({ ...requestParams, role: Role.student }, byUser);
   }
 
-  async enrollTeacher(requestParams: IUserRequest, byUser: IUserToken) {
-    return this.enrollUser({ ...requestParams, role: Role.teacher }, byUser);
+  async enrollTeachers(requestParams: IUserRequest, byUser: IUserToken) {
+    return this.enrollUsers({ ...requestParams, role: Role.teacher }, byUser);
   }
 
-  private async enrollUser(requestParams: IUserRequest, byUser: IUserToken) {
+  private async enrollUsers(requestParams: IUserRequest, byUser: IUserToken) {
     this.authorize(byUser);
-    const { schoolId, userId, role } = requestParams;
-    const userObj: IUser | undefined = await this.usersRepo.findOne({ '_id': userId, 'registration.schoolId': schoolId, role });
-    if (!userObj) throw new NotFoundError(`${role} '${userId}' was not found in '${schoolId}' school!`);
-    return this._commandsProcessor.sendCommand('courses', this.doEnrollUser, requestParams, userObj);
+    const joinDate = new Date();
+    const { schoolId, userIds, role } = requestParams;
+    const usersObj: IUser[] = await this.usersRepo.findMany({ '_id': { $in: userIds }, 'registration.schoolId': schoolId, role });
+    this.validateAllUsersExist(usersObj, userIds, schoolId, role);
+    const users: IUserCourseInfo[] = usersObj.map(user => ({ _id: user._id, joinDate, isEnabled: true }));
+    return this._commandsProcessor.sendCommand('courses', this.doEnrollUsers, requestParams, users);
   }
 
-  private async doEnrollUser({ schoolId, sectionId, courseId, userId, role }: IUserRequest, userObj: IUser) {
-    const users = `${role}s`;
-    return this.coursesRepo.update({
-      _id: courseId, schoolId, sectionId,
-      [users]: { $not: { $elemMatch: { _id: userId } } }
-    }, {
-      $push: { [users]: userObj }
-    });
+  private async doEnrollUsers({ schoolId, sectionId, courseId, role }: IUserRequest, usersObj: IUserCourseInfo[]) {
+    return this.coursesRepo.addUsersToCourses({ _id: courseId, schoolId, sectionId }, `${role}s`, usersObj);
   }
 
-  async dropStudent(requestParams: IUserRequest, byUser: IUserToken) {
-    return this.dropUser({ ...requestParams, role: Role.student }, byUser);
+  async dropStudents(requestParams: IUserRequest, byUser: IUserToken) {
+    return this.dropUsers({ ...requestParams, role: Role.student }, byUser);
   }
 
-  async dropTeacher(requestParams: IUserRequest, byUser: IUserToken) {
-    return this.dropUser({ ...requestParams, role: Role.teacher }, byUser);
+  async dropTeachers(requestParams: IUserRequest, byUser: IUserToken) {
+    return this.dropUsers({ ...requestParams, role: Role.teacher }, byUser);
   }
 
-  private async dropUser(requestParams: IUserRequest, byUser: IUserToken) {
+  private async dropUsers(requestParams: IUserRequest, byUser: IUserToken) {
     this.authorize(byUser);
-    const { schoolId, userId, role } = requestParams;
-    const userObj: IUser | undefined = await this.usersRepo.findOne({ '_id': userId, 'registration.schoolId': schoolId, role });
-    if (!userObj) throw new NotFoundError(`${role} '${userId}' was not found in '${schoolId}' school!`);
-    return this._commandsProcessor.sendCommand('courses', this.doDropUser, requestParams);
+    const finishDate = new Date();
+    const { schoolId, userIds, role } = requestParams;
+    const usersObj: IUser[] = await this.usersRepo.findMany({ '_id': { $in: userIds }, 'registration.schoolId': schoolId, role });
+    this.validateAllUsersExist(usersObj, userIds, schoolId, role);
+    return this._commandsProcessor.sendCommand('courses', this.doDropUsers, requestParams, finishDate);
   }
 
-  private async doDropUser({ schoolId, sectionId, courseId, userId, role }: IUserRequest) {
-    const users = `${role}s`;
-    return this.coursesRepo.update({
-      _id: courseId, schoolId, sectionId,
-      [users]: { $elemMatch: { _id: userId } }
-    }, {
-      $pull: { [users]: { _id: userId } }
-    });
+  private async doDropUsers({ schoolId, sectionId, courseId, userIds, role }: IUserRequest, finishDate: Date) {
+    return this.coursesRepo.finishUsersInCourses({ _id: courseId, schoolId, sectionId }, `${role}s`, userIds, finishDate);
+  }
+
+  private validateAllUsersExist(usersObj: IUser[], userIds: string[], schoolId: string, role: Role) {
+    if (usersObj.length !== userIds.length) {
+      const notFound: string[] = userIds.reduce((list, id) => usersObj.some(user => user._id === id) ? list : [...list, id], <any>[]);
+      throw new NotFoundError(`${role}s ['${notFound.join("', '")}'] were not found in '${schoolId}' school!`);
+    }
   }
 
   protected authorize(byUser: IUserToken) {
