@@ -32,3 +32,12 @@ export interface IPackage {
   };
   features: string[];
 }
+
+export interface IAcademicTermRequest {
+  year: string;
+  term: string;
+  startDate: Date;
+  endDate: Date;
+  gracePeriod: number;
+  isEnabled: boolean;
+}

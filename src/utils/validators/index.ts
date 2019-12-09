@@ -1,4 +1,4 @@
-import { validateCreateSchool, validateUpdateSchool } from './SchoolsSchema';
+import { validateCreateSchool, validateUpdateSchool, validateUpdateAcademicsSchool } from './SchoolsSchema';
 import { validateCreateSection } from './SectionsSchema';
 import { validateCreateCourse, validateUpdateCourse } from './CoursesSchema';
 import { validateCreateLicense } from './LicenseSchema';
@@ -8,6 +8,7 @@ const validators = {
   validateCreateLicense,
   validateCreateSection,
   validateCreateCourse,
-  validateUpdateCourse
+  validateUpdateCourse,
+  validateUpdateAcademicsSchool
 };
 export default validators;
