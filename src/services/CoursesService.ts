@@ -94,7 +94,7 @@ export class CoursesService {
     return this.coursesRepo.findOne({ _id: courseId, sectionId, schoolId });
   }
 
-  async getAcademicTermCourse(academicTermId: string, byUser: IUserToken) {
+  async getAcademicTermCourses(academicTermId: string, byUser: IUserToken) {
     this.authorize(byUser);
     return this.coursesRepo.findOne({ 'academicTerm._id': academicTermId });
   }

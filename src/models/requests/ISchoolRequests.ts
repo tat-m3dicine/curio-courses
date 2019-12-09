@@ -23,6 +23,6 @@ export interface ICreateLicenseRequest {
 }
 
 export interface IDeleteAcademicTermRequest {
-  schoolId: string;
+  id: string;
   academicTermId: string;
 }

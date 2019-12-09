@@ -78,7 +78,7 @@ export class SchoolsService {
   }
 
   async deleteAcademics(requestParams: IDeleteAcademicTermRequest, byUser: IUserToken) {
-    const { schoolId, academicTermId } = { ...requestParams };
+    const { id, academicTermId } = { ...requestParams };
     const isAuthorized = await this.authorize(byUser);
     if (!isAuthorized) throw new UnauthorizedError();
 
@@ -86,10 +86,9 @@ export class SchoolsService {
       $pull: { academicTerms: { _id: academicTermId } }
     };
 
-    const eligibility = await this._commandsProcessor.sendCommand('courses', this._courseService.getAcademicTermCourse, academicTermId, byUser);
-
-    if (eligibility && !eligibility.data) {
-      return this._commandsProcessor.sendCommand('schools', this.doUpdate, { _id: schoolId }, transformDeleteObj);
+    const eligibility = await this._courseService.getAcademicTermCourses(academicTermId, byUser);
+    if (!eligibility) {
+      return this._commandsProcessor.sendCommand('schools', this.doUpdate, { _id: id }, transformDeleteObj);
     }
     return { done: false };
   }
