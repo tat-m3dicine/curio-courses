@@ -2,7 +2,7 @@ import { IUnitOfWork, defaultPaging } from '@saal-oryx/unit-of-work';
 import { IUserToken } from '../models/IUserToken';
 import { SchoolsRepository } from '../repositories/SchoolsRepository';
 import config from '../config';
-import { ICreateSchoolRequest, IUpdateSchoolRequest, ICreateLicenseRequest, IDeleteAcademics } from '../models/requests/ISchoolRequests';
+import { ICreateSchoolRequest, IUpdateSchoolRequest, ICreateLicenseRequest, IDeleteAcademicTermRequest } from '../models/requests/ISchoolRequests';
 import { UnauthorizedError } from '../exceptions/UnauthorizedError';
 import generate = require('nanoid/non-secure/generate');
 import validators from '../utils/validators';
@@ -77,8 +77,8 @@ export class SchoolsService {
     return this._commandsProcessor.sendCommand('schools', this.doUpdate, filterObj, updateAcademicTerm);
   }
 
-  async deleteAcademics(requestParams: IDeleteAcademics, byUser: IUserToken) {
-    const { id, academicTermId } = { ...requestParams };
+  async deleteAcademics(requestParams: IDeleteAcademicTermRequest, byUser: IUserToken) {
+    const { schoolId, academicTermId } = { ...requestParams };
     const isAuthorized = await this.authorize(byUser);
     if (!isAuthorized) throw new UnauthorizedError();
 
@@ -89,7 +89,7 @@ export class SchoolsService {
     const eligibility = await this._commandsProcessor.sendCommand('courses', this._courseService.getAcademicTermCourse, academicTermId, byUser);
 
     if (eligibility && !eligibility.data) {
-      return this._commandsProcessor.sendCommand('schools', this.doUpdate, { _id: id }, transformDeleteObj);
+      return this._commandsProcessor.sendCommand('schools', this.doUpdate, { _id: schoolId }, transformDeleteObj);
     }
     return { done: false };
   }

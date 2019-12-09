@@ -23,7 +23,7 @@ export default (commandsProccessor: CommandsProcessor) => {
       const controller = new SchoolsController(new SchoolsService(ctx.uow, commandsProccessor, courseService));
       return controller.updateAcademics(ctx, next);
     })
-    .delete('/:id/academics/:academicTermId', (ctx: Koa.Context, next: () => void) => {
+    .delete('/:schoolId/academics/:academicTermId', (ctx: Koa.Context, next: () => void) => {
       const courseService = new CoursesService(ctx.uow, commandsProccessor);
       const controller = new SchoolsController(new SchoolsService(ctx.uow, commandsProccessor, courseService));
       return controller.deleteAcademics(ctx, next);

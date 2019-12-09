@@ -22,7 +22,7 @@ export interface ICreateLicenseRequest {
   teachers_consumed?: number;
 }
 
-export interface IDeleteAcademics {
-  id: string;
+export interface IDeleteAcademicTermRequest {
+  schoolId: string;
   academicTermId: string;
 }
