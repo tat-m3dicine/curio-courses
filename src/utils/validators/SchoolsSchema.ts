@@ -2,26 +2,10 @@ import Validator from 'fastest-validator';
 import { ValidationError } from '../../exceptions/ValidationError';
 import { ICreateSchoolRequest, IUpdateSchoolRequest } from '../../models/requests/ISchoolRequests';
 import { IAcademicTerm } from '../../models/entities/Common';
-
-const localeSchema = {
-  type: 'object',
-  optional: true,
-  props: {
-    name: {
-      type: 'string'
-    }
-  }
-};
+import { localesSchema } from './LocalesSchema';
 
 const createSchoolsSchema = {
-  locales: {
-    type: 'object',
-    strict: true,
-    props: {
-      en: { ...localeSchema, optional: false },
-      ar: localeSchema
-    }
-  },
+  locales: localesSchema('en'),
   location: {
     type: 'string'
   },
@@ -29,14 +13,7 @@ const createSchoolsSchema = {
 };
 
 const updateSchoolsSchema = {
-  locales: {
-    type: 'object',
-    strict: true,
-    props: {
-      en: localeSchema,
-      ar: localeSchema
-    }
-  },
+  locales: localesSchema(),
   location: {
     type: 'string',
     optional: true
@@ -49,26 +26,27 @@ const updateAcademicsSchema = {
     type: 'object',
     optional: true,
     props: {
-    year: {
-      type: 'string',
-      optional: true
-    },
-    term: {
-      type: 'string',
-      optional: true
-    },
-    startDate: {
-      type: 'date'
-    },
-    endDate: {
-      type: 'date'
-    },
-    gracePeriod: {
-      type: 'number',
-      optional: true
-    },
-    isEnabled: 'boolean'
-  }},
+      year: {
+        type: 'string',
+        optional: true
+      },
+      term: {
+        type: 'string',
+        optional: true
+      },
+      startDate: {
+        type: 'date'
+      },
+      endDate: {
+        type: 'date'
+      },
+      gracePeriod: {
+        type: 'number',
+        optional: true
+      },
+      isEnabled: 'boolean'
+    }
+  },
   $$strict: true
 };
 
@@ -95,8 +73,8 @@ export const validateUpdateSchool = (request: IUpdateSchoolRequest) => {
   }
 };
 
-export const validateUpdateAcademicsSchool = (request: {academicTerms: IAcademicTerm}
-  ) => {
+export const validateUpdateAcademicsSchool = (request: { academicTerms: IAcademicTerm }
+) => {
   const isValidationPassed = validateUpdateAcademics(request);
   if (typeof isValidationPassed === 'boolean') {
     return isValidationPassed;
