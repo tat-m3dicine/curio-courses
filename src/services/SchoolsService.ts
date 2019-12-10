@@ -30,7 +30,7 @@ export class SchoolsService {
   async delete(id: string, byUser: IUserToken) {
     const isAuthorized = await this.authorize(byUser);
     if (!isAuthorized) throw new UnauthorizedError();
-    return this.schoolsRepo.delete({ _id: id });
+    return this._commandsProcessor.sendCommand('schools', this.doDelete, id);
   }
 
   async list(paging = defaultPaging, byUser: IUserToken) {
@@ -97,12 +97,10 @@ export class SchoolsService {
       reference: licenseObj.reference || byUser.sub,
       package: licenseObj.package
     };
-    if (licenseObj.students_consumed) license.students = { consumed: licenseObj.students_consumed };
-    if (licenseObj.teachers_consumed) license.teachers = { consumed: licenseObj.teachers_consumed };
     /**
-     * If validFrom is less than existing license valid from
+     * If validTo is less than existing license validTo
      */
-    const isLicenseConflicts = await this.schoolsRepo.findOne({ '_id': id, 'license.validTo': { $gte: license.validTo } });
+    const isLicenseConflicts = await this.schoolsRepo.findOne({ '_id': id, 'license.validTo': { $gt: license.validTo } });
     if (isLicenseConflicts) throw new InvalidRequestError('ValidTo is conflicts with existing license validTo date, validTo should be greater than');
     return this._commandsProcessor.sendCommand('schools', this.doPatch, id, { license });
   }
@@ -174,5 +172,9 @@ export class SchoolsService {
 
   private async doPatch(id: string, school: Partial<ISchool>) {
     return this.schoolsRepo.patch({ _id: id }, school);
+  }
+
+  private async doDelete(id: string) {
+    return this.schoolsRepo.delete({ _id: id });
   }
 }

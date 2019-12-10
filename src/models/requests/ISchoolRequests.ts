@@ -18,6 +18,4 @@ export interface ICreateLicenseRequest {
   reference: string;
   isEnabled: boolean;
   package: IPackage;
-  students_consumed?: number;
-  teachers_consumed?: number;
 }
