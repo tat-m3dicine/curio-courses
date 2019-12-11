@@ -134,7 +134,7 @@ export class SectionsService {
     const dbStudents: IUser[] = await this.usersRepo.findMany({ '_id': { $in: studentIds }, 'registration.schoolId': schoolId, 'role': Role.student });
     if (studentIds.length !== dbStudents.length) {
       const notRegistered = studentIds.filter(_id => dbStudents.find(student => student._id === _id));
-      throw new InvalidRequestError(`Students [${notRegistered.join(',')}] aren't registered in school ${schoolId}!`);
+      throw new InvalidRequestError(`Students ['${notRegistered.join("', '")}'] aren't registered in school ${schoolId}!`);
     }
   }
 

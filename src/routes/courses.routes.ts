@@ -61,18 +61,30 @@ export default (commandsProccessor: CommandsProcessor) => {
     .post('/:schoolId/sections/:sectionId/courses/:courseId/drop/teachers', (ctx: Koa.Context, next: () => void) => {
       const controller = new CoursesController(new CoursesService(ctx.uow, commandsProccessor));
       return controller.dropTeachers(ctx, next);
+    })
+    .post('/:schoolId/sections/:sectionId/students/enroll/courses', (ctx: Koa.Context, next: () => void) => {
+      const controller = new CoursesController(new CoursesService(ctx.uow, commandsProccessor));
+      return controller.enrollStudentsInCourses(ctx, next);
+    })
+    .post('/:schoolId/sections/:sectionId/students/drop/courses', (ctx: Koa.Context, next: () => void) => {
+      const controller = new CoursesController(new CoursesService(ctx.uow, commandsProccessor));
+      return controller.dropStudentsInCourses(ctx, next);
+    })
+    .post('/:schoolId/sections/:sectionId/students/switch/courses', (ctx: Koa.Context, next: () => void) => {
+      const controller = new CoursesController(new CoursesService(ctx.uow, commandsProccessor));
+      return controller.switchStudentsCourses(ctx, next);
+    })
+    .post('/:schoolId/sections/:sectionId/teachers/enroll/courses', (ctx: Koa.Context, next: () => void) => {
+      const controller = new CoursesController(new CoursesService(ctx.uow, commandsProccessor));
+      return controller.enrollTeachersInCourses(ctx, next);
+    })
+    .post('/:schoolId/sections/:sectionId/teachers/drop/courses', (ctx: Koa.Context, next: () => void) => {
+      const controller = new CoursesController(new CoursesService(ctx.uow, commandsProccessor));
+      return controller.dropTeachersInCourses(ctx, next);
+    })
+    .post('/:schoolId/sections/:sectionId/teachers/switch/courses', (ctx: Koa.Context, next: () => void) => {
+      const controller = new CoursesController(new CoursesService(ctx.uow, commandsProccessor));
+      return controller.switchTeachersCourses(ctx, next);
     });
-  // .post('/:schoolId/sections/:sectionId/students/enroll/courses', (ctx: Koa.Context, next: () => void) => {
-  //   const controller = new CoursesController(new CoursesService(ctx.uow, commandsProccessor));
-  //   return controller.enrollStudentsInCourses(ctx, next);
-  // })
-  // .post('/:schoolId/sections/:sectionId/students/drop/courses', (ctx: Koa.Context, next: () => void) => {
-  //   const controller = new CoursesController(new CoursesService(ctx.uow, commandsProccessor));
-  //   return controller.dropStudentsInCourses(ctx, next);
-  // })
-  // .post('/:schoolId/sections/:sectionId/students/switch/courses', (ctx: Koa.Context, next: () => void) => {
-  //   const controller = new CoursesController(new CoursesService(ctx.uow, commandsProccessor));
-  //   return controller.switchStudentsCourses(ctx, next);
-  // });
   return coursesRoutes;
 };
