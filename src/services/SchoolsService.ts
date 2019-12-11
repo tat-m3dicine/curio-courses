@@ -7,7 +7,7 @@ import { UnauthorizedError } from '../exceptions/UnauthorizedError';
 import generate = require('nanoid/non-secure/generate');
 import validators from '../utils/validators';
 import { InvalidRequestError } from '../exceptions/InvalidRequestError';
-import { ILicense, ISchool, IAcademicTermRequest } from '../models/entities/ISchool';
+import { ISchool, IAcademicTermRequest } from '../models/entities/ISchool';
 import { ForbiddenError } from '../exceptions/ForbiddenError';
 import { CommandsProcessor } from './CommandsProcessor';
 import { ILicenseRequest } from '../models/requests/ILicenseRequest';

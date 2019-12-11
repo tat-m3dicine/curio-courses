@@ -9,7 +9,6 @@ import generate = require('nanoid/non-secure/generate');
 import { ICreateSectionRequest } from '../models/requests/ISectionRequests';
 import { NotFoundError } from '../exceptions/NotFoundError';
 import { ISection } from '../models/entities/ISection';
-import { IUser } from '../models/entities/Common';
 import { CoursesRepository } from '../repositories/CoursesRepository';
 import { SchoolsRepository } from '../repositories/SchoolsRepository';
 import { ISchool } from '../models/entities/ISchool';
@@ -18,6 +17,7 @@ import { ForbiddenError } from '../exceptions/ForbiddenError';
 import { CommandsProcessor } from './CommandsProcessor';
 import { InvalidRequestError } from '../exceptions/InvalidRequestError';
 import { Role } from '../models/Role';
+import { IUser } from '../models/entities/Common';
 
 export class SectionsService {
 

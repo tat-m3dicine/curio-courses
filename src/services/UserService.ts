@@ -10,5 +10,4 @@ export class UsersService {
         return this._uow.getRepository('Users') as UsersRepository;
       }
 
-
 }

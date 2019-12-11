@@ -7,7 +7,7 @@ import generate = require('nanoid/non-secure/generate');
 import { ICreateCourseRequest } from '../models/requests/ICourseRequests';
 import { NotFoundError } from '../exceptions/NotFoundError';
 import { ICourse } from '../models/entities/ICourse';
-import { IUser, IAcademicTerm } from '../models/entities/Common';
+import { IAcademicTerm, IUser } from '../models/entities/Common';
 import { UsersRepository } from '../repositories/UsersRepository';
 import { CoursesRepository } from '../repositories/CoursesRepository';
 import { SchoolsRepository } from '../repositories/SchoolsRepository';
