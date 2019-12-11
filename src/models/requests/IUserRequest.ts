@@ -5,5 +5,4 @@ export interface IUserRequest {
   sectionId: string;
   courseId: string;
   userIds: string[];
-  role: Role;
 }
