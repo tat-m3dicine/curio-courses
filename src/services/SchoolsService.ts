@@ -3,10 +3,10 @@ import validators from '../utils/validators';
 import generate from 'nanoid/non-secure/generate';
 
 import { IUserToken } from '../models/IUserToken';
-import { IAcademicTerm } from '../models/entities/Common';
+import { IAcademicTerm, IUser } from '../models/entities/Common';
 import { ILicenseRequest } from '../models/requests/ILicenseRequest';
-import { ISchool, IAcademicTermRequest } from '../models/entities/ISchool';
-import { ICreateSchoolRequest, IUpdateSchoolRequest, ICreateLicenseRequest, IDeleteAcademicTermRequest } from '../models/requests/ISchoolRequests';
+import { ISchool, IAcademicTermRequest, ISchoolUserPermissions } from '../models/entities/ISchool';
+import { ICreateSchoolRequest, IUpdateSchoolRequest, ICreateLicenseRequest, IDeleteAcademicTermRequest, IUpdateUserRequest } from '../models/requests/ISchoolRequests';
 import { CommandsProcessor } from './CommandsProcessor';
 import { IUnitOfWork, defaultPaging } from '@saal-oryx/unit-of-work';
 import { SchoolsRepository } from '../repositories/SchoolsRepository';
@@ -15,6 +15,9 @@ import { ForbiddenError } from '../exceptions/ForbiddenError';
 import { UnauthorizedError } from '../exceptions/UnauthorizedError';
 import { InvalidRequestError } from '../exceptions/InvalidRequestError';
 import { ConditionalBadRequest } from '../exceptions/ConditionalBadRequest';
+import { UsersRepository } from '../repositories/UsersRepository';
+import { NotFoundError } from '../exceptions/NotFoundError';
+import { validateAllObjectsExist } from '../utils/validators/AllObjectsExist';
 
 export class SchoolsService {
 
@@ -27,6 +30,10 @@ export class SchoolsService {
 
   protected get coursesRepo() {
     return this._uow.getRepository('Courses') as CoursesRepository;
+  }
+
+  protected get usersRepo() {
+    return this._uow.getRepository('Users') as UsersRepository;
   }
 
   async get(id: string) {
@@ -53,7 +60,8 @@ export class SchoolsService {
       _id: this.newSchoolId(defaultLocale.name),
       locales: createObj.locales,
       location: createObj.location,
-      academicTerms: []
+      academicTerms: [],
+      users: []
     };
     return this._commandsProcessor.sendCommand('schools', this.doAdd, school);
   }
@@ -63,6 +71,31 @@ export class SchoolsService {
     if (!isAuthorized) throw new UnauthorizedError();
     validators.validateUpdateSchool(updateObj);
     return this._commandsProcessor.sendCommand('schools', this.doUpdate, { _id: id }, { $set: updateObj });
+  }
+
+  async updateUsers(updateObjs: { users: IUpdateUserRequest[] }, schoolId: string, byUser: IUserToken) {
+    const isAuthorized = await this.authorize(byUser);
+    if (!isAuthorized) throw new UnauthorizedError();
+    validators.validateUpdateSchoolUsers(updateObjs);
+    const usersIds: string[] = updateObjs.users.map(user => user._id);
+    const usersObjs: IUser[] = await this.usersRepo.findMany({ '_id': { $in: usersIds }, 'registration.schoolId': schoolId });
+    validateAllObjectsExist(usersObjs, usersIds, schoolId);
+    return this._commandsProcessor.sendCommand('schools', this.doUpdateUsers, schoolId, updateObjs.users);
+  }
+
+  private async doUpdateUsers(schoolId: string, users: ISchoolUserPermissions[]) {
+    return this.schoolsRepo.updateUsersPermission(schoolId, users);
+  }
+
+  async deleteUsers(updateObjs: { users: string[] }, schoolId: string, byUser: IUserToken) {
+    const isAuthorized = await this.authorize(byUser);
+    if (!isAuthorized) throw new UnauthorizedError();
+    validators.validateDeleteSchoolUsers(updateObjs);
+    return this._commandsProcessor.sendCommand('schools', this.doDeleteUsers, schoolId, updateObjs.users);
+  }
+
+  private async doDeleteUsers(schoolId: string, usersIds: string[]) {
+    return this.schoolsRepo.deleteUsersPermission(schoolId, usersIds);
   }
 
   async updateAcademics(updateObj: IAcademicTermRequest, id: string, byUser: IUserToken) {
@@ -83,17 +116,20 @@ export class SchoolsService {
   }
 
   async deleteAcademics(requestParams: IDeleteAcademicTermRequest, byUser: IUserToken) {
-    const { id, academicTermId } = { ...requestParams };
+    const { _id: id, academicTermId } = { ...requestParams };
     const isAuthorized = await this.authorize(byUser);
     if (!isAuthorized) throw new UnauthorizedError();
 
     const transformDeleteObj = {
       $pull: { academicTerms: { _id: academicTermId } }
     };
-    const result = await this.isAcademicTermActive(academicTermId, byUser);
+    const activeCourses = await this.coursesRepo.findMany({ 'academicTerm._id': academicTermId });
 
-   if (!result) throw new ConditionalBadRequest('Unable to delete the Academic Term because Courses are active within.');
-   return this._commandsProcessor.sendCommand('schools', this.doUpdate, { _id: id }, transformDeleteObj);
+    if (activeCourses.length !== 0) {
+      const coursesIds = activeCourses.map(course => course._id).join("', '");
+      throw new ConditionalBadRequest(`Unable to delete the Academic Term because ['${coursesIds}'] are active within.`);
+    }
+    return this._commandsProcessor.sendCommand('schools', this.doUpdate, { _id: id }, transformDeleteObj);
   }
 
   async patch(updateObj: IUpdateSchoolRequest, id: string, byUser: IUserToken) {
@@ -192,12 +228,6 @@ export class SchoolsService {
 
   private async doPatch(id: string, school: Partial<ISchool>) {
     return this.schoolsRepo.patch({ _id: id }, school);
-  }
-
-  async isAcademicTermActive(academicTermId: string, byUser: IUserToken) {
-    this.authorize(byUser);
-    const response =  await this.coursesRepo.findOne({ 'academicTerm._id': academicTermId });
-    return !response;
   }
 
   private async doDelete(id: string) {

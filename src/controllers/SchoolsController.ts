@@ -30,9 +30,21 @@ export class SchoolsController {
     ctx.type = 'json';
   }
   async deleteAcademics(ctx: Context, next: () => void) {
-    const result  = await this.schoolService.deleteAcademics(ctx.params, ctx.user);
+    const result = await this.schoolService.deleteAcademics(ctx.params, ctx.user);
     ctx.status = result.done ? 201 : 202;
     ctx.body = { result, ok: true };
+    ctx.type = 'json';
+  }
+  async updateUsers(ctx: Context, next: () => void) {
+    const result = await this.schoolService.updateUsers(ctx.request.body, ctx.params.id, ctx.user);
+    ctx.status = 200;
+    ctx.body = { result: result.data, ok: true };
+    ctx.type = 'json';
+  }
+  async deleteUsers(ctx: Context, next: () => void) {
+    const result = await this.schoolService.deleteUsers(ctx.request.body, ctx.params.id, ctx.user);
+    ctx.status = 200;
+    ctx.body = { result: result.data, ok: true };
     ctx.type = 'json';
   }
   async patch(ctx: Context, next: () => void) {
@@ -56,7 +68,7 @@ export class SchoolsController {
   async delete(ctx: Context, next: () => void) {
     const result = await this.schoolService.delete(ctx.params.id, ctx.user);
     ctx.status = 200;
-    ctx.body = { result: result.data.result , done: result.done };
+    ctx.body = { result: result.data.result, done: result.done };
     ctx.type = 'json';
   }
   async addLicense(ctx: Context, next: () => void) {

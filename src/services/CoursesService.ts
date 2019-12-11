@@ -18,6 +18,7 @@ import { Role } from '../models/Role';
 import { IUserRequest } from '../models/requests/IUserRequest';
 import { SectionsRepository } from '../repositories/SectionsRepository';
 import { ISchool } from '../models/entities/ISchool';
+import { validateAllObjectsExist } from '../utils/validators/AllObjectsExist';
 
 export class CoursesService {
 
@@ -60,7 +61,7 @@ export class CoursesService {
           studentsObjs.push({ _id: student._id, joinDate: now, isEnabled: true });
         }
       });
-      this.validateAllObjectsExist(studentsObjs, students, Role.student, schoolId);
+      validateAllObjectsExist(studentsObjs, students, schoolId, Role.student);
 
       teachers.forEach(id => {
         const teacher = usersMap[id];
@@ -68,7 +69,7 @@ export class CoursesService {
           teachersObjs.push({ _id: teacher._id, joinDate: now, isEnabled: true });
         }
       });
-      this.validateAllObjectsExist(teachersObjs, teachers, Role.teacher, schoolId);
+      validateAllObjectsExist(teachersObjs, teachers, schoolId, Role.teacher);
     }
 
     return this._commandsProcessor.sendCommand('courses', this.doCreate, <ICourse>{
@@ -226,20 +227,10 @@ export class CoursesService {
     const { schoolId, sectionId } = requestParams[0];
     const courseIds: string[] = requestParams.map(request => request.courseId);
     const coursesObjs: ICourse[] = await this.coursesRepo.findMany({ _id: { $in: courseIds }, schoolId, ...(sameSection ? { sectionId } : {}) });
-    this.validateAllObjectsExist(coursesObjs, courseIds, 'course', schoolId);
+    validateAllObjectsExist(coursesObjs, courseIds, schoolId, 'course');
     const userIds: string[] = Array.from(new Set<string>(requestParams.reduce((list, params) => [...list, ...params.userIds], <any>[])));
     const usersObjs: IUser[] = await this.usersRepo.findMany({ '_id': { $in: userIds }, 'registration.schoolId': schoolId, role });
-    this.validateAllObjectsExist(usersObjs, userIds, role, schoolId);
-  }
-
-  private validateAllObjectsExist(objects: { _id: string }[], objectsIds: string[], objectType = 'user', schoolId: string) {
-    if (objects.length !== objectsIds.length) {
-      const notFound: string[] = objectsIds.reduce((list, id) => {
-        if (objects.every(object => object._id !== id)) list.push(id);
-        return list;
-      }, <string[]>[]);
-      throw new NotFoundError(`${objectType}s ['${notFound.join("', '")}'] were not found in '${schoolId}' school!`);
-    }
+    validateAllObjectsExist(usersObjs, userIds, schoolId, role);
   }
 
   protected authorize(byUser: IUserToken) {

@@ -3,7 +3,6 @@ import Koa from 'koa';
 import { SchoolsController } from '../controllers/SchoolsController';
 import { SchoolsService } from '../services/SchoolsService';
 import { CommandsProcessor } from '../services/CommandsProcessor';
-import { CoursesService } from '../services/CoursesService';
 
 export default (commandsProccessor: CommandsProcessor) => {
   const schoolRoutes = new KoaRoute();
@@ -23,6 +22,14 @@ export default (commandsProccessor: CommandsProcessor) => {
     .delete('/:id/academics/:academicTermId', (ctx: Koa.Context, next: () => void) => {
       const controller = new SchoolsController(new SchoolsService(ctx.uow, commandsProccessor));
       return controller.deleteAcademics(ctx, next);
+    })
+    .post('/:id/users/update', (ctx: Koa.Context, next: () => void) => {
+      const controller = new SchoolsController(new SchoolsService(ctx.uow, commandsProccessor));
+      return controller.updateUsers(ctx, next);
+    })
+    .post('/:id/users/delete', (ctx: Koa.Context, next: () => void) => {
+      const controller = new SchoolsController(new SchoolsService(ctx.uow, commandsProccessor));
+      return controller.deleteUsers(ctx, next);
     })
     .get('/', (ctx: Koa.Context, next: () => void) => {
       const controller = new SchoolsController(new SchoolsService(ctx.uow, commandsProccessor));
