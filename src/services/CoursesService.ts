@@ -17,6 +17,7 @@ import { CommandsProcessor } from './CommandsProcessor';
 import { InvalidRequestError } from '../exceptions/InvalidRequestError';
 import { Role } from '../models/Role';
 import { IUserRequest } from '../models/requests/IUserRequest';
+import { SectionsRepository } from '../repositories/SectionsRepository';
 
 export class CoursesService {
 
@@ -25,6 +26,10 @@ export class CoursesService {
 
   protected get schoolsRepo() {
     return this._uow.getRepository('Schools') as SchoolsRepository;
+  }
+
+  protected get sectionsRepo() {
+    return this._uow.getRepository('Sections') as SectionsRepository;
   }
 
   protected get usersRepo() {
@@ -40,7 +45,10 @@ export class CoursesService {
     validators.validateCreateCourse(course);
     const { schoolId, sectionId, curriculum, grade, subject, academicTermId, teachers = [], students = [] } = course;
     const school = await this.schoolsRepo.findById(schoolId);
-    if (!school || !school.license || !school.license.package) throw new InvalidLicenseError(`'${schoolId}' school doesn't have a vaild license!`);
+    if (!school) throw new NotFoundError(`'${schoolId}' school was not found!`);
+    const section = await this.sectionsRepo.findOne({ _id: sectionId, schoolId });
+    if (!section) throw new NotFoundError(`'${sectionId}' section was not found in '${schoolId}' school!`);
+    if (!school.license || !school.license.package) throw new InvalidLicenseError(`'${schoolId}' school doesn't have a vaild license!`);
     const gradePackage = school.license.package[grade];
     if (!gradePackage || !gradePackage[subject] || !(gradePackage[subject] instanceof Array) || !gradePackage[subject].includes(curriculum)) {
       throw new InvalidLicenseError(`Grade '${grade}', subject '${subject}', curriculum '${curriculum}' aren't included in '${schoolId}' school's license package!`);
@@ -58,15 +66,26 @@ export class CoursesService {
     }
 
     const usersIds = [...teachers, ...students];
-    const studentsObj: IUser[] = [], teachersObj: IUser[] = [];
+    const studentsObj: IUserCourseInfo[] = [], teachersObj: IUserCourseInfo[] = [];
     if (usersIds.length > 0) {
+      const now = new Date();
       const users: IUser[] = await this.usersRepo.findMany({ '_id': { $in: usersIds }, 'registration.schoolId': schoolId });
       const usersMap: { [_id: string]: IUser } = users.reduce((map, user) => ({ ...map, [user._id]: user }), {});
 
-      students.forEach(id => usersMap[id] && usersMap[id].role.includes(Role.student) && studentsObj.push(usersMap[id]));
+      students.forEach(id => {
+        const student = usersMap[id];
+        if (student && student.role.includes(Role.student)) {
+          studentsObj.push({ _id: student._id, joinDate: now, isEnabled: true });
+        }
+      });
       if (studentsObj.length !== students.length) throw new InvalidRequestError(`Some students aren't registered in school ${schoolId}!`);
 
-      teachers.forEach(id => usersMap[id] && usersMap[id].role.includes(Role.teacher) && teachersObj.push(usersMap[id]));
+      teachers.forEach(id => {
+        const teacher = usersMap[id];
+        if (teacher && teacher.role.includes(Role.teacher)) {
+          teachersObj.push({ _id: teacher._id, joinDate: now, isEnabled: true });
+        }
+      });
       if (teachersObj.length !== teachers.length) throw new InvalidRequestError(`Some teachers aren't registered in school ${schoolId}!`);
     }
 
