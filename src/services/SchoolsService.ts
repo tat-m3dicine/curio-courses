@@ -1,18 +1,20 @@
-import { IUnitOfWork, defaultPaging } from '@saal-oryx/unit-of-work';
-import { IUserToken } from '../models/IUserToken';
-import { SchoolsRepository } from '../repositories/SchoolsRepository';
 import config from '../config';
-import { ICreateSchoolRequest, IUpdateSchoolRequest, ICreateLicenseRequest } from '../models/requests/ISchoolRequests';
-import { UnauthorizedError } from '../exceptions/UnauthorizedError';
-import generate = require('nanoid/non-secure/generate');
 import validators from '../utils/validators';
-import { InvalidRequestError } from '../exceptions/InvalidRequestError';
-import { ILicense, ISchool, IAcademicTermRequest } from '../models/entities/ISchool';
-import { ForbiddenError } from '../exceptions/ForbiddenError';
-import { CommandsProcessor } from './CommandsProcessor';
-import { ILicenseRequest } from '../models/requests/ILicenseRequest';
+import generate from 'nanoid/non-secure/generate';
 
+import { IUserToken } from '../models/IUserToken';
 import { IAcademicTerm } from '../models/entities/Common';
+import { ILicenseRequest } from '../models/requests/ILicenseRequest';
+import { ISchool, IAcademicTermRequest } from '../models/entities/ISchool';
+import { ICreateSchoolRequest, IUpdateSchoolRequest, ICreateLicenseRequest, IDeleteAcademicTermRequest } from '../models/requests/ISchoolRequests';
+import { CommandsProcessor } from './CommandsProcessor';
+import { IUnitOfWork, defaultPaging } from '@saal-oryx/unit-of-work';
+import { SchoolsRepository } from '../repositories/SchoolsRepository';
+import { CoursesRepository } from '../repositories/CoursesRepository';
+import { ForbiddenError } from '../exceptions/ForbiddenError';
+import { UnauthorizedError } from '../exceptions/UnauthorizedError';
+import { InvalidRequestError } from '../exceptions/InvalidRequestError';
+import { ConditionalBadRequest } from '../exceptions/ConditionalBadRequest';
 
 export class SchoolsService {
 
@@ -21,6 +23,10 @@ export class SchoolsService {
 
   protected get schoolsRepo() {
     return this._uow.getRepository('Schools') as SchoolsRepository;
+  }
+
+  protected get coursesRepo() {
+    return this._uow.getRepository('Courses') as CoursesRepository;
   }
 
   async get(id: string) {
@@ -74,6 +80,20 @@ export class SchoolsService {
     validators.validateUpdateAcademicsSchool({ academicTerms });
     const { filterObj, updateAcademicTerm } = this.academicFilters(id, updateObj, academicTerms);
     return this._commandsProcessor.sendCommand('schools', this.doUpdate, filterObj, updateAcademicTerm);
+  }
+
+  async deleteAcademics(requestParams: IDeleteAcademicTermRequest, byUser: IUserToken) {
+    const { id, academicTermId } = { ...requestParams };
+    const isAuthorized = await this.authorize(byUser);
+    if (!isAuthorized) throw new UnauthorizedError();
+
+    const transformDeleteObj = {
+      $pull: { academicTerms: { _id: academicTermId } }
+    };
+    const result = await this.isAcademicTermActive(academicTermId, byUser);
+
+   if (!result) throw new ConditionalBadRequest('Unable to delete the Academic Term because Courses are active within.');
+   return this._commandsProcessor.sendCommand('schools', this.doUpdate, { _id: id }, transformDeleteObj);
   }
 
   async patch(updateObj: IUpdateSchoolRequest, id: string, byUser: IUserToken) {
@@ -172,6 +192,12 @@ export class SchoolsService {
 
   private async doPatch(id: string, school: Partial<ISchool>) {
     return this.schoolsRepo.patch({ _id: id }, school);
+  }
+
+  async isAcademicTermActive(academicTermId: string, byUser: IUserToken) {
+    this.authorize(byUser);
+    const response =  await this.coursesRepo.findOne({ 'academicTerm._id': academicTermId });
+    return !response;
   }
 
   private async doDelete(id: string) {
