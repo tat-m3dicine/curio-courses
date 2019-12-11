@@ -15,6 +15,7 @@ const config: {
   comamndsTimeout: number;
   redisHost: string;
   redisPort: number;
+  irpUrl: string;
 } = <any>{
   port: 80,
   production: false,
@@ -65,6 +66,12 @@ else {
 if (process.env.MONGO_DB_URL) config.mongoDbUrl = process.env.MONGO_DB_URL;
 else {
   logger.error('Missing parameter: MONGO_DB_URL! Exiting...');
+  process.exit(1);
+}
+
+if (process.env.IRP_URL) config.irpUrl = process.env.IRP_URL;
+else {
+  logger.error('Missing parameter: IRP_URL! Exiting...');
   process.exit(1);
 }
 
