@@ -12,19 +12,17 @@ const validateOneLocale = validator.compile({
   $$strict: true
 });
 
-export const localesSchema = (requiredLangs?: string[] | string) => {
-  if (requiredLangs instanceof String) requiredLangs = <string[]>[requiredLangs];
+export const localesSchema = (requiredLang?: string[] | string) => {
+  const requiredLangs: string[] = requiredLang ? (requiredLang instanceof Array ? requiredLang : [requiredLang]) : [];
   return {
     type: 'custom',
     check(locales: { [lang: string]: object }) {
       const errors: ValidationError[] = [];
       const langs = Object.keys(locales);
       if (langs.length === 0) errors.push(validator.makeError('At least one language is required!'));
-      if (requiredLangs) {
-        for (const lang of requiredLangs) {
-          if (!langs.includes(lang)) {
-            errors.push(validator.makeError(`'${lang}' language is required!`));
-          }
+      for (const lang of requiredLangs) {
+        if (!langs.includes(lang)) {
+          errors.push(validator.makeError(`'${lang}' language is required!`));
         }
       }
       for (const lang of langs) {
