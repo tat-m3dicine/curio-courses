@@ -7,14 +7,6 @@ const createLicenseSchema = {
   students: {
     type: 'number'
   },
-  students_consumed: {
-    type: 'number',
-    optional: true
-  },
-  teachers_consumed: {
-    type: 'number',
-    optional: true
-  },
   teachers: {
     type: 'number'
   },

@@ -15,11 +15,6 @@ export interface IUser extends IEntity {
   };
 }
 
-export interface IStudentCourseInfo {
-  joinDate: Date;
-  isEnabled: boolean;
-}
-
 export interface IProfile {
   name: string;
   avatar: string;

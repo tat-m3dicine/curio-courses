@@ -112,7 +112,7 @@ export class SectionsService {
     const coursesRepoWithTransactions = this._uow.getRepository('Courses', true) as CoursesRepository;
     const sectionsRepoWithTransactions = this._uow.getRepository('Sections', true) as SectionsRepository;
 
-    await coursesRepoWithTransactions.finishStudentsCourses({ _id: sectionId, schoolId }, studentIds);
+    await coursesRepoWithTransactions.finishUsersInCourses({ sectionId, schoolId }, 'students', studentIds, new Date());
     const updatedSection = await sectionsRepoWithTransactions.update({ _id: sectionId, schoolId }, {
       $pull: { students: { _id: { $in: studentIds } } }
     });

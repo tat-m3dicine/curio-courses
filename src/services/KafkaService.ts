@@ -33,14 +33,18 @@ export class KafkaService {
   }
 
   async send(topic: string, event: IAppEvent) {
+    this.sendMany(topic, [event]);
+  }
+
+  async sendMany(topic: string, events: IAppEvent[]) {
     await this._producer.connect();
     return this._producer.send({
       topic,
-      messages: [{
+      messages: events.map(event => ({
         timestamp: event.timestamp.toString(),
         key: event.key || this.getNewKey(),
         value: JSON.stringify(event)
-      }]
+      }))
     });
   }
 

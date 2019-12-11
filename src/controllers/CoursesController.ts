@@ -4,6 +4,7 @@ import loggerFactory from '../utils/logging';
 import { CoursesService } from '../services/CoursesService';
 import { IPaging } from '@saal-oryx/unit-of-work';
 import { NotFoundError } from '../exceptions/NotFoundError';
+import { Role } from '../models/Role';
 
 const logger = loggerFactory.getLogger('CoursesController');
 
@@ -55,8 +56,56 @@ export class CoursesController {
   }
 
   async enrollStudent(ctx: Context, next: () => void) {
-    const { schoolId, sectionId, courseId, studentId } = ctx.params;
-    const result = await this.coursesService.enrollStudent(schoolId, sectionId, courseId, studentId, ctx.user);
+    const result = await this.coursesService.enrollStudents({ ...ctx.params, userIds: [ctx.params.userId] }, ctx.user);
+    ctx.status = 200;
+    ctx.body = { ok: true, result: result.data };
+    ctx.type = 'json';
+  }
+
+  async enrollStudents(ctx: Context, next: () => void) {
+    const result = await this.coursesService.enrollStudents({ ...ctx.params, userIds: ctx.request.body.students }, ctx.user);
+    ctx.status = 200;
+    ctx.body = { ok: true, result: result.data };
+    ctx.type = 'json';
+  }
+
+  async dropStudent(ctx: Context, next: () => void) {
+    const result = await this.coursesService.dropStudents({ ...ctx.params, userIds: [ctx.params.userId] }, ctx.user);
+    ctx.status = 200;
+    ctx.body = { ok: true, result: result.data };
+    ctx.type = 'json';
+  }
+
+  async dropStudents(ctx: Context, next: () => void) {
+    const result = await this.coursesService.dropStudents({ ...ctx.params, userIds: ctx.request.body.students }, ctx.user);
+    ctx.status = 200;
+    ctx.body = { ok: true, result: result.data };
+    ctx.type = 'json';
+  }
+
+  async enrollTeacher(ctx: Context, next: () => void) {
+    const result = await this.coursesService.enrollTeachers({ ...ctx.params, userIds: [ctx.params.userId] }, ctx.user);
+    ctx.status = 200;
+    ctx.body = { ok: true, result: result.data };
+    ctx.type = 'json';
+  }
+
+  async enrollTeachers(ctx: Context, next: () => void) {
+    const result = await this.coursesService.enrollTeachers({ ...ctx.params, userIds: ctx.request.body.teachers }, ctx.user);
+    ctx.status = 200;
+    ctx.body = { ok: true, result: result.data };
+    ctx.type = 'json';
+  }
+
+  async dropTeacher(ctx: Context, next: () => void) {
+    const result = await this.coursesService.dropTeachers({ ...ctx.params, userIds: [ctx.params.userId] }, ctx.user);
+    ctx.status = 200;
+    ctx.body = { ok: true, result: result.data };
+    ctx.type = 'json';
+  }
+
+  async dropTeachers(ctx: Context, next: () => void) {
+    const result = await this.coursesService.dropTeachers({ ...ctx.params, userIds: ctx.request.body.teachers }, ctx.user);
     ctx.status = 200;
     ctx.body = { ok: true, result: result.data };
     ctx.type = 'json';

@@ -6,7 +6,7 @@ import { IUserToken } from '../models/IUserToken';
 import generate = require('nanoid/non-secure/generate');
 import { ICreateCourseRequest } from '../models/requests/ICourseRequests';
 import { NotFoundError } from '../exceptions/NotFoundError';
-import { ICourse } from '../models/entities/ICourse';
+import { ICourse, IUserCourseInfo } from '../models/entities/ICourse';
 import { IUser, IAcademicTerm } from '../models/entities/Common';
 import { UsersRepository } from '../repositories/UsersRepository';
 import { CoursesRepository } from '../repositories/CoursesRepository';
@@ -16,6 +16,7 @@ import { ForbiddenError } from '../exceptions/ForbiddenError';
 import { CommandsProcessor } from './CommandsProcessor';
 import { InvalidRequestError } from '../exceptions/InvalidRequestError';
 import { Role } from '../models/Role';
+import { IUserRequest } from '../models/requests/IUserRequest';
 
 export class CoursesService {
 
@@ -115,20 +116,54 @@ export class CoursesService {
     return this.coursesRepo.delete({ _id: courseId });
   }
 
-  async enrollStudent(schoolId: string, sectionId: string, courseId: string, studentId: string, byUser: IUserToken) {
-    this.authorize(byUser);
-    const student: IUser | undefined = await this.usersRepo.findOne({ '_id': studentId, 'registration.schoolId': schoolId, 'role': Role.student });
-    if (!student) throw new NotFoundError(`Student '${studentId}' was not found in '${schoolId}' school!`);
-    return this._commandsProcessor.sendCommand('courses', this.doEnrollStudent, schoolId, sectionId, courseId, student);
+  async enrollStudents(requestParams: IUserRequest, byUser: IUserToken) {
+    return this.enrollUsers({ ...requestParams, role: Role.student }, byUser);
   }
 
-  private async doEnrollStudent(schoolId: string, sectionId: string, courseId: string, student: IUser) {
-    return this.coursesRepo.update({
-      _id: courseId, schoolId, sectionId,
-      students: { $not: { $elemMatch: { _id: student._id } } }
-    }, {
-      $addToSet: { students: student }
-    });
+  async enrollTeachers(requestParams: IUserRequest, byUser: IUserToken) {
+    return this.enrollUsers({ ...requestParams, role: Role.teacher }, byUser);
+  }
+
+  private async enrollUsers(requestParams: IUserRequest, byUser: IUserToken) {
+    this.authorize(byUser);
+    const joinDate = new Date();
+    const { schoolId, userIds, role } = requestParams;
+    const usersObj: IUser[] = await this.usersRepo.findMany({ '_id': { $in: userIds }, 'registration.schoolId': schoolId, role });
+    this.validateAllUsersExist(usersObj, userIds, schoolId, role);
+    const users: IUserCourseInfo[] = usersObj.map(user => ({ _id: user._id, joinDate, isEnabled: true }));
+    return this._commandsProcessor.sendCommand('courses', this.doEnrollUsers, requestParams, users);
+  }
+
+  private async doEnrollUsers({ schoolId, sectionId, courseId, role }: IUserRequest, usersObj: IUserCourseInfo[]) {
+    return this.coursesRepo.addUsersToCourses({ _id: courseId, schoolId, sectionId }, `${role}s`, usersObj);
+  }
+
+  async dropStudents(requestParams: IUserRequest, byUser: IUserToken) {
+    return this.dropUsers({ ...requestParams, role: Role.student }, byUser);
+  }
+
+  async dropTeachers(requestParams: IUserRequest, byUser: IUserToken) {
+    return this.dropUsers({ ...requestParams, role: Role.teacher }, byUser);
+  }
+
+  private async dropUsers(requestParams: IUserRequest, byUser: IUserToken) {
+    this.authorize(byUser);
+    const finishDate = new Date();
+    const { schoolId, userIds, role } = requestParams;
+    const usersObj: IUser[] = await this.usersRepo.findMany({ '_id': { $in: userIds }, 'registration.schoolId': schoolId, role });
+    this.validateAllUsersExist(usersObj, userIds, schoolId, role);
+    return this._commandsProcessor.sendCommand('courses', this.doDropUsers, requestParams, finishDate);
+  }
+
+  private async doDropUsers({ schoolId, sectionId, courseId, userIds, role }: IUserRequest, finishDate: Date) {
+    return this.coursesRepo.finishUsersInCourses({ _id: courseId, schoolId, sectionId }, `${role}s`, userIds, finishDate);
+  }
+
+  private validateAllUsersExist(usersObj: IUser[], userIds: string[], schoolId: string, role: Role) {
+    if (usersObj.length !== userIds.length) {
+      const notFound: string[] = userIds.reduce((list, id) => usersObj.some(user => user._id === id) ? list : [...list, id], <any>[]);
+      throw new NotFoundError(`${role}s ['${notFound.join("', '")}'] were not found in '${schoolId}' school!`);
+    }
   }
 
   protected authorize(byUser: IUserToken) {

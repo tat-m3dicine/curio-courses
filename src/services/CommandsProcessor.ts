@@ -61,6 +61,20 @@ export class CommandsProcessor {
     await this._kafkaService.send(config.kafkaCommandsTopic, event);
     return event;
   }
+
+  async sendManyCommandsAsync(serviceName: string, proccessingFunction: Func<Promise<any>>, args: any[][]) {
+    const commandKey = this._kafkaService.getNewKey();
+    const now = Date.now();
+    const events = args.map(arg => ({
+      event: `${proccessingFunction.name}_${serviceName}`,
+      timestamp: now,
+      data: arg,
+      v: '1.0.0',
+      key: commandKey
+    }));
+    await this._kafkaService.sendMany(config.kafkaCommandsTopic, events);
+    return events;
+  }
 }
 
 interface ICommandResult {

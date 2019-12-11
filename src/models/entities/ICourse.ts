@@ -14,3 +14,10 @@ export interface ICourse extends Partial<IAuditable>, IEntity {
   students: IUser[];
   academicTerm: IAcademicTerm;
 }
+
+export interface IUserCourseInfo {
+  _id: string;
+  joinDate: Date;
+  finishDate?: Date;
+  isEnabled: boolean;
+}
