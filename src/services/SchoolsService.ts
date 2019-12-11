@@ -92,8 +92,8 @@ export class SchoolsService {
     };
     const result = await this.isAcademicTermActive(academicTermId, byUser);
 
-    if (result) return this._commandsProcessor.sendCommand('schools', this.doUpdate, { _id: id }, transformDeleteObj);
-    throw new ConditionalBadRequest('Unable to delete the Academic Term because Courses are active within.');
+   if (!result) throw new ConditionalBadRequest('Unable to delete the Academic Term because Courses are active within.');
+   return this._commandsProcessor.sendCommand('schools', this.doUpdate, { _id: id }, transformDeleteObj);
   }
 
   async patch(updateObj: IUpdateSchoolRequest, id: string, byUser: IUserToken) {
