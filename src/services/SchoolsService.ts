@@ -14,6 +14,7 @@ import { CoursesRepository } from '../repositories/CoursesRepository';
 import { ForbiddenError } from '../exceptions/ForbiddenError';
 import { UnauthorizedError } from '../exceptions/UnauthorizedError';
 import { InvalidRequestError } from '../exceptions/InvalidRequestError';
+import { ConditionalBadRequest } from '../exceptions/ConditionalBadRequest';
 
 export class SchoolsService {
 
@@ -92,7 +93,7 @@ export class SchoolsService {
     const result = await this.isAcademicTermActive(academicTermId, byUser);
 
     if (result) return this._commandsProcessor.sendCommand('schools', this.doUpdate, { _id: id }, transformDeleteObj);
-    return { done: false };
+    throw new ConditionalBadRequest('Unable to delete the Academic Term because Courses are active within.');
   }
 
   async patch(updateObj: IUpdateSchoolRequest, id: string, byUser: IUserToken) {

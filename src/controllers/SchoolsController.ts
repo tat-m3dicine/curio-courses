@@ -32,9 +32,8 @@ export class SchoolsController {
   }
   async deleteAcademics(ctx: Context, next: () => void) {
     const result  = await this.schoolService.deleteAcademics(ctx.params, ctx.user);
-    if (!result.done) throw new ConditionalBadRequest('Unable to delete the Academic Term because Courses are active within.');
-    ctx.status =  200;
-    ctx.body =  { result, ok: true };
+    ctx.status = result.done ? 201 : 202;
+    ctx.body = { result, ok: true };
     ctx.type = 'json';
   }
   async patch(ctx: Context, next: () => void) {
