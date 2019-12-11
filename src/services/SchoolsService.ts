@@ -90,9 +90,8 @@ export class SchoolsService {
       $pull: { academicTerms: { _id: academicTermId } }
     };
     const result = await this.isAcademicTermActive(academicTermId, byUser);
-    if (!result) {
-      return this._commandsProcessor.sendCommand('schools', this.doUpdate, { _id: id }, transformDeleteObj);
-    }
+
+    if (result) return this._commandsProcessor.sendCommand('schools', this.doUpdate, { _id: id }, transformDeleteObj);
     return { done: false };
   }
 
@@ -198,6 +197,7 @@ export class SchoolsService {
 
   async isAcademicTermActive(academicTermId: string, byUser: IUserToken) {
     this.authorize(byUser);
-    return this.coursesRepo.findOne({ 'academicTerm._id': academicTermId });
+    const response =  await this.coursesRepo.findOne({ 'academicTerm._id': academicTermId });
+    return !response;
   }
 }
