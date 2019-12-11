@@ -21,8 +21,8 @@ const updateSchoolsSchema = {
   $$strict: true
 };
 
-const updateAcademicsSchema = {
-  academicTerms: {
+const updateAcademicTermSchema = {
+  academicTerm: {
     type: 'object',
     optional: true,
     props: {
@@ -78,7 +78,7 @@ const deleteUsersSchema = {
 const validator = new Validator();
 const validateCreate = validator.compile(createSchoolsSchema);
 const validateUpdate = validator.compile(updateSchoolsSchema);
-const validateUpdateAcademics = validator.compile(updateAcademicsSchema);
+const validateUpdateAcademicTerm = validator.compile(updateAcademicTermSchema);
 const validateUpdateUsers = validator.compile(updateUsersSchema);
 const validateDeleteUsers = validator.compile(deleteUsersSchema);
 
@@ -100,8 +100,8 @@ export const validateUpdateSchool = (request: IUpdateSchoolRequest) => {
   }
 };
 
-export const validateUpdateAcademicsSchool = (request: { academicTerms: IAcademicTerm }) => {
-  const isValidationPassed = validateUpdateAcademics(request);
+export const validateUpdateSchoolAcademicTerm = (request: { academicTerm: IAcademicTerm }) => {
+  const isValidationPassed = validateUpdateAcademicTerm(request);
   if (typeof isValidationPassed === 'boolean') {
     return isValidationPassed;
   } else {

@@ -1,7 +1,7 @@
 import {
   validateCreateSchool,
   validateUpdateSchool,
-  validateUpdateAcademicsSchool,
+  validateUpdateSchoolAcademicTerm,
   validateUpdateSchoolUsers,
   validateDeleteSchoolUsers
 } from './SchoolsSchema';
@@ -23,7 +23,7 @@ const validators = {
   validateCreateSection,
   validateCreateCourse,
   validateUpdateCourse,
-  validateUpdateAcademicsSchool,
+  validateUpdateSchoolAcademicTerm,
   validateUpdateSchoolUsers,
   validateDeleteSchoolUsers,
   validateStudentsList,

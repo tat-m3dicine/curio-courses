@@ -24,13 +24,13 @@ export class SchoolsController {
     ctx.type = 'json';
   }
   async updateAcademics(ctx: Context, next: () => void) {
-    const result = await this.schoolService.updateAcademics(ctx.request.body, ctx.params.id, ctx.user);
+    const result = await this.schoolService.updateAcademicTerm(ctx.request.body, ctx.params.id, ctx.user);
     ctx.status = 200;
     ctx.body = { result, ok: true };
     ctx.type = 'json';
   }
   async deleteAcademics(ctx: Context, next: () => void) {
-    const result = await this.schoolService.deleteAcademics(ctx.params, ctx.user);
+    const result = await this.schoolService.deleteAcademicTerm(ctx.params, ctx.user);
     ctx.status = result.done ? 201 : 202;
     ctx.body = { result, ok: true };
     ctx.type = 'json';
@@ -60,7 +60,7 @@ export class SchoolsController {
     ctx.type = 'json';
   }
   async get(ctx: Context, next: () => void) {
-    const result = await this.schoolService.get(ctx.params.id);
+    const result = await this.schoolService.get(ctx.params.id, ctx.user);
     ctx.status = 200;
     ctx.body = result;
     ctx.type = 'json';
