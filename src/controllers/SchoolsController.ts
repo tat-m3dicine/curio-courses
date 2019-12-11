@@ -3,7 +3,6 @@ import { Context } from 'koa';
 import loggerFactory from '../utils/logging';
 import { IPaging } from '@saal-oryx/unit-of-work';
 import { SchoolsService } from '../services/SchoolsService';
-import { ConditionalBadRequest } from '../exceptions/ConditionalBadRequest';
 
 const logger = loggerFactory.getLogger('SkillRatingsController');
 
