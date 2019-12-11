@@ -2,6 +2,14 @@ import { validateCreateSchool, validateUpdateSchool, validateUpdateAcademicsScho
 import { validateCreateSection } from './SectionsSchema';
 import { validateCreateCourse, validateUpdateCourse } from './CoursesSchema';
 import { validateCreateLicense } from './LicenseSchema';
+import {
+  validateStudentsList,
+  validateStudentsObjects,
+  validateStudentsSwitch,
+  validateTeachersList,
+  validateTeachersObjects,
+  validateTeachersSwitch
+} from './CoursesRequestsSchema';
 const validators = {
   validateCreateSchool,
   validateUpdateSchool,
@@ -9,6 +17,12 @@ const validators = {
   validateCreateSection,
   validateCreateCourse,
   validateUpdateCourse,
-  validateUpdateAcademicsSchool
+  validateUpdateAcademicsSchool,
+  validateStudentsList,
+  validateStudentsObjects,
+  validateStudentsSwitch,
+  validateTeachersList,
+  validateTeachersObjects,
+  validateTeachersSwitch
 };
 export default validators;
