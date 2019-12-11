@@ -29,6 +29,12 @@ export class SchoolsController {
     ctx.body = { result, ok: true };
     ctx.type = 'json';
   }
+  async deleteAcademics(ctx: Context, next: () => void) {
+    const result  = await this.schoolService.deleteAcademics(ctx.params, ctx.user);
+    ctx.status = result.done ? 201 : 202;
+    ctx.body = { result, ok: true };
+    ctx.type = 'json';
+  }
   async patch(ctx: Context, next: () => void) {
     const result = await this.schoolService.patch(ctx.request.body, ctx.params.id, ctx.user);
     ctx.status = 200;
