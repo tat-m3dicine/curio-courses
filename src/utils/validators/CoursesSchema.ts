@@ -2,28 +2,10 @@ import Validator from 'fastest-validator';
 import { ValidationError } from '../../exceptions/ValidationError';
 import { ICreateCourseRequest } from '../../models/requests/ICourseRequests';
 import { ICourse } from '../../models/entities/ICourse';
-
-const localeSchema = {
-  type: 'object',
-  optional: true,
-  props: {
-    name: 'string',
-    description: {
-      type: 'string',
-      optional: true
-    }
-  }
-};
+import { localesSchema } from './LocalesSchema';
 
 const courseCreateSchema = {
-  locales: {
-    type: 'object',
-    strict: true,
-    props: {
-      en: localeSchema,
-      ar: localeSchema
-    }
-  },
+  locales: localesSchema(),
   schoolId: 'string',
   sectionId: 'string',
   curriculum: 'string',
@@ -55,15 +37,7 @@ const courseCreateSchema = {
 };
 
 const courseUpdateSchema = {
-  locales: {
-    type: 'object',
-    strict: true,
-    optional: true,
-    props: {
-      en: localeSchema,
-      ar: localeSchema
-    }
-  },
+  locales: localesSchema(),
   defaultLocale: {
     type: 'string',
     optional: true
@@ -94,4 +68,3 @@ export const validateUpdateCourse = (request: Partial<ICourse>) => {
     throw new ValidationError(isValidationPassed);
   }
 };
-

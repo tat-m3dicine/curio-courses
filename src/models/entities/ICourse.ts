@@ -1,4 +1,4 @@
-import { ILocales, IUser, IAcademicTerm, IAuditable } from './Common';
+import { ILocales, IAcademicTerm, IAuditable } from './Common';
 import { IEntity } from '@saal-oryx/unit-of-work';
 
 export interface ICourse extends Partial<IAuditable>, IEntity {
@@ -10,7 +10,14 @@ export interface ICourse extends Partial<IAuditable>, IEntity {
   defaultLocale: string;
   locales: ILocales;
   isEnabled: boolean;
-  teachers: IUser[];
-  students: IUser[];
+  teachers: IUserCourseInfo[];
+  students: IUserCourseInfo[];
   academicTerm: IAcademicTerm;
+}
+
+export interface IUserCourseInfo {
+  _id: string;
+  joinDate: Date;
+  finishDate?: Date;
+  isEnabled: boolean;
 }

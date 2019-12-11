@@ -1,81 +1,65 @@
 import request from 'request';
-import { IUnitOfWork } from '@saal-oryx/unit-of-work';
-
 import config from '../config';
 import loggerFactory from '../utils/logging';
 import { UsersController } from '../controllers/UsersController';
 import { IIRPSection, IIRPUser } from '../models/entities/IIRP';
 import correlationIDHelper from '../utils/correlationIDHelper';
-import { IUsers } from '../models/entities/IUsers';
+import { IUser } from '../models/entities/IUser';
 import generate = require('nanoid/non-secure/generate');
-import { format } from 'path';
-
 
 const logger = loggerFactory.getLogger('IRPService');
 export class IRPService {
 
   protected irpUrl = config.irpUrl + '/authenticate';
-  constructor() {
-
-  }
 
   public getAllSections() {
-    console.log('getAllSections invoked');
     const sectionsIRPUrl = `${this.irpUrl}/sections`;
-    console.log('sectionsIRPUrl:', sectionsIRPUrl);
+    logger.info('getAllSections invoked', sectionsIRPUrl);
     return new Promise<IIRPSection[]>((resolve, reject) => {
       request(sectionsIRPUrl, {
         headers: {
           'curio-request-correlation-id': correlationIDHelper.getCorrelationId(),
         }, gzip: true, json: true
       }, (error: any, response: request.Response, body: IIRPSection[]) => {
-        console.log(`body: ${body},error: ${error} and  response: ${JSON.stringify(response, undefined, 2)}`);
         if (error) return reject(error);
-        if (response.statusCode !== 200) return reject(body);
-        logger.info('getAllSections from IRP service');
+        if (response.statusCode < 200 || response.statusCode >= 300) return reject(body);
         return resolve(body);
       });
     });
   }
 
-  public getAllUsersBySection(sectionId: string) {
-    console.log('getAllSections invoked');
+  public getAllUsersBySection(schoolId: string, sectionId: string) {
+    const now = new Date();
     const usersIRPUrl = `${this.irpUrl}/users/group/${sectionId}`;
-    console.log('usersIRPUrl:', usersIRPUrl);
-    return new Promise<IUsers[]>((resolve, reject) => {
+    logger.info('getAllUsersBySection invoked', usersIRPUrl);
+    return new Promise<IUser[]>((resolve, reject) => {
       request(usersIRPUrl, {
         headers: {
           'curio-request-correlation-id': correlationIDHelper.getCorrelationId(),
         }, gzip: true, json: true
       }, (error: any, response: request.Response, body: IIRPUser[]) => {
-        console.log(`body: ${body},error: ${error} and  response: ${JSON.stringify(response, undefined, 2)}`);
         if (error) return reject(error);
-        if (response.statusCode !== 200) return reject(body);
-        logger.info('getAllSections from IRP service');
-        const listOfUsers: IUser[] = this.transformIRPUser(body);
-        return resolve(listOfUsers);
+        if (response.statusCode < 200 || response.statusCode >= 300) return reject(body);
+        const result = this.mapIRPUsersToDbUsers(body, schoolId, now);
+        return resolve(result);
       });
     });
   }
 
-  transformIRPUser(response: IIRPUser[]) {
+  private mapIRPUsersToDbUsers(irpUsers: IIRPUser[], schoolId: string, joinDate: Date) {
     const result: IUser[] = [];
-    for (const user of response) {
-    console.log('response:', response);
-    result.push({
-      _id: generate('0123456789abcdef', 10),
-      profile: {
-        name: user.name,
-        avatar: 'd'
-      },
-      role: ['s'],
-      registration: {
-        schoolId: 'd',
-        joinDate: new Date(),
-        finishedDate: new Date()
-      }
-    });
-  }
+    for (const user of irpUsers) {
+      result.push({
+        _id: user.username,
+        profile: {
+          name: user.name,
+          avatar: user.avatar,
+          grade: user.grade
+        },
+        role: user.role ? user.role.split(',').map(r => r.toLowerCase().trim()) : [],
+        registration: { schoolId, joinDate }
+      });
+    }
     return result;
   }
 }

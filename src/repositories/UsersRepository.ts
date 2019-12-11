@@ -9,4 +9,5 @@ export class UsersRepository extends AduitableRepository<IUsers & IEntity & Part
   constructor(collection: Collection) {
     super('Users', collection);
   }
+  
 }

@@ -13,15 +13,7 @@ export interface IStudentCourseInfo {
 export interface IProfile {
   name: string;
   avatar: string;
-}
-export interface IUser extends IEntity {
-  profile: IProfile;
-  role: string[];
-  registration: {
-    schoolId: string;
-    joinDate: Date;
-    finishedDate?: Date;
-  };
+  grade: string;
 }
 export interface IAcademicTerm {
   _id: string;

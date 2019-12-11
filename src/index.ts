@@ -12,6 +12,7 @@ import {
 } from './utils/middlewares';
 import { loggerHandler } from './utils/middlewares/loggerHandler';
 import { getUnitOfWorkHandler } from './utils/middlewares/unitOfWorkHandler';
+import { UsersController } from './controllers/UsersController';
 
 import schoolRoutes from './routes/schools.routes';
 import { KafkaService } from './services/KafkaService';
@@ -19,6 +20,8 @@ import sectionsRoutes from './routes/sections.routes';
 import { CommandsProcessor } from './services/CommandsProcessor';
 import coursesRoutes from './routes/courses.routes';
 import usersRoutes from './routes/users.routes';
+import { MigrationScripts } from './services/MigrationScripts';
+import { IRPService } from './services/IRPService';
 
 const logger = loggerFactory.getLogger('Index');
 
@@ -36,9 +39,14 @@ let server: import('http').Server;
     logger.warn('createTopics', err);
   }
 
+  // Stream
   const commandsProcessor = new CommandsProcessor(kafkaService);
   const streamsProcessor = new StreamsProcessor(kafkaService, commandsProcessor);
   await streamsProcessor.start();
+
+  // Migration
+  const migateUsers = new MigrationScripts();
+  await migateUsers.migrateIRPUsers(commandsProcessor);
 
   app.proxy = true;
   app.use(loggerHandler);

@@ -17,7 +17,7 @@ import { ForbiddenError } from '../exceptions/ForbiddenError';
 import { CommandsProcessor } from './CommandsProcessor';
 import { InvalidRequestError } from '../exceptions/InvalidRequestError';
 import { Role } from '../models/Role';
-import { IUser } from '../models/entities/Common';
+import { IUsers } from '../models/entities/IUser';
 
 export class SectionsService {
 
@@ -112,7 +112,7 @@ export class SectionsService {
     const coursesRepoWithTransactions = this._uow.getRepository('Courses', true) as CoursesRepository;
     const sectionsRepoWithTransactions = this._uow.getRepository('Sections', true) as SectionsRepository;
 
-    await coursesRepoWithTransactions.finishStudentsCourses({ _id: sectionId, schoolId }, studentIds);
+    await coursesRepoWithTransactions.finishUsersInCourses({ sectionId, schoolId }, 'students', studentIds, new Date());
     const updatedSection = await sectionsRepoWithTransactions.update({ _id: sectionId, schoolId }, {
       $pull: { students: { _id: { $in: studentIds } } }
     });
@@ -131,10 +131,10 @@ export class SectionsService {
   }
 
   protected async validateStudentsInSchool(studentIds: string[], schoolId: string) {
-    const dbStudents: IUser[] = await this.usersRepo.findMany({ '_id': { $in: studentIds }, 'registration.schoolId': schoolId, 'role': Role.student });
+    const dbStudents: IUsers[] = await this.usersRepo.findMany({ '_id': { $in: studentIds }, 'registration.schoolId': schoolId, 'role': Role.student });
     if (studentIds.length !== dbStudents.length) {
       const notRegistered = studentIds.filter(_id => dbStudents.find(student => student._id === _id));
-      throw new InvalidRequestError(`Students [${notRegistered.join(',')}] aren't registered in school ${schoolId}!`);
+      throw new InvalidRequestError(`Students ['${notRegistered.join("', '")}'] aren't registered in school ${schoolId}!`);
     }
   }
 

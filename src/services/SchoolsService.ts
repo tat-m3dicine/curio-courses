@@ -1,27 +1,32 @@
-import { IUnitOfWork, defaultPaging } from '@saal-oryx/unit-of-work';
-import { IUserToken } from '../models/IUserToken';
-import { SchoolsRepository } from '../repositories/SchoolsRepository';
 import config from '../config';
-import { ICreateSchoolRequest, IUpdateSchoolRequest, ICreateLicenseRequest, IDeleteAcademicTermRequest } from '../models/requests/ISchoolRequests';
-import { UnauthorizedError } from '../exceptions/UnauthorizedError';
-import generate = require('nanoid/non-secure/generate');
 import validators from '../utils/validators';
-import { InvalidRequestError } from '../exceptions/InvalidRequestError';
-import { ISchool, IAcademicTermRequest } from '../models/entities/ISchool';
-import { ForbiddenError } from '../exceptions/ForbiddenError';
-import { CommandsProcessor } from './CommandsProcessor';
-import { ILicenseRequest } from '../models/requests/ILicenseRequest';
+import generate from 'nanoid/non-secure/generate';
 
+import { IUserToken } from '../models/IUserToken';
 import { IAcademicTerm } from '../models/entities/Common';
-import { CoursesService } from './CoursesService';
+import { ILicenseRequest } from '../models/requests/ILicenseRequest';
+import { ISchool, IAcademicTermRequest } from '../models/entities/ISchool';
+import { ICreateSchoolRequest, IUpdateSchoolRequest, ICreateLicenseRequest, IDeleteAcademicTermRequest } from '../models/requests/ISchoolRequests';
+import { CommandsProcessor } from './CommandsProcessor';
+import { IUnitOfWork, defaultPaging } from '@saal-oryx/unit-of-work';
+import { SchoolsRepository } from '../repositories/SchoolsRepository';
+import { CoursesRepository } from '../repositories/CoursesRepository';
+import { ForbiddenError } from '../exceptions/ForbiddenError';
+import { UnauthorizedError } from '../exceptions/UnauthorizedError';
+import { InvalidRequestError } from '../exceptions/InvalidRequestError';
+import { ConditionalBadRequest } from '../exceptions/ConditionalBadRequest';
 
 export class SchoolsService {
 
-  constructor(protected _uow: IUnitOfWork, protected _commandsProcessor: CommandsProcessor, protected _courseService: CoursesService) {
+  constructor(protected _uow: IUnitOfWork, protected _commandsProcessor: CommandsProcessor) {
   }
 
   protected get schoolsRepo() {
     return this._uow.getRepository('Schools') as SchoolsRepository;
+  }
+
+  protected get coursesRepo() {
+    return this._uow.getRepository('Courses') as CoursesRepository;
   }
 
   async get(id: string) {
@@ -31,7 +36,7 @@ export class SchoolsService {
   async delete(id: string, byUser: IUserToken) {
     const isAuthorized = await this.authorize(byUser);
     if (!isAuthorized) throw new UnauthorizedError();
-    return this.schoolsRepo.delete({ _id: id });
+    return this._commandsProcessor.sendCommand('schools', this.doDelete, id);
   }
 
   async list(paging = defaultPaging, byUser: IUserToken) {
@@ -85,13 +90,10 @@ export class SchoolsService {
     const transformDeleteObj = {
       $pull: { academicTerms: { _id: academicTermId } }
     };
+    const result = await this.isAcademicTermActive(academicTermId, byUser);
 
-    const eligibility = await this._commandsProcessor.sendCommand('courses', this._courseService.getAcademicTermCourse, academicTermId, byUser);
-
-    if (eligibility && !eligibility.data) {
-      return this._commandsProcessor.sendCommand('schools', this.doUpdate, { _id: id }, transformDeleteObj);
-    }
-    return { done: false };
+   if (!result) throw new ConditionalBadRequest('Unable to delete the Academic Term because Courses are active within.');
+   return this._commandsProcessor.sendCommand('schools', this.doUpdate, { _id: id }, transformDeleteObj);
   }
 
   async patch(updateObj: IUpdateSchoolRequest, id: string, byUser: IUserToken) {
@@ -115,12 +117,10 @@ export class SchoolsService {
       reference: licenseObj.reference || byUser.sub,
       package: licenseObj.package
     };
-    if (licenseObj.students_consumed) license.students = { consumed: licenseObj.students_consumed };
-    if (licenseObj.teachers_consumed) license.teachers = { consumed: licenseObj.teachers_consumed };
     /**
-     * If validFrom is less than existing license valid from
+     * If validTo is less than existing license validTo
      */
-    const isLicenseConflicts = await this.schoolsRepo.findOne({ '_id': id, 'license.validTo': { $gte: license.validTo } });
+    const isLicenseConflicts = await this.schoolsRepo.findOne({ '_id': id, 'license.validTo': { $gt: license.validTo } });
     if (isLicenseConflicts) throw new InvalidRequestError('ValidTo is conflicts with existing license validTo date, validTo should be greater than');
     return this._commandsProcessor.sendCommand('schools', this.doPatch, id, { license });
   }
@@ -192,5 +192,15 @@ export class SchoolsService {
 
   private async doPatch(id: string, school: Partial<ISchool>) {
     return this.schoolsRepo.patch({ _id: id }, school);
+  }
+
+  async isAcademicTermActive(academicTermId: string, byUser: IUserToken) {
+    this.authorize(byUser);
+    const response =  await this.coursesRepo.findOne({ 'academicTerm._id': academicTermId });
+    return !response;
+  }
+
+  private async doDelete(id: string) {
+    return this.schoolsRepo.delete({ _id: id });
   }
 }
