@@ -17,6 +17,7 @@ export interface ILicense {
   students: {
     max: number; // *
     consumed: number;
+    joinBy: 'invite_code' | 'auto' | 'manual'
   };
   teachers: {
     max: number; // *
