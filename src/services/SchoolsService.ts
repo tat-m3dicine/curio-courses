@@ -1,9 +1,9 @@
 import config from '../config';
 import validators from '../utils/validators';
 import generate from 'nanoid/non-secure/generate';
-
+import { IUser } from '../models/entities/IUser';
 import { IUserToken } from '../models/IUserToken';
-import { IAcademicTerm, IUser } from '../models/entities/Common';
+import { IAcademicTerm } from '../models/entities/Common';
 import { ILicenseRequest } from '../models/requests/ILicenseRequest';
 import { ISchool, IAcademicTermRequest, ISchoolUserPermissions, ILicense } from '../models/entities/ISchool';
 import { ICreateSchoolRequest, IUpdateSchoolRequest, ICreateLicenseRequest, IDeleteAcademicTermRequest, IUpdateUserRequest } from '../models/requests/ISchoolRequests';

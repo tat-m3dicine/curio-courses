@@ -12,6 +12,7 @@ const config: {
   contributionsScaler: number;
   historyLength: number;
   kafkaCommandsTopic: string;
+  kafkaIRPTopic: string;
   comamndsTimeout: number;
   redisHost: string;
   redisPort: number;
@@ -22,6 +23,7 @@ const config: {
   kafkaClientId: 'courses',
   kafkaProducersGroup: 'courses-producers-group',
   kafkaCommandsTopic: 'courses_commands',
+  kafkaIRPTopic: 'UserUpdate',
   comamndsTimeout: 3 * 1000,
   authorizedRole: 'root',
   contributionsScaler: 5,
