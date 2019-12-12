@@ -1,11 +1,11 @@
-import { Collection } from 'mongodb';
+import { Collection, ClientSession } from 'mongodb';
 import { ISchool, ISchoolUserPermissions, IAcademicTermRequest } from '../models/entities/ISchool';
 import { AduitableRepository } from './AduitableRepository';
 import { IAcademicTerm } from '../models/entities/Common';
 
 export class SchoolsRepository extends AduitableRepository<ISchool> {
-  constructor(collection: Collection) {
-    super('Schools', collection);
+  constructor(collection: Collection, session?: ClientSession) {
+    super('Schools', collection, session);
   }
 
   updateAcademicTerm(schoolId: string, updateObj: IAcademicTermRequest, academicTerm: IAcademicTerm) {

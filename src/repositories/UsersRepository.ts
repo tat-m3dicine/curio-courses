@@ -1,10 +1,10 @@
-import { Collection } from 'mongodb';
+import { Collection, ClientSession } from 'mongodb';
 import { AduitableRepository } from './AduitableRepository';
 import { IUser } from '../models/entities/IUser';
 
 export class UsersRepository extends AduitableRepository<IUser> {
-  constructor(collection: Collection) {
-    super('Users', collection);
+  constructor(collection: Collection, session?: ClientSession) {
+    super('Users', collection, session);
   }
 
   async addRegisteration(user: IUser) {
