@@ -12,8 +12,7 @@ const validateOneLocale = validator.compile({
   $$strict: true
 });
 
-export const localesSchema = (requiredLang?: string[] | string) => {
-  const requiredLangs: string[] = requiredLang ? (requiredLang instanceof Array ? requiredLang : [requiredLang]) : [];
+export const localesSchema = (...requiredLangs: string[]) => {
   return {
     type: 'custom',
     check(locales: { [lang: string]: object }) {

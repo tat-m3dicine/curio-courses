@@ -4,7 +4,7 @@ import validators from '../utils/validators';
 import generate from 'nanoid/non-secure/generate';
 import { CommandsProcessor } from './CommandsProcessor';
 import { IUnitOfWork, IPaging } from '@saal-oryx/unit-of-work';
-//models
+// models
 import { Role } from '../models/Role';
 import { IUser } from '../models/entities/IUser';
 import { IUserToken } from '../models/IUserToken';
@@ -13,12 +13,12 @@ import { IAcademicTerm } from '../models/entities/Common';
 import { IUserRequest } from '../models/requests/IUserRequest';
 import { ICourse, IUserCourseInfo } from '../models/entities/ICourse';
 import { ICreateCourseRequest } from '../models/requests/ICourseRequests';
-//exceptions
+// exceptions
 import { NotFoundError } from '../exceptions/NotFoundError';
 import { ForbiddenError } from '../exceptions/ForbiddenError';
 import { UnauthorizedError } from '../exceptions/UnauthorizedError';
 import { InvalidLicenseError } from '../exceptions/InvalidLicenseError';
-//repositories
+// repositories
 import { UsersRepository } from '../repositories/UsersRepository';
 import { CoursesRepository } from '../repositories/CoursesRepository';
 import { SchoolsRepository } from '../repositories/SchoolsRepository';
@@ -177,7 +177,7 @@ export class CoursesService {
   }
 
   async dropTeachers(requestParam: IUserRequest, byUser: IUserToken) {
-    return this.dropUsers([requestParam], Role.student, byUser);
+    return this.dropUsers([requestParam], Role.teacher, byUser);
   }
 
   async dropTeachersInCourses(requestParams: IUserRequest[], byUser: IUserToken) {
@@ -244,7 +244,7 @@ export class CoursesService {
     if (!isAuthorized) throw new UnauthorizedError('you are not authorized!');
   }
 
-  protected newCourseId({ schoolId, sectionId, subject, curriculum }: ICreateCourseRequest) {
-    return `${subject}_${curriculum}_${sectionId}_${schoolId}}`.toLocaleLowerCase().replace(/\s/g, '');
+  protected newCourseId({ sectionId, subject, curriculum }: ICreateCourseRequest) {
+    return `${subject}_${curriculum}_${sectionId}`.toLocaleLowerCase().replace(/\s/g, '');
   }
 }
