@@ -126,13 +126,13 @@ export class SchoolsService {
 
   async deleteAcademicTerm(requestParams: IDeleteAcademicTermRequest, byUser: IUserToken) {
     this.authorize(byUser);
-    const { _id: id, academicTermId } = { ...requestParams };
+    const { _id: schoolId, academicTermId } = { ...requestParams };
     const activeCourses = await this.coursesRepo.findMany({ 'academicTerm._id': academicTermId });
     if (activeCourses.length !== 0) {
       const coursesIds = activeCourses.map(course => course._id).join("', '");
       throw new ConditionalBadRequest(`Unable to delete the Academic Term because ['${coursesIds}'] are active within.`);
     }
-    return this._commandsProcessor.sendCommand('schools', this.doDeleteAcademicTerm, id, academicTermId);
+    return this._commandsProcessor.sendCommand('schools', this.doDeleteAcademicTerm, schoolId, academicTermId);
   }
 
   private async doDeleteAcademicTerm(schoolId: string, academicTermId: string) {

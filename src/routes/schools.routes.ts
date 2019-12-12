@@ -11,23 +11,23 @@ export default (commandsProccessor: CommandsProcessor) => {
       const controller = new SchoolsController(new SchoolsService(ctx.uow, commandsProccessor));
       return controller.create(ctx, next);
     })
-    .post('/:id/license', (ctx: Koa.Context, next: () => void) => {
+    .post('/:schoolId/license', (ctx: Koa.Context, next: () => void) => {
       const controller = new SchoolsController(new SchoolsService(ctx.uow, commandsProccessor));
       return controller.addLicense(ctx, next);
     })
-    .post('/:id/academics', (ctx: Koa.Context, next: () => void) => {
+    .post('/:schoolId/academics', (ctx: Koa.Context, next: () => void) => {
       const controller = new SchoolsController(new SchoolsService(ctx.uow, commandsProccessor));
       return controller.updateAcademics(ctx, next);
     })
-    .delete('/:id/academics/:academicTermId', (ctx: Koa.Context, next: () => void) => {
+    .delete('/:schoolId/academics/:academicTermId', (ctx: Koa.Context, next: () => void) => {
       const controller = new SchoolsController(new SchoolsService(ctx.uow, commandsProccessor));
       return controller.deleteAcademics(ctx, next);
     })
-    .post('/:id/users/update', (ctx: Koa.Context, next: () => void) => {
+    .post('/:schoolId/users/update', (ctx: Koa.Context, next: () => void) => {
       const controller = new SchoolsController(new SchoolsService(ctx.uow, commandsProccessor));
       return controller.updateUsers(ctx, next);
     })
-    .post('/:id/users/delete', (ctx: Koa.Context, next: () => void) => {
+    .post('/:schoolId/users/delete', (ctx: Koa.Context, next: () => void) => {
       const controller = new SchoolsController(new SchoolsService(ctx.uow, commandsProccessor));
       return controller.deleteUsers(ctx, next);
     })
@@ -35,19 +35,19 @@ export default (commandsProccessor: CommandsProcessor) => {
       const controller = new SchoolsController(new SchoolsService(ctx.uow, commandsProccessor));
       return controller.list(ctx, next);
     })
-    .get('/:id', (ctx: Koa.Context, next: () => void) => {
+    .get('/:schoolId', (ctx: Koa.Context, next: () => void) => {
       const controller = new SchoolsController(new SchoolsService(ctx.uow, commandsProccessor));
       return controller.get(ctx, next);
     })
-    .put('/:id', (ctx: Koa.Context, next: () => void) => {
+    .put('/:schoolId', (ctx: Koa.Context, next: () => void) => {
       const controller = new SchoolsController(new SchoolsService(ctx.uow, commandsProccessor));
       return controller.update(ctx, next);
     })
-    .patch('/:id', (ctx: Koa.Context, next: () => void) => {
+    .patch('/:schoolId', (ctx: Koa.Context, next: () => void) => {
       const controller = new SchoolsController(new SchoolsService(ctx.uow, commandsProccessor));
       return controller.patch(ctx, next);
     })
-    .delete('/:id', (ctx: Koa.Context, next: () => void) => {
+    .delete('/:schoolId', (ctx: Koa.Context, next: () => void) => {
       const controller = new SchoolsController(new SchoolsService(ctx.uow, commandsProccessor));
       return controller.delete(ctx, next);
     });

@@ -55,16 +55,16 @@ export class CoursesService {
       const users: IUser[] = await this.usersRepo.findMany({ '_id': { $in: usersIds }, 'registration.schoolId': schoolId });
       const usersMap: { [_id: string]: IUser } = users.reduce((map, user) => ({ ...map, [user._id]: user }), {});
 
-      students.forEach(id => {
-        const student = usersMap[id];
+      students.forEach(_id => {
+        const student = usersMap[_id];
         if (student && student.role.includes(Role.student)) {
           studentsObjs.push({ _id: student._id, joinDate: now, isEnabled: true });
         }
       });
       validateAllObjectsExist(studentsObjs, students, schoolId, Role.student);
 
-      teachers.forEach(id => {
-        const teacher = usersMap[id];
+      teachers.forEach(_id => {
+        const teacher = usersMap[_id];
         if (teacher && teacher.role.includes(Role.teacher)) {
           teachersObjs.push({ _id: teacher._id, joinDate: now, isEnabled: true });
         }

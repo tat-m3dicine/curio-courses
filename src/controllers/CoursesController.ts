@@ -203,14 +203,14 @@ export class CoursesController {
     ctx.type = 'json';
   }
 
-  protected transformUsersToCourses(query: { id: string, courses: string[] }[]): { [courseId: string]: string[] } {
+  protected transformUsersToCourses(query: { _id: string, courses: string[] }[]): { [courseId: string]: string[] } {
     const courses = {};
     for (const student of query) {
       for (const courseId of student.courses) {
         if (courseId in courses) {
-          courses[courseId].push(student.id);
+          courses[courseId].push(student._id);
         } else {
-          courses[courseId] = [student.id];
+          courses[courseId] = [student._id];
         }
       }
     }
@@ -225,12 +225,12 @@ export class CoursesController {
     return courses.map(([courseId, userIds]) => ({ schoolId, sectionId, courseId, userIds }));
   }
 
-  protected separateEnrollAndDrop(users: { id: string, drop: string[], enroll: string[] }[]) {
+  protected separateEnrollAndDrop(users: { _id: string, drop: string[], enroll: string[] }[]) {
     const enrollUsers = <any>[];
     const dropUsers = <any>[];
     for (const user of users) {
-      enrollUsers.push({ id: user.id, courses: user.enroll });
-      dropUsers.push({ id: user.id, courses: user.drop });
+      enrollUsers.push({ _id: user._id, courses: user.enroll });
+      dropUsers.push({ _id: user._id, courses: user.drop });
     }
     return [enrollUsers, dropUsers];
   }

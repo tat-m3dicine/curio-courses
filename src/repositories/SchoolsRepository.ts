@@ -8,10 +8,10 @@ export class SchoolsRepository extends AduitableRepository<ISchool> {
     super('Schools', collection);
   }
 
-  updateAcademicTerm(id: string, updateObj: IAcademicTermRequest, academicTerm: IAcademicTerm) {
+  updateAcademicTerm(schoolId: string, updateObj: IAcademicTermRequest, academicTerm: IAcademicTerm) {
     const { startDate, endDate } = updateObj;
     return this.update({
-      _id: id,
+      _id: schoolId,
       academicTerms: {
         $not: {
           $elemMatch: {
