@@ -1,24 +1,28 @@
-import { IUnitOfWork, IPaging } from '@saal-oryx/unit-of-work';
-import validators from '../utils/validators';
-import { UnauthorizedError } from '../exceptions/UnauthorizedError';
+
 import config from '../config';
+import validators from '../utils/validators';
+import generate from 'nanoid/non-secure/generate';
+import { CommandsProcessor } from './CommandsProcessor';
+import { IUnitOfWork, IPaging } from '@saal-oryx/unit-of-work';
+//models
+import { Role } from '../models/Role';
+import { IUser } from '../models/entities/IUser';
 import { IUserToken } from '../models/IUserToken';
-import generate = require('nanoid/non-secure/generate');
-import { ICreateCourseRequest } from '../models/requests/ICourseRequests';
-import { NotFoundError } from '../exceptions/NotFoundError';
-import { ICourse, IUserCourseInfo } from '../models/entities/ICourse';
+import { ISchool } from '../models/entities/ISchool';
 import { IAcademicTerm } from '../models/entities/Common';
+import { IUserRequest } from '../models/requests/IUserRequest';
+import { ICourse, IUserCourseInfo } from '../models/entities/ICourse';
+import { ICreateCourseRequest } from '../models/requests/ICourseRequests';
+//exceptions
+import { NotFoundError } from '../exceptions/NotFoundError';
+import { ForbiddenError } from '../exceptions/ForbiddenError';
+import { UnauthorizedError } from '../exceptions/UnauthorizedError';
+import { InvalidLicenseError } from '../exceptions/InvalidLicenseError';
+//repositories
 import { UsersRepository } from '../repositories/UsersRepository';
 import { CoursesRepository } from '../repositories/CoursesRepository';
 import { SchoolsRepository } from '../repositories/SchoolsRepository';
-import { InvalidLicenseError } from '../exceptions/InvalidLicenseError';
-import { ForbiddenError } from '../exceptions/ForbiddenError';
-import { CommandsProcessor } from './CommandsProcessor';
-import { Role } from '../models/Role';
-import { IUserRequest } from '../models/requests/IUserRequest';
 import { SectionsRepository } from '../repositories/SectionsRepository';
-import { ISchool } from '../models/entities/ISchool';
-import { IUser } from '../models/entities/IUser';
 
 export class CoursesService {
 

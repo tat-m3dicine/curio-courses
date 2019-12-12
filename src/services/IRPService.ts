@@ -1,11 +1,9 @@
 import request from 'request';
 import config from '../config';
 import loggerFactory from '../utils/logging';
-import { UsersController } from '../controllers/UsersController';
+import { IUser } from '../models/entities/IUser';
 import { IIRPSection, IIRPUser } from '../models/entities/IIRP';
 import correlationIDHelper from '../utils/correlationIDHelper';
-import { IUser } from '../models/entities/IUser';
-import generate = require('nanoid/non-secure/generate');
 
 const logger = loggerFactory.getLogger('IRPService');
 export class IRPService {

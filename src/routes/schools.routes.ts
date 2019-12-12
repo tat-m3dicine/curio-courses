@@ -3,7 +3,6 @@ import Koa from 'koa';
 import { SchoolsController } from '../controllers/SchoolsController';
 import { SchoolsService } from '../services/SchoolsService';
 import { CommandsProcessor } from '../services/CommandsProcessor';
-import { CoursesService } from '../services/CoursesService';
 
 export default (commandsProccessor: CommandsProcessor) => {
   const schoolRoutes = new KoaRoute();

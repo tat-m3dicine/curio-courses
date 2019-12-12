@@ -72,7 +72,6 @@ else {
 if (process.env.IRP_URL) config.irpUrl = process.env.IRP_URL;
 else {
   logger.error('Missing parameter: IRP_URL! Exiting...');
-  process.exit(1);
 }
 
 if (process.env.KAFKA_REWARD_TOPIC) {

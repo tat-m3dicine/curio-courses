@@ -17,7 +17,7 @@ import { ForbiddenError } from '../exceptions/ForbiddenError';
 import { CommandsProcessor } from './CommandsProcessor';
 import { InvalidRequestError } from '../exceptions/InvalidRequestError';
 import { Role } from '../models/Role';
-import { IUsers } from '../models/entities/IUser';
+import { IUser } from '../models/entities/IUser';
 
 export class SectionsService {
 
@@ -131,7 +131,7 @@ export class SectionsService {
   }
 
   protected async validateStudentsInSchool(studentIds: string[], schoolId: string) {
-    const dbStudents: IUsers[] = await this.usersRepo.findMany({ '_id': { $in: studentIds }, 'registration.schoolId': schoolId, 'role': Role.student });
+    const dbStudents: IUser[] = await this.usersRepo.findMany({ '_id': { $in: studentIds }, 'registration.schoolId': schoolId, 'role': Role.student });
     if (studentIds.length !== dbStudents.length) {
       const notRegistered = studentIds.filter(_id => dbStudents.find(student => student._id === _id));
       throw new InvalidRequestError(`Students ['${notRegistered.join("', '")}'] aren't registered in school ${schoolId}!`);
