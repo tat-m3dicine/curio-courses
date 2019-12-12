@@ -15,6 +15,7 @@ const config: {
   comamndsTimeout: number;
   redisHost: string;
   redisPort: number;
+  irpUrl: string;
 } = <any>{
   port: 80,
   production: false,
@@ -67,6 +68,8 @@ else {
   logger.error('Missing parameter: MONGO_DB_URL! Exiting...');
   process.exit(1);
 }
+
+if (process.env.IRP_URL) config.irpUrl = process.env.IRP_URL;
 
 if (process.env.KAFKA_REWARD_TOPIC) {
   config.kafkaRewardTopic = process.env.KAFKA_REWARD_TOPIC;

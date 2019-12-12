@@ -39,6 +39,7 @@ Node.js Koa backend with MongoDb clsuter and Kafka.
 3.  `MONGO_DB_URL=mongodb://courses-mongodb:27017/courses`
 4.  `KAFKA_BROKERS=kafka:9092`
 5.  `LOGGER_CONFIG={"disableClustering":true,"appenders":{"out":{"type":"stdout","layout":{"type":"pattern","pattern":"%[ [%d] [%p] %] %c - %x{correlationId} - %m"}}},"categories":{"default":{"appenders":["out"],"level":"trace"}}}`
+6. ` IRP_URL: http://internal-dev3-saale.saal.ai:30307 (Required for migrating users)`
 
 
 ## Service Dependencies:

@@ -1,10 +1,7 @@
 import Koa from 'koa';
-import koaBody from 'koa-body';
 import config from './config';
-import { StreamsProcessor } from './services/streams/StreamsProcessor';
-
+import koaBody from 'koa-body';
 import loggerFactory from './utils/logging';
-
 import {
   tokenHandler,
   errorHandler,
@@ -12,12 +9,13 @@ import {
 } from './utils/middlewares';
 import { loggerHandler } from './utils/middlewares/loggerHandler';
 import { getUnitOfWorkHandler } from './utils/middlewares/unitOfWorkHandler';
-
 import schoolRoutes from './routes/schools.routes';
-import { KafkaService } from './services/KafkaService';
-import sectionsRoutes from './routes/sections.routes';
-import { CommandsProcessor } from './services/CommandsProcessor';
 import coursesRoutes from './routes/courses.routes';
+import sectionsRoutes from './routes/sections.routes';
+import { KafkaService } from './services/KafkaService';
+import { MigrationScripts } from './services/MigrationScripts';
+import { CommandsProcessor } from './services/CommandsProcessor';
+import { StreamsProcessor } from './services/streams/StreamsProcessor';
 
 const logger = loggerFactory.getLogger('Index');
 
@@ -35,9 +33,12 @@ let server: import('http').Server;
     logger.warn('createTopics', err);
   }
 
+  // Stream
   const commandsProcessor = new CommandsProcessor(kafkaService);
   const streamsProcessor = new StreamsProcessor(kafkaService, commandsProcessor);
   await streamsProcessor.start();
+
+
 
   app.proxy = true;
   app.use(loggerHandler);
@@ -48,6 +49,10 @@ let server: import('http').Server;
 
   // Unit of work
   app.use(getUnitOfWorkHandler());
+
+  // Migration
+  const migateUsers = new MigrationScripts();
+  if (config.irpUrl) await migateUsers.migrateIRPUsers(commandsProcessor);
 
   server = app.listen(config.port, () => {
     logger.info(`application is listening on port ${config.port} ...`);

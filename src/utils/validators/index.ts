@@ -8,6 +8,7 @@ import {
 import { validateCreateSection } from './SectionsSchema';
 import { validateCreateCourse, validateUpdateCourse } from './CoursesSchema';
 import { validateCreateLicense } from './LicenseSchema';
+import { validateCreateUser } from './UserSchema';
 import {
   validateStudentsList,
   validateStudentsObjects,
@@ -22,6 +23,7 @@ const validators = {
   validateCreateLicense,
   validateCreateSection,
   validateCreateCourse,
+  validateCreateUser,
   validateUpdateCourse,
   validateUpdateSchoolAcademicTerm,
   validateUpdateSchoolUsers,
