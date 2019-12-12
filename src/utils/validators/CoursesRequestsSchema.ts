@@ -17,7 +17,7 @@ const objectsSchema = (lists: string[]) => ({
   items: {
     type: 'object',
     props: {
-      id: 'string',
+      _id: 'string',
       ...lists.reduce((map, list) => (
         { ...map, [list]: listSchema }
       ), {})

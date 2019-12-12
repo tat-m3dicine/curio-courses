@@ -6,12 +6,18 @@ export interface ISchool extends Partial<IAuditable>, IEntity {
   location: string;
   license?: ILicense;
   academicTerms: IAcademicTerm[];
+  users: ISchoolUserPermissions[];
 }
 
+export interface ISchoolUserPermissions {
+  _id: string;
+  permissions: string[];
+}
 export interface ILicense {
   students: {
     max: number; // *
     consumed: number;
+    joinBy: 'invite_code' | 'auto' | 'manual'
   };
   teachers: {
     max: number; // *

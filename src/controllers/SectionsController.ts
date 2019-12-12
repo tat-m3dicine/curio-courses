@@ -5,6 +5,7 @@ import { SectionsService } from '../services/SectionsService';
 import { ServerError } from '../exceptions/ServerError';
 import { IPaging } from '@saal-oryx/unit-of-work';
 import { NotFoundError } from '../exceptions/NotFoundError';
+import validators from '../utils/validators';
 
 const logger = loggerFactory.getLogger('SectionsController');
 
@@ -15,6 +16,7 @@ export class SectionsController {
 
   async create(ctx: Context, next: () => void) {
     const createObject = { ...ctx.request.body, schoolId: ctx.params.schoolId };
+    validators.validateCreateSection(createObject);
     const result = await this.sectionsService.create(createObject, ctx.user);
     ctx.status = result.done ? 201 : 202;
     ctx.body = { ok: true, result: result.data };
@@ -55,6 +57,7 @@ export class SectionsController {
   }
 
   async registerStudents(ctx: Context, next: () => void) {
+    validators.validateStudentsList(ctx.request.body);
     const { schoolId, sectionId } = ctx.params;
     const result = await this.sectionsService.registerStudents(schoolId, sectionId, ctx.request.body.students, ctx.user);
     if (!result) throw new ServerError(`Couldn't register students in section '${sectionId}' of '${schoolId}' school`);
@@ -64,6 +67,7 @@ export class SectionsController {
   }
 
   async removeStudents(ctx: Context, next: () => void) {
+    validators.validateStudentsList(ctx.request.body);
     const { schoolId, sectionId } = ctx.params;
     const result = await this.sectionsService.removeStudents(schoolId, sectionId, ctx.request.body.students, ctx.user);
     if (!result) throw new ServerError(`Couldn't register students in section '${sectionId}' of '${schoolId}' school`);

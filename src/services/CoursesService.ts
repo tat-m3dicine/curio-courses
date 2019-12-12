@@ -23,6 +23,7 @@ import { UsersRepository } from '../repositories/UsersRepository';
 import { CoursesRepository } from '../repositories/CoursesRepository';
 import { SchoolsRepository } from '../repositories/SchoolsRepository';
 import { SectionsRepository } from '../repositories/SectionsRepository';
+import { validateAllObjectsExist } from '../utils/validators/AllObjectsExist';
 
 export class CoursesService {
 
@@ -59,25 +60,25 @@ export class CoursesService {
       const users: IUser[] = await this.usersRepo.findMany({ '_id': { $in: usersIds }, 'registration.schoolId': schoolId });
       const usersMap: { [_id: string]: IUser } = users.reduce((map, user) => ({ ...map, [user._id]: user }), {});
 
-      students.forEach(id => {
-        const student = usersMap[id];
+      students.forEach(_id => {
+        const student = usersMap[_id];
         if (student && student.role.includes(Role.student)) {
           studentsObjs.push({ _id: student._id, joinDate: now, isEnabled: true });
         }
       });
-      this.validateAllObjectsExist(studentsObjs, students, Role.student, schoolId);
+      validateAllObjectsExist(studentsObjs, students, schoolId, Role.student);
 
-      teachers.forEach(id => {
-        const teacher = usersMap[id];
+      teachers.forEach(_id => {
+        const teacher = usersMap[_id];
         if (teacher && teacher.role.includes(Role.teacher)) {
           teachersObjs.push({ _id: teacher._id, joinDate: now, isEnabled: true });
         }
       });
-      this.validateAllObjectsExist(teachersObjs, teachers, Role.teacher, schoolId);
+      validateAllObjectsExist(teachersObjs, teachers, schoolId, Role.teacher);
     }
 
     return this._commandsProcessor.sendCommand('courses', this.doCreate, <ICourse>{
-      _id: this.newCourseId(grade, sectionId),
+      _id: this.newCourseId(course),
       schoolId, sectionId, curriculum, grade, subject, academicTerm,
       defaultLocale: course.defaultLocale || Object.keys(course.locales)[0] || 'en',
       isEnabled: course.isEnabled === undefined ? true : course.isEnabled,
@@ -231,20 +232,10 @@ export class CoursesService {
     const { schoolId, sectionId } = requestParams[0];
     const courseIds: string[] = requestParams.map(request => request.courseId);
     const coursesObjs: ICourse[] = await this.coursesRepo.findMany({ _id: { $in: courseIds }, schoolId, ...(sameSection ? { sectionId } : {}) });
-    this.validateAllObjectsExist(coursesObjs, courseIds, 'course', schoolId);
+    validateAllObjectsExist(coursesObjs, courseIds, schoolId, 'course');
     const userIds: string[] = Array.from(new Set<string>(requestParams.reduce((list, params) => [...list, ...params.userIds], <any>[])));
     const usersObjs: IUser[] = await this.usersRepo.findMany({ '_id': { $in: userIds }, 'registration.schoolId': schoolId, role });
-    this.validateAllObjectsExist(usersObjs, userIds, role, schoolId);
-  }
-
-  private validateAllObjectsExist(objects: { _id: string }[], objectsIds: string[], objectType = 'user', schoolId: string) {
-    if (objects.length !== objectsIds.length) {
-      const notFound: string[] = objectsIds.reduce((list, id) => {
-        if (objects.every(object => object._id !== id)) list.push(id);
-        return list;
-      }, <string[]>[]);
-      throw new NotFoundError(`${objectType}s ['${notFound.join("', '")}'] were not found in '${schoolId}' school!`);
-    }
+    validateAllObjectsExist(usersObjs, userIds, schoolId, role);
   }
 
   protected authorize(byUser: IUserToken) {
@@ -253,7 +244,7 @@ export class CoursesService {
     if (!isAuthorized) throw new UnauthorizedError('you are not authorized!');
   }
 
-  protected newCourseId(grade: string, sectionId: string) {
-    return `${grade}_${sectionId}_${generate('0123456789abcdef', 5)}`.toLocaleLowerCase().replace(/\s/g, '');
+  protected newCourseId({ schoolId, sectionId, subject, curriculum }: ICreateCourseRequest) {
+    return `${subject}_${curriculum}_${sectionId}_${schoolId}}`.toLocaleLowerCase().replace(/\s/g, '');
   }
 }
