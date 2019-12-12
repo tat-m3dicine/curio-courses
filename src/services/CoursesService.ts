@@ -3,7 +3,6 @@ import validators from '../utils/validators';
 import { UnauthorizedError } from '../exceptions/UnauthorizedError';
 import config from '../config';
 import { IUserToken } from '../models/IUserToken';
-import generate = require('nanoid/non-secure/generate');
 import { ICreateCourseRequest } from '../models/requests/ICourseRequests';
 import { NotFoundError } from '../exceptions/NotFoundError';
 import { ICourse, IUserCourseInfo } from '../models/entities/ICourse';
@@ -73,7 +72,7 @@ export class CoursesService {
     }
 
     return this._commandsProcessor.sendCommand('courses', this.doCreate, <ICourse>{
-      _id: this.newCourseId(grade, sectionId),
+      _id: this.newCourseId(course),
       schoolId, sectionId, curriculum, grade, subject, academicTerm,
       defaultLocale: course.defaultLocale || Object.keys(course.locales)[0] || 'en',
       isEnabled: course.isEnabled === undefined ? true : course.isEnabled,
@@ -239,7 +238,7 @@ export class CoursesService {
     if (!isAuthorized) throw new UnauthorizedError('you are not authorized!');
   }
 
-  protected newCourseId(grade: string, sectionId: string) {
-    return `${grade}_${sectionId}_${generate('0123456789abcdef', 5)}`.toLocaleLowerCase().replace(/\s/g, '');
+  protected newCourseId({ schoolId, sectionId, subject, curriculum }: ICreateCourseRequest) {
+    return `${subject}_${curriculum}_${sectionId}_${schoolId}}`.toLocaleLowerCase().replace(/\s/g, '');
   }
 }
