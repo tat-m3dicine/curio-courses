@@ -39,8 +39,8 @@ export interface IPackage {
   signupMethods: SignupMethods[];
 }
 
-enum SignupMethods {
-  invite_code = 'invite_code',
+export enum SignupMethods {
+  invite_codes = 'invite_codes',
   manual = 'manual',
   auto = 'auto'
 }

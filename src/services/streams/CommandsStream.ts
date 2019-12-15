@@ -13,6 +13,7 @@ import { CoursesService } from '../CoursesService';
 import { ServerError } from '../../exceptions/ServerError';
 import { AppError } from '../../exceptions/AppError';
 import { InvalidRequestError } from '../../exceptions/InvalidRequestError';
+import { InviteCodesService } from '../InviteCodesService';
 
 const logger = loggerFactory.getLogger('CommandsStream');
 
@@ -31,10 +32,11 @@ export class CommandsStream {
   async getServices() {
     const client = await getDbClient();
     const uow = new UnitOfWork(client, getFactory(), { useTransactions: true });
-    const services = new Map<string, SchoolsService | SectionsService | CoursesService>();
+    const services = new Map<string, object>();
     services.set('schools', new SchoolsService(uow, this._commandsProcessor));
     services.set('sections', new SectionsService(uow, this._commandsProcessor));
     services.set('courses', new CoursesService(uow, this._commandsProcessor));
+    services.set('inviteCodes', new InviteCodesService(uow, this._commandsProcessor));
     return { services, uow };
   }
 

@@ -7,8 +7,8 @@ export interface IInviteCode extends IAuditable {
     consumed: number
   };
   validity: {
-    start: Date;
-    end: Date
+    fromDate: Date;
+    toDate: Date
   };
   isEnabled: boolean;
   enrollment: {
