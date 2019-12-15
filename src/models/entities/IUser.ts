@@ -1,7 +1,6 @@
-import { IEntity } from '@saal-oryx/unit-of-work';
-import { IProfile } from './Common';
+import { IProfile, IAuditable } from './Common';
 
-export interface IUser extends IEntity {
+export interface IUser extends IAuditable {
     profile: IProfile;
     role: string[];
     registration: {
