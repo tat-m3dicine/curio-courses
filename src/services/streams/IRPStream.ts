@@ -21,7 +21,7 @@ export class IRPStream {
   constructor(protected _kafkaStreams: KafkaStreams, protected _commandsProcessor: CommandsProcessor) {
     logger.debug('Init ...');
     this._stream = _kafkaStreams.getKStream(config.kafkaIRPTopic);
-    this._failuresStream = _kafkaStreams.getKStream(`${config.kafkaIRPTopic}_commands_db_failed`);
+    this._failuresStream = _kafkaStreams.getKStream(`${config.kafkaIRPTopic}_irp_db_failed`);
   }
 
   async start() {
@@ -45,7 +45,7 @@ export class IRPStream {
         return fromPromise(result);
       })
       .filter(v => v)
-      .to(`${config.kafkaIRPTopic}_commands_db_failed`);
+      .to(`${config.kafkaIRPTopic}_irp_db_failed`);
     return this._stream.start();
   }
 
@@ -58,7 +58,7 @@ export class IRPStream {
           .then(async processingResults => {
             // tslint:disable-next-line: no-string-literal
             const client = this._failuresStream['kafka']['consumer'];
-            await client.commitLocalOffsetsForTopic(`${config.kafkaIRPTopic}_commands_db_failed`);
+            await client.commitLocalOffsetsForTopic(`${config.kafkaIRPTopic}_irp_db_failed`);
             logger.debug('failed-db-sink commited', message.offset);
             return processingResults;
           });
@@ -74,7 +74,7 @@ export class IRPStream {
         });
         return fromPromise(result);
       })
-      .to(`${config.kafkaIRPTopic}_commands_db_failed`);
+      .to(`${config.kafkaIRPTopic}_irp_db_failed`);
     return this._failuresStream.start();
   }
 
@@ -86,7 +86,7 @@ export class IRPStream {
       const [functionName, serviceName] = appEvent.event.split('_');
       const service = this._services.get(serviceName);
       if (!service || !service[functionName]) return;
-      const result = await service[functionName](appEvent.data);
+      await service[functionName](appEvent.data);
       return;
     } catch (err) {
       logger.error('Processing Error', JSON.stringify(err), err);
