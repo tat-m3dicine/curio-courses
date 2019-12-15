@@ -1,7 +1,7 @@
 import request from 'request';
 import config from '../config';
 import loggerFactory from '../utils/logging';
-import { IUser } from '../models/entities/IUser';
+import { IUser, Status } from '../models/entities/IUser';
 import { IIRPSection, IIRPUser } from '../models/entities/IIRP';
 import correlationIDHelper from '../utils/correlationIDHelper';
 
@@ -55,7 +55,7 @@ export class IRPService {
           grade: user.grade
         },
         role: user.role ? user.role.split(',').map(r => r.toLowerCase().trim()) : [],
-        registration: { schoolId, joinDate }
+        registration: { schoolId, joinDate, status: Status.active }
       });
     }
     return result;

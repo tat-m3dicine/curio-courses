@@ -1,8 +1,8 @@
 import { IEntity } from '@saal-oryx/unit-of-work';
 
 export interface IAuditable extends IEntity {
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 export interface IStudentCourseInfo {

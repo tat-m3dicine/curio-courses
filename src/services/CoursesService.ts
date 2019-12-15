@@ -221,7 +221,7 @@ export class CoursesService {
     const section = await this.sectionsRepo.findOne({ _id: sectionId, schoolId });
     if (!section) throw new NotFoundError(`'${sectionId}' section was not found in '${schoolId}' school!`);
     if (!school.license || !school.license.package) throw new InvalidLicenseError(`'${schoolId}' school doesn't have a vaild license!`);
-    const gradePackage = school.license.package[grade];
+    const gradePackage = school.license.package.grades[grade];
     if (!gradePackage || !gradePackage[subject] || !(gradePackage[subject] instanceof Array) || !gradePackage[subject].includes(curriculum)) {
       throw new InvalidLicenseError(`Grade '${grade}', subject '${subject}', curriculum '${curriculum}' aren't included in '${schoolId}' school's license package!`);
     }

@@ -3,7 +3,7 @@ import validators from '../utils/validators';
 import generate from 'nanoid/non-secure/generate';
 
 import { IUserToken } from '../models/IUserToken';
-import { IAcademicTerm, IUser } from '../models/entities/Common';
+import { IAcademicTerm } from '../models/entities/Common';
 import { ILicenseRequest } from '../models/requests/ILicenseRequest';
 import { ISchool, IAcademicTermRequest, ISchoolUserPermissions, ILicense } from '../models/entities/ISchool';
 import { ICreateSchoolRequest, IUpdateSchoolRequest, ICreateLicenseRequest, IDeleteAcademicTermRequest, IUpdateUserRequest } from '../models/requests/ISchoolRequests';
@@ -17,6 +17,7 @@ import { InvalidRequestError } from '../exceptions/InvalidRequestError';
 import { ConditionalBadRequest } from '../exceptions/ConditionalBadRequest';
 import { UsersRepository } from '../repositories/UsersRepository';
 import { validateAllObjectsExist } from '../utils/validators/AllObjectsExist';
+import { IUser } from '../models/entities/IUser';
 
 export class SchoolsService {
 
