@@ -104,22 +104,27 @@ export class CommandsStream {
       if (appEvent.key) this._commandsProcessor.resolveCommand(appEvent.key, result);
       return;
     } catch (error) {
-      logger.error('Processing Error', JSON.stringify(error), error);
-      if (error instanceof AppError) {
-        if (appEvent.key) this._commandsProcessor.rejectCommand(appEvent.key, error);
-        return;
-      }
-      if (error && error.code === 11000) {
-        if (appEvent.key) this._commandsProcessor.rejectCommand(appEvent.key, new InvalidRequestError('item already exists'));
-        return;
-      }
-      return {
-        key: message.value.key,
-        value: JSON.stringify({ ...message.value, error: JSON.stringify(error) })
-      };
+      return this.handleError(error, appEvent);
     } finally {
       await uow.dispose();
     }
+  }
+
+  protected handleError(error: any, appEvent: IAppEvent) {
+    logger.error('Processing Error', JSON.stringify(error), error);
+    if (error instanceof AppError) {
+      if (appEvent.key) this._commandsProcessor.rejectCommand(appEvent.key, error);
+      return;
+    }
+    // Duplicate key error handling
+    if (error && error.code === 11000) {
+      if (appEvent.key) this._commandsProcessor.rejectCommand(appEvent.key, new InvalidRequestError('item already exists'));
+      return;
+    }
+    return {
+      key: appEvent.key,
+      value: JSON.stringify({ ...appEvent, error: JSON.stringify(error) })
+    };
   }
 }
 
