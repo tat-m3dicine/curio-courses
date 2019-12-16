@@ -11,7 +11,8 @@ const config: {
   historyLength: number;
   kafkaUpdatesTopic: string;
   kafkaCommandsTopic: string;
-  comamndsTimeout: number;
+  kafkaIRPTopic: string;
+  commandsTimeout: number;
   redisHost: string;
   redisPort: number;
   irpUrl: string;
@@ -22,7 +23,8 @@ const config: {
   kafkaProducersGroup: 'courses-producers-group',
   kafkaUpdatesTopic: 'courses_updates',
   kafkaCommandsTopic: 'courses_commands',
-  comamndsTimeout: 3 * 1000,
+  kafkaIRPTopic: 'UserUpdate',
+  commandsTimeout: 3 * 1000,
   authorizedRole: 'root',
   historyLength: 50
 };
@@ -32,6 +34,7 @@ if (process.env.NODE_ENV) config.production = process.env.NODE_ENV === 'producti
 if (process.env.KAFKA_PRODUCERS_GROUP) config.kafkaProducersGroup = process.env.KAFKA_PRODUCERS_GROUP;
 if (process.env.KAFKA_CLIENT_ID) config.kafkaClientId = process.env.KAFKA_CLIENT_ID;
 if (process.env.AUTHORIZED_ROLE) config.authorizedRole = process.env.AUTHORIZED_ROLE;
+if (process.env.COMMANDS_TIMEOUT) config.commandsTimeout = parseInt(process.env.COMMANDS_TIMEOUT);
 
 if (process.env.REDIS_PORT) config.redisPort = parseInt(process.env.REDIS_PORT);
 else {
@@ -60,6 +63,8 @@ else {
 }
 
 if (process.env.IRP_URL) config.irpUrl = process.env.IRP_URL;
+
+if (process.env.COMMANDS_TIMEOUT) config.commandsTimeout = parseInt(process.env.COMMANDS_TIMEOUT);
 
 logger.info('Config for the app: %o', config);
 

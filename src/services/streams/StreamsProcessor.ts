@@ -3,6 +3,7 @@ import { KafkaService } from '../KafkaService';
 import { CommandsStream } from './CommandsStream';
 import { getNativeConfig } from './config';
 import { CommandsProcessor } from '../CommandsProcessor';
+import { IRPStream } from './IRPStream';
 
 export class StreamsProcessor {
 
@@ -19,8 +20,9 @@ export class StreamsProcessor {
       <any>getNativeConfig('CoursesCommandsStreams', 'CoursesCommandsStreams')
     );
     const commandsStream = new CommandsStream(commandsKafkaStreams, this._kafakService, this._commandsProcessor);
-    promises.push(commandsStream.start());
-    this._streams.push(commandsStream);
+    const irpStream = new IRPStream(commandsKafkaStreams, this._commandsProcessor);
+    promises.push(commandsStream.start(), irpStream.start());
+    this._streams.push(commandsStream, irpStream);
 
     return Promise.all(promises);
   }

@@ -1,6 +1,6 @@
 import loggerFactory from '../utils/logging';
-import { UsersService } from '../services/UserService';
-import { IRPService } from '../services/IRPService';
+import { UsersService } from './UsersService';
+import { IRPService } from './IRPService';
 import { IUser } from '../models/entities/IUser';
 import { UnitOfWork } from '@saal-oryx/unit-of-work';
 import { getFactory } from '../repositories/RepositoryFactory';
@@ -25,5 +25,6 @@ export class MigrationScripts {
         const response = await userService.doAddMany(usersList);
         logger.info('Count of Users Migrated', response.length);
     }
+
 
 }
