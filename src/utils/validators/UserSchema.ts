@@ -34,7 +34,7 @@ const createUserSchema = {
       joinDate: {
         type: 'date'
       },
-      finishedDate: {
+      finishDate: {
         type: 'date',
         optional: true
       }

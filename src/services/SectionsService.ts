@@ -108,7 +108,7 @@ export class SectionsService {
     const coursesRepoWithTransactions = this._uow.getRepository('Courses', true) as CoursesRepository;
     const sectionsRepoWithTransactions = this._uow.getRepository('Sections', true) as SectionsRepository;
 
-    await coursesRepoWithTransactions.finishUsersInCourses({ sectionId, schoolId }, 'students', studentIds, new Date());
+    await coursesRepoWithTransactions.finishUsersInCourses({ sectionId, schoolId }, Role.student, studentIds, new Date());
     const updatedSection = await sectionsRepoWithTransactions.removeStudents({ _id: sectionId, schoolId }, studentIds);
     await this._uow.commit();
     return updatedSection;
