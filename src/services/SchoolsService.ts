@@ -153,6 +153,7 @@ export class SchoolsService {
   async patchLicense(licenseObj: ICreateLicenseRequest, schoolId: string, byUser: IUserToken) {
     this.authorize(byUser);
     validators.validateCreateLicense(licenseObj);
+    const { grades, features = [], signupMethods = [] } = licenseObj.package;
     const license: ILicenseRequest = {
       students: { max: licenseObj.students },
       teachers: { max: licenseObj.teachers },
@@ -160,13 +161,13 @@ export class SchoolsService {
       validFrom: new Date(),
       validTo: new Date(licenseObj.validTo),
       reference: licenseObj.reference || byUser.sub,
-      package: licenseObj.package
+      package: { grades, features, signupMethods }
     };
     /**
      * If validTo is less than existing license validTo
      */
     const isLicenseConflicts = await this.schoolsRepo.findOne({ '_id': schoolId, 'license.validTo': { $gt: license.validTo } });
-    if (isLicenseConflicts) throw new InvalidRequestError('ValidTo is conflicts with existing license validTo date, validTo should be greater than');
+    if (isLicenseConflicts) throw new InvalidRequestError('ValidTo conflicts with existing license validTo date, validTo should be greater');
     return this._commandsProcessor.sendCommand('schools', this.doPatchLicense, schoolId, license);
   }
 

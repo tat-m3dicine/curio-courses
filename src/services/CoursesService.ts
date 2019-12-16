@@ -4,7 +4,7 @@ import validators from '../utils/validators';
 import generate from 'nanoid/non-secure/generate';
 import { CommandsProcessor } from './CommandsProcessor';
 import { IUnitOfWork, IPaging } from '@saal-oryx/unit-of-work';
-//models
+// models
 import { Role } from '../models/Role';
 import { IUser } from '../models/entities/IUser';
 import { IUserToken } from '../models/IUserToken';
@@ -13,22 +13,27 @@ import { IAcademicTerm } from '../models/entities/Common';
 import { IUserRequest } from '../models/requests/IUserRequest';
 import { ICourse, IUserCourseInfo } from '../models/entities/ICourse';
 import { ICreateCourseRequest } from '../models/requests/ICourseRequests';
-//exceptions
+// exceptions
 import { NotFoundError } from '../exceptions/NotFoundError';
 import { ForbiddenError } from '../exceptions/ForbiddenError';
 import { UnauthorizedError } from '../exceptions/UnauthorizedError';
 import { InvalidLicenseError } from '../exceptions/InvalidLicenseError';
-//repositories
+// repositories
 import { UsersRepository } from '../repositories/UsersRepository';
 import { CoursesRepository } from '../repositories/CoursesRepository';
 import { SchoolsRepository } from '../repositories/SchoolsRepository';
 import { SectionsRepository } from '../repositories/SectionsRepository';
 import { validateAllObjectsExist } from '../utils/validators/AllObjectsExist';
+import { KafkaService } from './KafkaService';
+import { IUserUpdatedEvent, IUserCourseUpdates } from '../models/events/IUserUpdatedEvent';
 
 export class CoursesService {
 
-  constructor(protected _uow: IUnitOfWork, protected _commandsProcessor: CommandsProcessor) {
-  }
+  constructor(
+    protected _uow: IUnitOfWork,
+    protected _commandsProcessor: CommandsProcessor,
+    protected _kafkaService: KafkaService
+  ) { }
 
   protected get schoolsRepo() {
     return this._uow.getRepository('Schools') as SchoolsRepository;
@@ -78,7 +83,7 @@ export class CoursesService {
     }
 
     return this._commandsProcessor.sendCommand('courses', this.doCreate, <ICourse>{
-      _id: this.newCourseId(course),
+      _id: this.newCourseId(sectionId, subject, academicTerm.year),
       schoolId, sectionId, curriculum, grade, subject, academicTerm,
       defaultLocale: course.defaultLocale || Object.keys(course.locales)[0] || 'en',
       isEnabled: course.isEnabled === undefined ? true : course.isEnabled,
@@ -144,11 +149,11 @@ export class CoursesService {
     await this.validateCoursesAndUsers(requestParams, role, sameSection);
     const joinDate = new Date();
     if (requestParams.length === 1) {
-      const users: IUserCourseInfo[] = requestParams[0].userIds.map(_id => ({ _id, joinDate, isEnabled: true }));
+      const users: IUserCourseInfo[] = requestParams[0].usersIds.map(_id => ({ _id, joinDate, isEnabled: true }));
       return this._commandsProcessor.sendCommand('courses', this.doEnrollUsers, requestParams[0], role, users);
     } else {
       const commands = requestParams.map(request => {
-        const users: IUserCourseInfo[] = request.userIds.map(_id => ({ _id, joinDate, isEnabled: true }));
+        const users: IUserCourseInfo[] = request.usersIds.map(_id => ({ _id, joinDate, isEnabled: true }));
         return [request, role, users];
       });
       this._commandsProcessor.sendManyCommandsAsync('courses', this.doEnrollUsers, commands);
@@ -156,15 +161,15 @@ export class CoursesService {
     }
   }
 
-  private async doEnrollUsers({ schoolId, sectionId, courseId }: IUserRequest, role: Role, usersObjs: IUserCourseInfo[]) {
-    const sectionsRepoWithTransactions = this._uow.getRepository('Sections', true) as SectionsRepository;
+  private async doEnrollUsers({ schoolId, sectionId, courseId, usersIds }: IUserRequest, role: Role, usersObjs: IUserCourseInfo[]) {
     const coursesRepoWithTransactions = this._uow.getRepository('Courses', true) as CoursesRepository;
+    const sectionsRepoWithTransactions = this._uow.getRepository('Sections', true) as SectionsRepository;
 
-    const studentIds = usersObjs.map(user => user._id);
-    sectionsRepoWithTransactions.update({ _id: sectionId, schoolId }, { $addToSet: { students: { $each: studentIds } } });
-
-    const result = coursesRepoWithTransactions.addUsersToCourses({ _id: courseId, schoolId, sectionId }, `${role}s`, usersObjs);
+    const result = await coursesRepoWithTransactions.addUsersToCourses({ _id: courseId, schoolId, sectionId }, role, usersObjs);
+    await sectionsRepoWithTransactions.update({ _id: sectionId, schoolId }, { $addToSet: { students: { $each: usersIds } } });
     await this._uow.commit();
+
+    await this.sendUsersChangesUpdates('enroll', role, usersIds);
     return result;
   }
 
@@ -177,7 +182,7 @@ export class CoursesService {
   }
 
   async dropTeachers(requestParam: IUserRequest, byUser: IUserToken) {
-    return this.dropUsers([requestParam], Role.student, byUser);
+    return this.dropUsers([requestParam], Role.teacher, byUser);
   }
 
   async dropTeachersInCourses(requestParams: IUserRequest[], byUser: IUserToken) {
@@ -197,8 +202,10 @@ export class CoursesService {
     }
   }
 
-  private async doDropUsers({ schoolId, sectionId, courseId, userIds }: IUserRequest, role: Role, finishDate: Date) {
-    return this.coursesRepo.finishUsersInCourses({ _id: courseId, schoolId, sectionId }, `${role}s`, userIds, finishDate);
+  private async doDropUsers({ schoolId, sectionId, courseId, usersIds }: IUserRequest, role: Role, finishDate: Date) {
+    const result = await this.coursesRepo.finishUsersInCourses({ _id: courseId, schoolId, sectionId }, role, usersIds, finishDate);
+    await this.sendUsersChangesUpdates('enroll', role, usersIds);
+    return result;
   }
 
   private validateAndGetAcademicTerm(school: ISchool, academicTermId: string | undefined): IAcademicTerm {
@@ -221,7 +228,7 @@ export class CoursesService {
     const section = await this.sectionsRepo.findOne({ _id: sectionId, schoolId });
     if (!section) throw new NotFoundError(`'${sectionId}' section was not found in '${schoolId}' school!`);
     if (!school.license || !school.license.package) throw new InvalidLicenseError(`'${schoolId}' school doesn't have a vaild license!`);
-    const gradePackage = school.license.package[grade];
+    const gradePackage = school.license.package.grades[grade];
     if (!gradePackage || !gradePackage[subject] || !(gradePackage[subject] instanceof Array) || !gradePackage[subject].includes(curriculum)) {
       throw new InvalidLicenseError(`Grade '${grade}', subject '${subject}', curriculum '${curriculum}' aren't included in '${schoolId}' school's license package!`);
     }
@@ -233,7 +240,7 @@ export class CoursesService {
     const courseIds: string[] = requestParams.map(request => request.courseId);
     const coursesObjs: ICourse[] = await this.coursesRepo.findMany({ _id: { $in: courseIds }, schoolId, ...(sameSection ? { sectionId } : {}) });
     validateAllObjectsExist(coursesObjs, courseIds, schoolId, 'course');
-    const userIds: string[] = Array.from(new Set<string>(requestParams.reduce((list, params) => [...list, ...params.userIds], <any>[])));
+    const userIds: string[] = Array.from(new Set<string>(requestParams.reduce((list, params) => [...list, ...params.usersIds], <any>[])));
     const usersObjs: IUser[] = await this.usersRepo.findMany({ '_id': { $in: userIds }, 'registration.schoolId': schoolId, role });
     validateAllObjectsExist(usersObjs, userIds, schoolId, role);
   }
@@ -244,7 +251,48 @@ export class CoursesService {
     if (!isAuthorized) throw new UnauthorizedError('you are not authorized!');
   }
 
-  protected newCourseId({ schoolId, sectionId, subject, curriculum }: ICreateCourseRequest) {
-    return `${subject}_${curriculum}_${sectionId}_${schoolId}}`.toLocaleLowerCase().replace(/\s/g, '');
+  protected newCourseId(sectionId: string, subject: string, year: string) {
+    return `${sectionId}_${subject}_${year}_${generate('0123456789abcdef', 3)}`.toLocaleLowerCase().replace(/\s/g, '');
+  }
+
+  private async sendUsersChangesUpdates(action: string, role: Role, usersIds: string[]) {
+    const users: IUser[] = await this.usersRepo.findMany({ _id: { $in: usersIds } });
+    const courses: ICourse[] = await this.coursesRepo.findMany({ [`${role}s`]: { $elemMatch: { _id: { $in: usersIds } } } });
+    const coursesUpdates = this.transformCoursesToUpdates(courses, role);
+    const now = Date.now();
+    const events = users.map(user => ({
+      event: `${action}_user`,
+      timestamp: now,
+      data: <IUserUpdatedEvent>{
+        _id: user._id, role,
+        schoolId: user.registration.schoolId,
+        courses: coursesUpdates[user._id]
+      },
+      v: '1.0.0',
+      key: user._id
+    }));
+    await this._kafkaService.sendMany(config.kafkaUpdatesTopic, events);
+  }
+
+  private transformCoursesToUpdates(courses: ICourse[], role: Role): { [_id: string]: IUserCourseUpdates[] } {
+    const userCoursesUpdates = {};
+    for (const course of courses) {
+      for (const user of course[`${role}s`] as IUserCourseInfo[]) {
+        const courseUpdates: IUserCourseUpdates = {
+          _id: course._id,
+          sectionId: course.sectionId,
+          grade: course.grade,
+          subject: course.subject,
+          joinDate: user.joinDate
+        };
+        if (user.finishDate) courseUpdates.finishDate = user.finishDate;
+        if (user._id in userCoursesUpdates) {
+          userCoursesUpdates[user._id].push(courseUpdates);
+        } else {
+          userCoursesUpdates[user._id] = [courseUpdates];
+        }
+      }
+    }
+    return userCoursesUpdates;
   }
 }

@@ -1,7 +1,6 @@
 import { ILocales, IAcademicTerm, IAuditable } from './Common';
-import { IEntity } from '@saal-oryx/unit-of-work';
 
-export interface ISchool extends Partial<IAuditable>, IEntity {
+export interface ISchool extends IAuditable {
   locales: ILocales;
   location: string;
   license?: ILicense;
@@ -13,21 +12,21 @@ export interface ISchoolUserPermissions {
   _id: string;
   permissions: string[];
 }
+
 export interface ILicense {
   students: {
-    max: number; // *
+    max: number;
     consumed: number;
-    joinBy: 'invite_code' | 'auto' | 'manual'
   };
   teachers: {
-    max: number; // *
+    max: number;
     consumed: number;
   };
   validFrom: Date;
-  validTo: Date; // *
+  validTo: Date;
   reference: string;
   isEnabled: boolean; // enable/disable
-  package: IPackage; // *
+  package: IPackage;
 }
 
 export interface IPackage {
@@ -37,6 +36,13 @@ export interface IPackage {
     }
   };
   features: string[];
+  signupMethods: SignupMethods[];
+}
+
+export enum SignupMethods {
+  invite_codes = 'invite_codes',
+  manual = 'manual',
+  auto = 'auto'
 }
 
 export interface IAcademicTermRequest {

@@ -1,24 +1,23 @@
 import { Collection } from 'mongodb';
 import { AduitableRepository } from './AduitableRepository';
-import { IAuditable } from '../models/entities/Common';
-import { IEntity } from '@saal-oryx/unit-of-work';
 import { ICourse, IUserCourseInfo } from '../models/entities/ICourse';
+import { Role } from '../models/Role';
 
-export class CoursesRepository extends AduitableRepository<ICourse & IEntity & Partial<IAuditable>> {
+export class CoursesRepository extends AduitableRepository<ICourse> {
 
   constructor(collection: Collection) {
     super('Courses', collection);
   }
 
-  async finishUsersInCourses(filter: object, usersType: string, userIds: string[], date: Date) {
+  async finishUsersInCourses(filter: object, usersType: Role, userIds: string[], date: Date) {
     return this.update(filter, {
-      $set: { [`${usersType}.$[user].finishDate`]: date }
+      $set: { [`${usersType}s.$[user].finishDate`]: date }
     }, {
       arrayFilters: [{ 'user._id': { $in: userIds }, 'user.finishDate': { $exists: false } }]
     });
   }
 
-  async addUsersToCourses(filter: object, usersType: string, usersObj: IUserCourseInfo[]) {
+  async addUsersToCourses(filter: object, usersType: Role, usersObj: IUserCourseInfo[]) {
     return this.update(filter, [{
       $set: {
         [usersType]: {
@@ -26,7 +25,7 @@ export class CoursesRepository extends AduitableRepository<ICourse & IEntity & P
             vars: {
               active_users: {
                 $filter: {
-                  input: `$${usersType}`,
+                  input: `$${usersType}s`,
                   as: 'user',
                   cond: {
                     $or: [

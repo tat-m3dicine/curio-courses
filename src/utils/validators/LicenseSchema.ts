@@ -1,6 +1,7 @@
 import Validator from 'fastest-validator';
 import { ValidationError } from '../../exceptions/ValidationError';
 import { ICreateLicenseRequest } from '../../models/requests/ISchoolRequests';
+import { SignupMethods } from '../../models/entities/ISchool';
 const validator = new Validator();
 
 const createLicenseSchema = {
@@ -38,6 +39,19 @@ const createLicenseSchema = {
   package: {
     type: 'object',
     props: {
+      features: {
+        type: 'array',
+        items: 'string',
+        optional: true
+      },
+      signupMethods: {
+        type: 'array',
+        items: {
+          type: 'enum',
+          values: Object.keys(SignupMethods)
+        },
+        optional: true
+      },
       grades: {
         type: 'custom',
         check(value: any) {

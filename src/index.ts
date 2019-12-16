@@ -12,6 +12,7 @@ import { getUnitOfWorkHandler } from './utils/middlewares/unitOfWorkHandler';
 import schoolRoutes from './routes/schools.routes';
 import coursesRoutes from './routes/courses.routes';
 import sectionsRoutes from './routes/sections.routes';
+import inviteCodesRoutes from './routes/invite_codes.routes';
 import { KafkaService } from './services/KafkaService';
 import { MigrationScripts } from './services/MigrationScripts';
 import { CommandsProcessor } from './services/CommandsProcessor';
@@ -69,7 +70,8 @@ let server: import('http').Server;
   // Routes ...
   app.use(schoolRoutes(commandsProcessor).mount('/schools'));
   app.use(sectionsRoutes(commandsProcessor).mount('/schools'));
-  app.use(coursesRoutes(commandsProcessor).mount('/schools'));
+  app.use(coursesRoutes(commandsProcessor, kafkaService).mount('/schools'));
+  app.use(inviteCodesRoutes(commandsProcessor).mount('/schools'));
 
   app.on('error', err => {
     logger.error('app_error', err);

@@ -34,13 +34,22 @@ Node.js Koa backend with MongoDb clsuter and Kafka.
 
 ## Environment Variables:
 
-1.  `APP_PORT=80` default 80
-2.  `KAFKA_REWARD_TOPIC=rewards_transactions`
-3.  `MONGO_DB_URL=mongodb://courses-mongodb:27017/courses`
-4.  `KAFKA_BROKERS=kafka:9092`
-5.  `LOGGER_CONFIG={"disableClustering":true,"appenders":{"out":{"type":"stdout","layout":{"type":"pattern","pattern":"%[ [%d] [%p] %] %c - %x{correlationId} - %m"}}},"categories":{"default":{"appenders":["out"],"level":"trace"}}}`
-6. ` IRP_URL: http://internal-dev3-saale.saal.ai:30307 (Required for migrating users)`
+**(Required)**
 
+1. `KAFKA_CLIENT_ID=courses` 
+1. `MONGO_DB_URL=mongodb://courses-mongodb:27017/courses`
+4. `KAFKA_BROKERS=kafka:9092`
+5. `REDIS_PORT=6379`
+6. `REDIS_HOST=redis_host_url`
+7. `IRP_URL=IRP_URL`
+8. `LOGGER_CONFIG={"disableClustering":true,"appenders":{"out":{"type":"stdout","layout":{"type":"pattern","pattern":"%[ [%d] [%p] %] %c - %x{correlationId} - %m"}}},"categories":{"default":{"appenders":["out"],"level":"trace"}}}`
+
+**(optional, with default values)**
+1. `APP_PORT=80`
+2. `NODE_ENV=production` 
+3. `KAFKA_PRODUCERS_GROUP=courses-producers-group`
+4. `AUTHORIZED_ROLE=root`
+5. `COMMANDS_TIMEOUT=3000`
 
 ## Service Dependencies:
 ### Upstream

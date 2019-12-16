@@ -1,7 +1,6 @@
 import { ILocales, IAcademicTerm, IAuditable } from './Common';
-import { IEntity } from '@saal-oryx/unit-of-work';
 
-export interface ICourse extends Partial<IAuditable>, IEntity {
+export interface ICourse extends IAuditable {
   schoolId: string;
   sectionId: string;
   curriculum: string;

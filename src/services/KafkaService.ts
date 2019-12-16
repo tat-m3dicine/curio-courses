@@ -27,6 +27,10 @@ export class KafkaService {
         {
           topic: config.kafkaCommandsTopic,
           numPartitions: 6
+        },
+        {
+          topic: config.kafkaUpdatesTopic,
+          numPartitions: 6
         }
       ]
     });

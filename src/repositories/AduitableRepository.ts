@@ -2,7 +2,7 @@ import { UpdateManyOptions, FindOneAndUpdateOption } from 'mongodb';
 import { BaseRepository, IEntity } from '@saal-oryx/unit-of-work';
 import { IAuditable } from '../models/entities/Common';
 
-export abstract class AduitableRepository<T extends IEntity & Partial<IAuditable>> extends BaseRepository<T> {
+export abstract class AduitableRepository<T extends IAuditable> extends BaseRepository<T> {
 
 
   add(entity: T) {

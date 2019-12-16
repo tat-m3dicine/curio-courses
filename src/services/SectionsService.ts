@@ -17,6 +17,7 @@ import { InvalidRequestError } from '../exceptions/InvalidRequestError';
 import { Role } from '../models/Role';
 import { IUser } from '../models/entities/IUser';
 import { validateAllObjectsExist } from '../utils/validators/AllObjectsExist';
+import { ILocales } from '../models/entities/Common';
 
 export class SectionsService {
 
@@ -43,7 +44,7 @@ export class SectionsService {
     }
     await this.validateWithSchoolLicense(grade, schoolId);
     return this._commandsProcessor.sendCommand('sections', this.doCreate, <ISection>{
-      _id: this.newSectionId(section),
+      _id: this.newSectionId(schoolId, grade, locales),
       locales, schoolId, grade,
       students: students || []
     });
@@ -107,7 +108,7 @@ export class SectionsService {
     const coursesRepoWithTransactions = this._uow.getRepository('Courses', true) as CoursesRepository;
     const sectionsRepoWithTransactions = this._uow.getRepository('Sections', true) as SectionsRepository;
 
-    await coursesRepoWithTransactions.finishUsersInCourses({ sectionId, schoolId }, 'students', studentIds, new Date());
+    await coursesRepoWithTransactions.finishUsersInCourses({ sectionId, schoolId }, Role.student, studentIds, new Date());
     const updatedSection = await sectionsRepoWithTransactions.removeStudents({ _id: sectionId, schoolId }, studentIds);
     await this._uow.commit();
     return updatedSection;
@@ -119,8 +120,8 @@ export class SectionsService {
     if (!isAuthorized) throw new UnauthorizedError('you are not authorized!');
   }
 
-  protected newSectionId({ grade, locales, schoolId }: ICreateSectionRequest) {
-    return `${grade}_${locales.en.name}_${schoolId}`.toLocaleLowerCase().replace(/\s/g, '');
+  protected newSectionId(schoolId: string, grade: string, locales: ILocales) {
+    return `${schoolId}_${grade}_${locales.en.name}`.toLocaleLowerCase().replace(/\s/g, '');
   }
 
   protected async validateStudentsInSchool(studentIds: string[], schoolId: string) {

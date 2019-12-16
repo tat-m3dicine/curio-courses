@@ -11,6 +11,10 @@ import { SchoolsService } from '../SchoolsService';
 import { SectionsService } from '../SectionsService';
 import { CoursesService } from '../CoursesService';
 import { ServerError } from '../../exceptions/ServerError';
+import { AppError } from '../../exceptions/AppError';
+import { InvalidRequestError } from '../../exceptions/InvalidRequestError';
+import { InviteCodesService } from '../InviteCodesService';
+import { KafkaService } from '../KafkaService';
 
 const logger = loggerFactory.getLogger('CommandsStream');
 
@@ -19,20 +23,29 @@ export class CommandsStream {
   protected _stream: KStream;
   protected _failuresStream: KStream;
 
-  protected _services = new Map<string, SchoolsService | SectionsService | CoursesService>();
 
-  constructor(protected _kafkaStreams: KafkaStreams, protected _commandsProcessor: CommandsProcessor) {
+  constructor(
+    protected _kafkaStreams: KafkaStreams,
+    protected _kafkaService: KafkaService,
+    protected _commandsProcessor: CommandsProcessor
+  ) {
     logger.debug('Init ...');
     this._stream = _kafkaStreams.getKStream(config.kafkaCommandsTopic);
     this._failuresStream = _kafkaStreams.getKStream(`${config.kafkaCommandsTopic}_commands_db_failed`);
   }
 
-  async start() {
+  async getServices() {
     const client = await getDbClient();
-    const uow = new UnitOfWork(client, getFactory(), { useTransactions: false });
-    this._services.set('schools', new SchoolsService(uow, this._commandsProcessor));
-    this._services.set('sections', new SectionsService(uow, this._commandsProcessor));
-    this._services.set('courses', new CoursesService(uow, this._commandsProcessor));
+    const uow = new UnitOfWork(client, getFactory(), { useTransactions: true });
+    const services = new Map<string, object>();
+    services.set('schools', new SchoolsService(uow, this._commandsProcessor));
+    services.set('sections', new SectionsService(uow, this._commandsProcessor));
+    services.set('courses', new CoursesService(uow, this._commandsProcessor, this._kafkaService));
+    services.set('inviteCodes', new InviteCodesService(uow, this._commandsProcessor));
+    return { services, uow };
+  }
+
+  async start() {
     return Promise.all([this.rawStart(), this.failuresStart()]);
   }
 
@@ -84,27 +97,41 @@ export class CommandsStream {
   }
 
   protected async process(message: { value: any, partition: number, offset: number, topic: string }) {
+    const appEvent: IAppEvent = message.value;
+    if (!appEvent || !appEvent.data) return;
+    const { services, uow } = await this.getServices();
     try {
-      const appEvent: IAppEvent = message.value;
-      if (!appEvent || !appEvent.data) return;
-
-      let result;
       const [functionName, serviceName] = appEvent.event.split('_');
-      const service = this._services.get(serviceName);
+      const service = services.get(serviceName);
       if (!service || !service[functionName]) {
         if (appEvent.key) this._commandsProcessor.rejectCommand(appEvent.key, new ServerError('unrecognized command'));
         return;
       }
-      result = await service[functionName](...appEvent.data);
+      const result = await service[functionName](...appEvent.data);
       if (appEvent.key) this._commandsProcessor.resolveCommand(appEvent.key, result);
       return;
-    } catch (err) {
-      logger.error('Processing Error', JSON.stringify(err), err);
-      return {
-        key: message.value.key,
-        value: JSON.stringify({ ...message.value, error: JSON.stringify(err) })
-      };
+    } catch (error) {
+      return this.handleError(error, appEvent);
+    } finally {
+      await uow.dispose();
     }
+  }
+
+  protected handleError(error: any, appEvent: IAppEvent) {
+    logger.error('Processing Error', JSON.stringify(error), error);
+    if (error instanceof AppError) {
+      if (appEvent.key) this._commandsProcessor.rejectCommand(appEvent.key, error);
+      return;
+    }
+    // Duplicate key error handling
+    if (error && error.code === 11000) {
+      if (appEvent.key) this._commandsProcessor.rejectCommand(appEvent.key, new InvalidRequestError('item already exists'));
+      return;
+    }
+    return {
+      key: appEvent.key,
+      value: JSON.stringify({ ...appEvent, error: JSON.stringify(error) })
+    };
   }
 }
 

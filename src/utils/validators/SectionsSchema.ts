@@ -1,28 +1,10 @@
 import Validator from 'fastest-validator';
 import { ValidationError } from '../../exceptions/ValidationError';
 import { ICreateSectionRequest } from '../../models/requests/ISectionRequests';
-
-const localeSchema = {
-  type: 'object',
-  optional: true,
-  props: {
-    name: 'string',
-    description: {
-      type: 'string',
-      optional: true
-    }
-  }
-};
+import { localesSchema } from './LocalesSchema';
 
 const sectionsSchema = {
-  locales: {
-    type: 'object',
-    strict: true,
-    props: {
-      en: { ...localeSchema, optional: false },
-      ar: localeSchema
-    }
-  },
+  locales: localesSchema('en'),
   schoolId: 'string',
   grade: 'string',
   students: {
