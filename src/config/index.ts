@@ -11,6 +11,7 @@ const config: {
   historyLength: number;
   kafkaUpdatesTopic: string;
   kafkaCommandsTopic: string;
+  kafkaIRPTopic: string;
   commandsTimeout: number;
   redisHost: string;
   redisPort: number;
@@ -22,6 +23,7 @@ const config: {
   kafkaProducersGroup: 'courses-producers-group',
   kafkaUpdatesTopic: 'courses_updates',
   kafkaCommandsTopic: 'courses_commands',
+  kafkaIRPTopic: 'UserUpdate',
   commandsTimeout: 3 * 1000,
   authorizedRole: 'root',
   historyLength: 50
@@ -61,10 +63,6 @@ else {
 }
 
 if (process.env.IRP_URL) config.irpUrl = process.env.IRP_URL;
-else {
-  logger.error('Missing parameter: IRP_URL! Exiting...');
-  process.exit(1);
-}
 
 if (process.env.COMMANDS_TIMEOUT) config.commandsTimeout = parseInt(process.env.COMMANDS_TIMEOUT);
 

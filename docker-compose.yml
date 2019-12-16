@@ -7,6 +7,7 @@ services:
       # NODE_ENV: production # to test production builds enable this.
       KAFKA_TOPIC: rewards
       MONGO_DB_URL: mongodb://courses-mongodb:27017/saale-courses
+      IRP_URL: http://internal-dev3-saale.saal.ai:30307
       KAFKA_BROKERS: kafka:9092
       REDIS_PORT: 6379
       REDIS_HOST: courses-redis
@@ -53,7 +54,7 @@ services:
     environment:
       HOSTNAME_COMMAND: "docker info | grep ^Name: | cut -d' ' -f 2"
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
-      KAFKA_ADVERTISED_LISTENERS: INSIDE://:9092,OUTSIDE://localhost:9094
+      KAFKA_ADVERTISED_LISTENERS: INSIDE://:9092,OUTSIDE://192.168.140.129:9094
       KAFKA_LISTENERS: INSIDE://:9092,OUTSIDE://:9094
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INSIDE:PLAINTEXT,OUTSIDE:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: INSIDE
