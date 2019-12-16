@@ -24,11 +24,15 @@ import { CoursesRepository } from '../repositories/CoursesRepository';
 import { SchoolsRepository } from '../repositories/SchoolsRepository';
 import { SectionsRepository } from '../repositories/SectionsRepository';
 import { validateAllObjectsExist } from '../utils/validators/AllObjectsExist';
+import { KafkaService } from './KafkaService';
 
 export class CoursesService {
 
-  constructor(protected _uow: IUnitOfWork, protected _commandsProcessor: CommandsProcessor) {
-  }
+  constructor(
+    protected _uow: IUnitOfWork,
+    protected _commandsProcessor: CommandsProcessor,
+    protected _kafkaService: KafkaService
+  ) { }
 
   protected get schoolsRepo() {
     return this._uow.getRepository('Schools') as SchoolsRepository;

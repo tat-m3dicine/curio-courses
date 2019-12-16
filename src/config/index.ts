@@ -7,10 +7,9 @@ const config: {
   kafkaProducersGroup: string;
   kafkaClientId: string;
   mongoDbUrl: string;
-  kafkaRewardTopic: string;
   authorizedRole: string;
-  contributionsScaler: number;
   historyLength: number;
+  kafkaUpdatesTopic: string;
   kafkaCommandsTopic: string;
   comamndsTimeout: number;
   redisHost: string;
@@ -21,10 +20,10 @@ const config: {
   production: false,
   kafkaClientId: 'courses',
   kafkaProducersGroup: 'courses-producers-group',
+  kafkaUpdatesTopic: 'courses_updates',
   kafkaCommandsTopic: 'courses_commands',
   comamndsTimeout: 3 * 1000,
   authorizedRole: 'root',
-  contributionsScaler: 5,
   historyLength: 50
 };
 
@@ -46,15 +45,6 @@ else {
   process.exit(1);
 }
 
-if (process.env.CONTRIBUTIONS_SCALER) {
-  const scaler = parseInt(process.env.CONTRIBUTIONS_SCALER);
-  if (scaler > 1) config.contributionsScaler = scaler;
-}
-if (process.env.HISTORY_LENGTH) {
-  const length = parseInt(process.env.HISTORY_LENGTH);
-  if (length > 0) config.historyLength = length;
-}
-
 if (process.env.KAFKA_BROKERS) {
   config.kafkaBrokers = process.env.KAFKA_BROKERS.split(',').map(x => x.trim());
 }
@@ -70,12 +60,6 @@ else {
 }
 
 if (process.env.IRP_URL) config.irpUrl = process.env.IRP_URL;
-
-if (process.env.KAFKA_REWARD_TOPIC) {
-  config.kafkaRewardTopic = process.env.KAFKA_REWARD_TOPIC;
-} else {
-  logger.warn(`Missing parameter: KAFKA_REWARD_TOPIC!, setting ${config.kafkaRewardTopic}`);
-}
 
 logger.info('Config for the app: %o', config);
 
