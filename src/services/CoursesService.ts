@@ -146,30 +146,32 @@ export class CoursesService {
 
   private async enrollUsers(requestParams: IUserRequest[], role: Role, byUser: IUserToken, sameSection = true) {
     this.authorize(byUser);
-    await this.validateCoursesAndUsers(requestParams, role, sameSection);
     const joinDate = new Date();
-    if (requestParams.length === 1) {
-      const users: IUserCourseInfo[] = requestParams[0].usersIds.map(_id => ({ _id, joinDate, isEnabled: true }));
-      return this._commandsProcessor.sendCommand('courses', this.doEnrollUsers, requestParams[0], role, users);
-    } else {
-      const commands = requestParams.map(request => {
-        const users: IUserCourseInfo[] = request.usersIds.map(_id => ({ _id, joinDate, isEnabled: true }));
-        return [request, role, users];
-      });
-      this._commandsProcessor.sendManyCommandsAsync('courses', this.doEnrollUsers, commands);
-      return { done: false, data: 'Processing...' };
-    }
+    await this.validateCoursesAndUsers(requestParams, role, sameSection);
+    return this._commandsProcessor.sendCommand('courses', this.doEnrollUsers, requestParams, role, joinDate);
   }
 
-  private async doEnrollUsers({ schoolId, sectionId, courseId, usersIds }: IUserRequest, role: Role, usersObjs: IUserCourseInfo[]) {
+  private async doEnrollUsers(requests: IUserRequest[], role: Role, joinDate: Date) {
+    const coursesUpdates = <any>[], sectionsUpdates = <any>[];
+    for (const request of requests) {
+      const { schoolId, sectionId, courseId, usersIds } = request;
+      coursesUpdates.push({
+        filter: { _id: courseId, schoolId, sectionId },
+        usersObjs: usersIds.map(_id => <IUserCourseInfo>{ _id, joinDate, isEnabled: true })
+      });
+      sectionsUpdates.push({
+        filter: { _id: sectionId, schoolId }, usersIds
+      });
+    }
+
     const coursesRepoWithTransactions = this._uow.getRepository('Courses', true) as CoursesRepository;
     const sectionsRepoWithTransactions = this._uow.getRepository('Sections', true) as SectionsRepository;
 
-    const result = await coursesRepoWithTransactions.addUsersToCourses({ _id: courseId, schoolId, sectionId }, role, usersObjs);
-    await sectionsRepoWithTransactions.update({ _id: sectionId, schoolId }, { $addToSet: { students: { $each: usersIds } } });
+    const result = await coursesRepoWithTransactions.addUsersToCourses(coursesUpdates, role);
+    if (role === Role.student) await sectionsRepoWithTransactions.addStudentsToSections(sectionsUpdates);
     await this._uow.commit();
 
-    await this.sendUsersChangesUpdates('enroll', role, usersIds);
+    // await this.sendUsersChangesUpdates('enroll', role, usersIds);
     return result;
   }
 
@@ -191,20 +193,19 @@ export class CoursesService {
 
   private async dropUsers(requestParams: IUserRequest[], role: Role, byUser: IUserToken) {
     this.authorize(byUser);
-    await this.validateCoursesAndUsers(requestParams, role);
     const finishDate = new Date();
-    if (requestParams.length === 1) {
-      return this._commandsProcessor.sendCommand('courses', this.doDropUsers, requestParams[0], role, finishDate);
-    } else {
-      const commands = requestParams.map(request => [request, role, finishDate]);
-      await this._commandsProcessor.sendManyCommandsAsync('courses', this.doDropUsers, commands);
-      return { done: false, data: 'Processing...' };
-    }
+    await this.validateCoursesAndUsers(requestParams, role);
+    return this._commandsProcessor.sendCommand('courses', this.doDropUsers, requestParams, role, finishDate);
   }
 
-  private async doDropUsers({ schoolId, sectionId, courseId, usersIds }: IUserRequest, role: Role, finishDate: Date) {
-    const result = await this.coursesRepo.finishUsersInCourses({ _id: courseId, schoolId, sectionId }, role, usersIds, finishDate);
-    await this.sendUsersChangesUpdates('enroll', role, usersIds);
+  private async doDropUsers(requests: IUserRequest[], role: Role, finishDate: Date) {
+    const coursesUpdates = <any>[];
+    for (const request of requests) {
+      const { schoolId, sectionId, courseId, usersIds } = request;
+      coursesUpdates.push({ filter: { _id: courseId, schoolId, sectionId }, usersIds });
+    }
+    const result = await this.coursesRepo.finishUsersInCourses(coursesUpdates, role, finishDate);
+    // await this.sendUsersChangesUpdates('enroll', role, usersIds);
     return result;
   }
 

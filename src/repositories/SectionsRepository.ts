@@ -7,13 +7,21 @@ export class SectionsRepository extends AduitableRepository<ISection> {
     super('Sections', collection);
   }
 
-  registerStudents(filter: object, studentIds: string[]) {
+  async addStudentsToSections(updates: { filter: object, usersIds: string[] }[]) {
+    return this._collection.bulkWrite(updates.map(({ filter, usersIds }) => ({
+      updateOne: {
+        filter, update: { $addToSet: { students: { $each: usersIds } } }
+      }
+    })));
+  }
+
+  async registerStudents(filter: object, studentIds: string[]) {
     return this.update(filter, {
       $addToSet: { students: { $each: studentIds } }
     });
   }
 
-  removeStudents(filter: object, studentIds: string[]) {
+  async removeStudents(filter: object, studentIds: string[]) {
     return this.update(filter, {
       $pull: { students: { $in: studentIds } }
     });

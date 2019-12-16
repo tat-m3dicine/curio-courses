@@ -101,14 +101,15 @@ export class SectionsService {
     this.authorize(byUser);
     const section: ISection | undefined = await this.sectionsRepo.findOne({ _id: sectionId, schoolId });
     if (!section) throw new NotFoundError(`Couldn't find section '${sectionId}' in school '${schoolId}'`);
-    return this._commandsProcessor.sendCommand('sections', this.doRemoveStudents, schoolId, sectionId, studentIds);
+    return this._commandsProcessor.sendCommand('sections', this.doRemoveStudents, schoolId, sectionId, studentIds, new Date());
   }
 
-  private async doRemoveStudents(schoolId: string, sectionId: string, studentIds: string[]) {
+  private async doRemoveStudents(schoolId: string, sectionId: string, studentIds: string[], finishDate: Date) {
     const coursesRepoWithTransactions = this._uow.getRepository('Courses', true) as CoursesRepository;
     const sectionsRepoWithTransactions = this._uow.getRepository('Sections', true) as SectionsRepository;
 
-    await coursesRepoWithTransactions.finishUsersInCourses({ sectionId, schoolId }, Role.student, studentIds, new Date());
+    const coursesUpdates = [{ filter: { sectionId, schoolId }, usersIds: studentIds }];
+    await coursesRepoWithTransactions.finishUsersInCourses(coursesUpdates, Role.student, finishDate);
     const updatedSection = await sectionsRepoWithTransactions.removeStudents({ _id: sectionId, schoolId }, studentIds);
     await this._uow.commit();
     return updatedSection;
