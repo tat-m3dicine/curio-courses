@@ -40,7 +40,7 @@ export class CommandsProcessor {
       setTimeout(() => {
         this._commandsMap.delete(event.key);
         return resolve({ done: false, data: args });
-      }, config.comamndsTimeout);
+      }, config.commandsTimeout);
       this._commandsMap.set(event.key, (err, result) => {
         this._commandsMap.delete(event.key);
         if (err) return reject(err);

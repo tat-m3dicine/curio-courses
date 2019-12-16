@@ -7,12 +7,11 @@ const config: {
   kafkaProducersGroup: string;
   kafkaClientId: string;
   mongoDbUrl: string;
-  kafkaRewardTopic: string;
   authorizedRole: string;
   contributionsScaler: number;
   historyLength: number;
   kafkaCommandsTopic: string;
-  comamndsTimeout: number;
+  commandsTimeout: number;
   redisHost: string;
   redisPort: number;
   irpUrl: string;
@@ -22,7 +21,7 @@ const config: {
   kafkaClientId: 'courses',
   kafkaProducersGroup: 'courses-producers-group',
   kafkaCommandsTopic: 'courses_commands',
-  comamndsTimeout: 3 * 1000,
+  commandsTimeout: 3 * 1000,
   authorizedRole: 'root',
   contributionsScaler: 5,
   historyLength: 50
@@ -33,6 +32,7 @@ if (process.env.NODE_ENV) config.production = process.env.NODE_ENV === 'producti
 if (process.env.KAFKA_PRODUCERS_GROUP) config.kafkaProducersGroup = process.env.KAFKA_PRODUCERS_GROUP;
 if (process.env.KAFKA_CLIENT_ID) config.kafkaClientId = process.env.KAFKA_CLIENT_ID;
 if (process.env.AUTHORIZED_ROLE) config.authorizedRole = process.env.AUTHORIZED_ROLE;
+if (process.env.COMMANDS_TIMEOUT) config.commandsTimeout = parseInt(process.env.COMMANDS_TIMEOUT); Î
 
 if (process.env.REDIS_PORT) config.redisPort = parseInt(process.env.REDIS_PORT);
 else {
@@ -70,12 +70,12 @@ else {
 }
 
 if (process.env.IRP_URL) config.irpUrl = process.env.IRP_URL;
-
-if (process.env.KAFKA_REWARD_TOPIC) {
-  config.kafkaRewardTopic = process.env.KAFKA_REWARD_TOPIC;
-} else {
-  logger.warn(`Missing parameter: KAFKA_REWARD_TOPIC!, setting ${config.kafkaRewardTopic}`);
+else {
+  logger.error('Missing parameter: IRP_URL! Exiting...');
+  process.exit(1);
 }
+
+if (process.env.COMMANDS_TIMEOUT) config.commandsTimeout = parseInt(process.env.COMMANDS_TIMEOUT);
 
 logger.info('Config for the app: %o', config);
 
