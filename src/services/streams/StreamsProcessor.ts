@@ -18,7 +18,7 @@ export class StreamsProcessor {
     const commandsKafkaStreams = new KafkaStreams(
       <any>getNativeConfig('CoursesCommandsStreams', 'CoursesCommandsStreams')
     );
-    const commandsStream = new CommandsStream(commandsKafkaStreams, this._commandsProcessor);
+    const commandsStream = new CommandsStream(commandsKafkaStreams, this._kafakService, this._commandsProcessor);
     promises.push(commandsStream.start());
     this._streams.push(commandsStream);
 

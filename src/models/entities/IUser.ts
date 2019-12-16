@@ -7,7 +7,7 @@ export interface IUser extends IAuditable {
     schoolId: string;
     status: Status;
     joinDate: Date;
-    finishedDate?: Date;
+    finishDate?: Date;
   };
 }
 

@@ -8,8 +8,8 @@ const config: {
   kafkaClientId: string;
   mongoDbUrl: string;
   authorizedRole: string;
-  contributionsScaler: number;
   historyLength: number;
+  kafkaUpdatesTopic: string;
   kafkaCommandsTopic: string;
   commandsTimeout: number;
   redisHost: string;
@@ -20,10 +20,10 @@ const config: {
   production: false,
   kafkaClientId: 'courses',
   kafkaProducersGroup: 'courses-producers-group',
+  kafkaUpdatesTopic: 'courses_updates',
   kafkaCommandsTopic: 'courses_commands',
   commandsTimeout: 3 * 1000,
   authorizedRole: 'root',
-  contributionsScaler: 5,
   historyLength: 50
 };
 
@@ -44,15 +44,6 @@ if (process.env.REDIS_HOST) config.redisHost = process.env.REDIS_HOST;
 else {
   logger.error('Missing parameter: REDIS_HOST! Exiting...');
   process.exit(1);
-}
-
-if (process.env.CONTRIBUTIONS_SCALER) {
-  const scaler = parseInt(process.env.CONTRIBUTIONS_SCALER);
-  if (scaler > 1) config.contributionsScaler = scaler;
-}
-if (process.env.HISTORY_LENGTH) {
-  const length = parseInt(process.env.HISTORY_LENGTH);
-  if (length > 0) config.historyLength = length;
 }
 
 if (process.env.KAFKA_BROKERS) {

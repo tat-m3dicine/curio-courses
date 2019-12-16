@@ -59,7 +59,7 @@ export class CoursesController {
 
   async enrollStudent(ctx: Context, next: () => void) {
     const { schoolId, sectionId, courseId, userId } = ctx.params;
-    const requestParams = { schoolId, sectionId, courseId, userIds: [userId] };
+    const requestParams = { schoolId, sectionId, courseId, usersIds: [userId] };
     const result = await this.coursesService.enrollStudents(requestParams, ctx.user);
     ctx.status = 200;
     ctx.body = { ok: true, result: result.data };
@@ -69,7 +69,7 @@ export class CoursesController {
   async enrollStudents(ctx: Context, next: () => void) {
     validators.validateStudentsList(ctx.request.body);
     const { schoolId, sectionId, courseId } = ctx.params;
-    const requestParams = { schoolId, sectionId, courseId, userIds: ctx.request.body.students };
+    const requestParams = { schoolId, sectionId, courseId, usersIds: ctx.request.body.students };
     const result = await this.coursesService.enrollStudents(requestParams, ctx.user);
     ctx.status = 200;
     ctx.body = { ok: true, result: result.data };
@@ -78,7 +78,7 @@ export class CoursesController {
 
   async dropStudent(ctx: Context, next: () => void) {
     const { schoolId, sectionId, courseId, userId } = ctx.params;
-    const requestParams = { schoolId, sectionId, courseId, userIds: [userId] };
+    const requestParams = { schoolId, sectionId, courseId, usersIds: [userId] };
     const result = await this.coursesService.dropStudents(requestParams, ctx.user);
     ctx.status = 200;
     ctx.body = { ok: true, result: result.data };
@@ -88,7 +88,7 @@ export class CoursesController {
   async dropStudents(ctx: Context, next: () => void) {
     validators.validateStudentsList(ctx.request.body);
     const { schoolId, sectionId, courseId } = ctx.params;
-    const requestParams = { schoolId, sectionId, courseId, userIds: ctx.request.body.students };
+    const requestParams = { schoolId, sectionId, courseId, usersIds: ctx.request.body.students };
     const result = await this.coursesService.dropStudents(requestParams, ctx.user);
     ctx.status = 200;
     ctx.body = { ok: true, result: result.data };
@@ -97,7 +97,7 @@ export class CoursesController {
 
   async enrollTeacher(ctx: Context, next: () => void) {
     const { schoolId, sectionId, courseId, userId } = ctx.params;
-    const requestParams = { schoolId, sectionId, courseId, userIds: [userId] };
+    const requestParams = { schoolId, sectionId, courseId, usersIds: [userId] };
     const result = await this.coursesService.enrollTeachers(requestParams, ctx.user);
     ctx.status = 200;
     ctx.body = { ok: true, result: result.data };
@@ -107,7 +107,7 @@ export class CoursesController {
   async enrollTeachers(ctx: Context, next: () => void) {
     validators.validateTeachersList(ctx.request.body);
     const { schoolId, sectionId, courseId } = ctx.params;
-    const requestParams = { schoolId, sectionId, courseId, userIds: ctx.request.body.teachers };
+    const requestParams = { schoolId, sectionId, courseId, usersIds: ctx.request.body.teachers };
     const result = await this.coursesService.enrollTeachers(requestParams, ctx.user);
     ctx.status = 200;
     ctx.body = { ok: true, result: result.data };
@@ -116,7 +116,7 @@ export class CoursesController {
 
   async dropTeacher(ctx: Context, next: () => void) {
     const { schoolId, sectionId, courseId, userId } = ctx.params;
-    const requestParams = { schoolId, sectionId, courseId, userIds: [userId] };
+    const requestParams = { schoolId, sectionId, courseId, usersIds: [userId] };
     const result = await this.coursesService.dropTeachers(requestParams, ctx.user);
     ctx.status = 200;
     ctx.body = { ok: true, result: result.data };
@@ -126,7 +126,7 @@ export class CoursesController {
   async dropTeachers(ctx: Context, next: () => void) {
     validators.validateTeachersList(ctx.request.body);
     const { schoolId, sectionId, courseId } = ctx.params;
-    const requestParams = { schoolId, sectionId, courseId, userIds: ctx.request.body.teachers };
+    const requestParams = { schoolId, sectionId, courseId, usersIds: ctx.request.body.teachers };
     const result = await this.coursesService.dropTeachers(requestParams, ctx.user);
     ctx.status = 200;
     ctx.body = { ok: true, result: result.data };
@@ -222,7 +222,7 @@ export class CoursesController {
     if (courses.length > 100) {
       throw new InvalidRequestError('Exeeded allowed courses limit in request!');
     }
-    return courses.map(([courseId, userIds]) => ({ schoolId, sectionId, courseId, userIds }));
+    return courses.map(([courseId, usersIds]) => ({ schoolId, sectionId, courseId, usersIds }));
   }
 
   protected separateEnrollAndDrop(users: { _id: string, drop: string[], enroll: string[] }[]) {
