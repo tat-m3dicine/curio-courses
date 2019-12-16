@@ -32,7 +32,7 @@ export class CoursesRepository extends AduitableRepository<ICourse> {
         updateOne: {
           filter, update: [{
             $set: {
-              [usersType]: {
+              [`${usersType}s`]: {
                 $let: {
                   vars: {
                     active_users: {
