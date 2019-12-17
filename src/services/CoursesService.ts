@@ -28,7 +28,6 @@ import { KafkaService } from './KafkaService';
 import { IUserUpdatedEvent, IUserCourseUpdates } from '../models/events/IUserUpdatedEvent';
 
 export class CoursesService {
-
   constructor(
     protected _uow: IUnitOfWork,
     protected _commandsProcessor: CommandsProcessor,
@@ -128,6 +127,24 @@ export class CoursesService {
     return this.coursesRepo.delete({ _id: courseId });
   }
 
+  async enableStudent(requestParam: IUserRequest, byUser: IUserToken) {
+    return this.toggleUsers(requestParam, Role.student, true, byUser);
+  }
+
+  async disableStudent(requestParam: IUserRequest, byUser: IUserToken) {
+    return this.toggleUsers(requestParam, Role.student, false, byUser);
+  }
+
+  private async toggleUsers(requestParam: IUserRequest, role: Role, value: boolean, byUser: IUserToken) {
+    this.authorize(byUser);
+    await this.validateCoursesAndUsers([requestParam], role);
+    return this._commandsProcessor.sendCommand('courses', this.doToggleStudents, requestParam, role, value);
+  }
+
+  private async doToggleStudents({ schoolId, sectionId, courseId, usersIds }: IUserRequest, role: Role, value: boolean) {
+    return this.coursesRepo.toggleUsersInCourses({ _id: courseId, schoolId, sectionId }, usersIds, role, value);
+  }
+
   async enrollStudents(requestParam: IUserRequest, byUser: IUserToken) {
     return this.enrollUsers([requestParam], Role.student, byUser);
   }
@@ -142,35 +159,6 @@ export class CoursesService {
 
   async enrollTeachersInCourses(requestParams: IUserRequest[], byUser: IUserToken, sameSection = true) {
     return this.enrollUsers(requestParams, Role.teacher, byUser, sameSection);
-  }
-
-  private async enrollUsers(requestParams: IUserRequest[], role: Role, byUser: IUserToken, sameSection = true) {
-    this.authorize(byUser);
-    await this.validateCoursesAndUsers(requestParams, role, sameSection);
-    const joinDate = new Date();
-    if (requestParams.length === 1) {
-      const users: IUserCourseInfo[] = requestParams[0].usersIds.map(_id => ({ _id, joinDate, isEnabled: true }));
-      return this._commandsProcessor.sendCommand('courses', this.doEnrollUsers, requestParams[0], role, users);
-    } else {
-      const commands = requestParams.map(request => {
-        const users: IUserCourseInfo[] = request.usersIds.map(_id => ({ _id, joinDate, isEnabled: true }));
-        return [request, role, users];
-      });
-      this._commandsProcessor.sendManyCommandsAsync('courses', this.doEnrollUsers, commands);
-      return { done: false, data: 'Processing...' };
-    }
-  }
-
-  private async doEnrollUsers({ schoolId, sectionId, courseId, usersIds }: IUserRequest, role: Role, usersObjs: IUserCourseInfo[]) {
-    const coursesRepoWithTransactions = this._uow.getRepository('Courses', true) as CoursesRepository;
-    const sectionsRepoWithTransactions = this._uow.getRepository('Sections', true) as SectionsRepository;
-
-    const result = await coursesRepoWithTransactions.addUsersToCourses({ _id: courseId, schoolId, sectionId }, role, usersObjs);
-    await sectionsRepoWithTransactions.update({ _id: sectionId, schoolId }, { $addToSet: { students: { $each: usersIds } } });
-    await this._uow.commit();
-
-    await this.sendUsersChangesUpdates('enroll', role, usersIds);
-    return result;
   }
 
   async dropStudents(requestParam: IUserRequest, byUser: IUserToken) {
@@ -189,23 +177,95 @@ export class CoursesService {
     return this.dropUsers(requestParams, Role.teacher, byUser);
   }
 
-  private async dropUsers(requestParams: IUserRequest[], role: Role, byUser: IUserToken) {
+  private async enrollUsers(requestParams: IUserRequest[], role: Role, byUser: IUserToken, sameSection = true) {
     this.authorize(byUser);
-    await this.validateCoursesAndUsers(requestParams, role);
-    const finishDate = new Date();
-    if (requestParams.length === 1) {
-      return this._commandsProcessor.sendCommand('courses', this.doDropUsers, requestParams[0], role, finishDate);
-    } else {
-      const commands = requestParams.map(request => [request, role, finishDate]);
-      await this._commandsProcessor.sendManyCommandsAsync('courses', this.doDropUsers, commands);
-      return { done: false, data: 'Processing...' };
-    }
+    const joinDate = new Date();
+    await this.validateCoursesAndUsers(requestParams, role, sameSection);
+    return this._commandsProcessor.sendCommand('courses', this.doEnrollUsers, requestParams, role, joinDate);
   }
 
-  private async doDropUsers({ schoolId, sectionId, courseId, usersIds }: IUserRequest, role: Role, finishDate: Date) {
-    const result = await this.coursesRepo.finishUsersInCourses({ _id: courseId, schoolId, sectionId }, role, usersIds, finishDate);
-    await this.sendUsersChangesUpdates('enroll', role, usersIds);
+  private async doEnrollUsers(requests: IUserRequest[], role: Role, joinDate: Date) {
+    const coursesUpdates: any[] = [], sectionsUpdates: any[] = [], allUsersIds: string[] = [];
+    for (const request of requests) {
+      const { schoolId, sectionId, courseId, usersIds } = request;
+      coursesUpdates.push({
+        filter: { _id: courseId, schoolId, sectionId },
+        usersObjs: usersIds.map(_id => <IUserCourseInfo>{ _id, joinDate, isEnabled: true })
+      });
+      sectionsUpdates.push({ filter: { _id: sectionId, schoolId }, usersIds });
+      allUsersIds.push(...usersIds);
+    }
+
+    const coursesRepoWithTransactions = this._uow.getRepository('Courses', true) as CoursesRepository;
+    const sectionsRepoWithTransactions = this._uow.getRepository('Sections', true) as SectionsRepository;
+
+    const result = await coursesRepoWithTransactions.addUsersToCourses(coursesUpdates, role);
+    if (role === Role.student) await sectionsRepoWithTransactions.addStudentsToSections(sectionsUpdates);
+
+    await this._uow.commit();
+    if (result.modifiedCount !== 0) await this.sendUsersChangesUpdates('enroll', role, allUsersIds);
     return result;
+  }
+
+  private async dropUsers(requestParams: IUserRequest[], role: Role, byUser: IUserToken) {
+    this.authorize(byUser);
+    const finishDate = new Date();
+    await this.validateCoursesAndUsers(requestParams, role);
+    return this._commandsProcessor.sendCommand('courses', this.doDropUsers, requestParams, role, finishDate);
+  }
+
+  private async doDropUsers(requests: IUserRequest[], role: Role, finishDate: Date) {
+    const coursesUpdates: any[] = [], allUsersIds: string[] = [];
+    for (const request of requests) {
+      const { schoolId, sectionId, courseId, usersIds } = request;
+      coursesUpdates.push({ filter: { _id: courseId, schoolId, sectionId }, usersIds });
+      allUsersIds.push(...usersIds);
+    }
+    const result = await this.coursesRepo.finishUsersInCourses(coursesUpdates, role, finishDate);
+    if (result.modifiedCount !== 0) await this.sendUsersChangesUpdates('drop', role, allUsersIds);
+    return result;
+  }
+
+  private async sendUsersChangesUpdates(action: string, role: Role, usersIds: string[]) {
+    usersIds = Array.from(new Set(usersIds));
+    const users: IUser[] = await this.usersRepo.findMany({ _id: { $in: usersIds } });
+    const courses: ICourse[] = await this.coursesRepo.findMany({ [`${role}s`]: { $elemMatch: { _id: { $in: usersIds } } } });
+    const coursesUpdates = this.transformCoursesToUpdates(courses, role);
+    const now = Date.now();
+    const events = users.map(user => ({
+      event: `${action}_user`,
+      timestamp: now,
+      data: <IUserUpdatedEvent>{
+        _id: user._id, role,
+        schoolId: user.registration.schoolId,
+        courses: coursesUpdates[user._id]
+      },
+      v: '1.0.0',
+      key: user._id
+    }));
+    await this._kafkaService.sendMany(config.kafkaUpdatesTopic, events);
+  }
+
+  private transformCoursesToUpdates(courses: ICourse[], role: Role): { [_id: string]: IUserCourseUpdates[] } {
+    const userCoursesUpdates = {};
+    for (const course of courses) {
+      for (const user of course[`${role}s`] as IUserCourseInfo[]) {
+        const courseUpdates: IUserCourseUpdates = {
+          _id: course._id,
+          sectionId: course.sectionId,
+          grade: course.grade,
+          subject: course.subject,
+          joinDate: user.joinDate
+        };
+        if (user.finishDate) courseUpdates.finishDate = user.finishDate;
+        if (user._id in userCoursesUpdates) {
+          userCoursesUpdates[user._id].push(courseUpdates);
+        } else {
+          userCoursesUpdates[user._id] = [courseUpdates];
+        }
+      }
+    }
+    return userCoursesUpdates;
   }
 
   private validateAndGetAcademicTerm(school: ISchool, academicTermId: string | undefined): IAcademicTerm {
@@ -253,46 +313,5 @@ export class CoursesService {
 
   protected newCourseId(sectionId: string, subject: string, year: string) {
     return `${sectionId}_${subject}_${year}_${generate('0123456789abcdef', 3)}`.toLocaleLowerCase().replace(/\s/g, '');
-  }
-
-  private async sendUsersChangesUpdates(action: string, role: Role, usersIds: string[]) {
-    const users: IUser[] = await this.usersRepo.findMany({ _id: { $in: usersIds } });
-    const courses: ICourse[] = await this.coursesRepo.findMany({ [`${role}s`]: { $elemMatch: { _id: { $in: usersIds } } } });
-    const coursesUpdates = this.transformCoursesToUpdates(courses, role);
-    const now = Date.now();
-    const events = users.map(user => ({
-      event: `${action}_user`,
-      timestamp: now,
-      data: <IUserUpdatedEvent>{
-        _id: user._id, role,
-        schoolId: user.registration.schoolId,
-        courses: coursesUpdates[user._id]
-      },
-      v: '1.0.0',
-      key: user._id
-    }));
-    await this._kafkaService.sendMany(config.kafkaUpdatesTopic, events);
-  }
-
-  private transformCoursesToUpdates(courses: ICourse[], role: Role): { [_id: string]: IUserCourseUpdates[] } {
-    const userCoursesUpdates = {};
-    for (const course of courses) {
-      for (const user of course[`${role}s`] as IUserCourseInfo[]) {
-        const courseUpdates: IUserCourseUpdates = {
-          _id: course._id,
-          sectionId: course.sectionId,
-          grade: course.grade,
-          subject: course.subject,
-          joinDate: user.joinDate
-        };
-        if (user.finishDate) courseUpdates.finishDate = user.finishDate;
-        if (user._id in userCoursesUpdates) {
-          userCoursesUpdates[user._id].push(courseUpdates);
-        } else {
-          userCoursesUpdates[user._id] = [courseUpdates];
-        }
-      }
-    }
-    return userCoursesUpdates;
   }
 }
