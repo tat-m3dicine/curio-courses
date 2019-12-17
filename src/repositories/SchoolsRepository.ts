@@ -51,7 +51,7 @@ export class SchoolsRepository extends AduitableRepository<ISchool> {
         }
       }
     }, {
-      $push: { academicTerm }
+      $push: { academicTerms: academicTerm }
     });
   }
 

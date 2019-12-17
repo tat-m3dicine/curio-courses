@@ -131,7 +131,7 @@ export class SectionsService {
 
   protected async validateWithSchoolLicense(grade: string, schoolId: string) {
     const school: ISchool | undefined = await this.schoolsRepo.findById(schoolId);
-    if (!school || !school.license || !school.license.package || !(grade in school.license.package)) {
+    if (!school || !school.license || !school.license.package || !(grade in school.license.package.grades)) {
       throw new InvalidLicenseError(`'${schoolId}' school doesn't have a valid license for grade '${grade}'`);
     }
   }
