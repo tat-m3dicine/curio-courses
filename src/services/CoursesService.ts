@@ -28,7 +28,6 @@ import { KafkaService } from './KafkaService';
 import { IUserUpdatedEvent, IUserCourseUpdates } from '../models/events/IUserUpdatedEvent';
 
 export class CoursesService {
-
   constructor(
     protected _uow: IUnitOfWork,
     protected _commandsProcessor: CommandsProcessor,
@@ -126,6 +125,24 @@ export class CoursesService {
 
   private async doDelete(courseId: string) {
     return this.coursesRepo.delete({ _id: courseId });
+  }
+
+  async enableStudent(requestParam: IUserRequest, byUser: IUserToken) {
+    return this.toggleUsers(requestParam, Role.student, true, byUser);
+  }
+
+  async disableStudent(requestParam: IUserRequest, byUser: IUserToken) {
+    return this.toggleUsers(requestParam, Role.student, false, byUser);
+  }
+
+  private async toggleUsers(requestParam: IUserRequest, role: Role, value: boolean, byUser: IUserToken) {
+    this.authorize(byUser);
+    await this.validateCoursesAndUsers([requestParam], role);
+    return this._commandsProcessor.sendCommand('courses', this.doToggleStudents, requestParam, role, value);
+  }
+
+  private async doToggleStudents({ schoolId, sectionId, courseId, usersIds }: IUserRequest, role: Role, value: boolean) {
+    return this.coursesRepo.toggleUsersInCourses({ _id: courseId, schoolId, sectionId }, usersIds, role, value);
   }
 
   async enrollStudents(requestParam: IUserRequest, byUser: IUserToken) {

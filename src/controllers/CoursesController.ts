@@ -203,6 +203,24 @@ export class CoursesController {
     ctx.type = 'json';
   }
 
+  async enableStudent(ctx: Context, next: () => void) {
+    const { schoolId, sectionId, courseId, userId } = ctx.params;
+    const requestParams = { schoolId, sectionId, courseId, usersIds: [userId] };
+    const result = await this.coursesService.enableStudent(requestParams, ctx.user);
+    ctx.status = 200;
+    ctx.body = { ok: true, result: result.data };
+    ctx.type = 'json';
+  }
+
+  async disableStudent(ctx: Context, next: () => void) {
+    const { schoolId, sectionId, courseId, userId } = ctx.params;
+    const requestParams = { schoolId, sectionId, courseId, usersIds: [userId] };
+    const result = await this.coursesService.disableStudent(requestParams, ctx.user);
+    ctx.status = 200;
+    ctx.body = { ok: true, result: result.data };
+    ctx.type = 'json';
+  }
+
   protected transformUsersToCourses(query: { _id: string, courses: string[] }[]): { [courseId: string]: string[] } {
     const courses = {};
     for (const student of query) {

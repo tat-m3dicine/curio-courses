@@ -76,4 +76,15 @@ export class CoursesRepository extends AduitableRepository<ICourse> {
       { session: this._session }
     );
   }
+
+  async toggleUsersInCourses(filter: object, usersIds: string[], usersType: Role, value: boolean) {
+    return this.update(filter, {
+      $set: { [`${usersType}s.$[user].isEnabled`]: value }
+    }, {
+      arrayFilters: [{
+        'user._id': { $in: usersIds },
+        'user.isEnabled': { $ne: value }
+      }]
+    });
+  }
 }

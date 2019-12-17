@@ -47,6 +47,14 @@ export default (commandsProccessor: CommandsProcessor, kafkaService: KafkaServic
       const controller = new CoursesController(new CoursesService(ctx.uow, commandsProccessor, kafkaService));
       return controller.dropTeacher(ctx, next);
     })
+    .post('/:schoolId/sections/:sectionId/courses/:courseId/enable/students/:userId', (ctx: Koa.Context, next: () => void) => {
+      const controller = new CoursesController(new CoursesService(ctx.uow, commandsProccessor, kafkaService));
+      return controller.enableStudent(ctx, next);
+    })
+    .post('/:schoolId/sections/:sectionId/courses/:courseId/disable/students/:userId', (ctx: Koa.Context, next: () => void) => {
+      const controller = new CoursesController(new CoursesService(ctx.uow, commandsProccessor, kafkaService));
+      return controller.disableStudent(ctx, next);
+    })
     .post('/:schoolId/sections/:sectionId/courses/:courseId/enroll/students', (ctx: Koa.Context, next: () => void) => {
       const controller = new CoursesController(new CoursesService(ctx.uow, commandsProccessor, kafkaService));
       return controller.enrollStudents(ctx, next);
