@@ -54,7 +54,7 @@ export class IRPService {
           avatar: user.avatar,
           grade: user.grade
         },
-        role: user.role ? user.role.split(',').map(r => r.toLowerCase().trim()) : [],
+        role: (user.role && typeof(user.role) === 'string') ? user.role.split(',').map(r => r.toLowerCase().trim()) : [],
         registration: { schoolId, joinDate, status: Status.active }
       });
     }
