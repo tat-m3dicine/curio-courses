@@ -8,8 +8,8 @@ export interface IAuditable extends IEntity {
 export interface IProfile {
   name: string;
   avatar: string;
-  grade: string;
 }
+
 export interface IAcademicTerm {
   _id: string;
   year: string;

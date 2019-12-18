@@ -3,11 +3,17 @@ import { IProfile, IAuditable } from './Common';
 export interface IUser extends IAuditable {
   profile: IProfile;
   role: string[];
-  registration: {
-    schoolId: string;
+  school?: {
+    _id: string;
     status: Status;
     joinDate: Date;
     finishDate?: Date;
+  };
+  registration?: {
+    school: { _id: string, name: string };
+    sections: { _id: string, name: string }[];
+    grade: string;
+    provider: string;
   };
 }
 
@@ -18,4 +24,5 @@ export enum Status {
   withdrawn = 'withdrawn',
   out_of_quota = 'out_of_quota',
   pending_approval = 'pending_approval',
+  school_not_registered = 'school_not_registered',
 }

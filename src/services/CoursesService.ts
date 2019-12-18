@@ -62,7 +62,7 @@ export class CoursesService {
     const studentsObjs: IUserCourseInfo[] = [], teachersObjs: IUserCourseInfo[] = [];
     if (usersIds.length > 0) {
       const now = new Date();
-      const users: IUser[] = await this.usersRepo.findMany({ '_id': { $in: usersIds }, 'registration.schoolId': schoolId });
+      const users: IUser[] = await this.usersRepo.findMany({ '_id': { $in: usersIds }, 'school._id': schoolId });
       const usersMap: { [_id: string]: IUser } = users.reduce((map, user) => ({ ...map, [user._id]: user }), {});
 
       students.forEach(_id => {
@@ -239,8 +239,8 @@ export class CoursesService {
       timestamp: now,
       data: <IUserUpdatedEvent>{
         _id: user._id, role,
-        schoolId: user.registration.schoolId,
-        status: user.registration.status,
+        schoolId: user.school && user.school._id,
+        status: user.school && user.school.status,
         courses: coursesUpdates[user._id]
       },
       v: '1.0.0',
@@ -305,7 +305,7 @@ export class CoursesService {
     const coursesObjs: ICourse[] = await this.coursesRepo.findMany({ _id: { $in: courseIds }, schoolId, ...(sameSection ? { sectionId } : {}) });
     validateAllObjectsExist(coursesObjs, courseIds, schoolId, 'course');
     const userIds: string[] = Array.from(new Set<string>(requestParams.reduce((list, params) => [...list, ...params.usersIds], <any>[])));
-    const usersObjs: IUser[] = await this.usersRepo.findMany({ '_id': { $in: userIds }, 'registration.schoolId': schoolId, role });
+    const usersObjs: IUser[] = await this.usersRepo.findMany({ '_id': { $in: userIds }, 'school._id': schoolId, role });
     validateAllObjectsExist(usersObjs, userIds, schoolId, role);
   }
 

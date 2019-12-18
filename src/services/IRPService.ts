@@ -1,8 +1,7 @@
 import request from 'request';
 import config from '../config';
 import loggerFactory from '../utils/logging';
-import { IUser, Status } from '../models/entities/IUser';
-import { IIRPSection, IIRPUser } from '../models/entities/IIRP';
+import { IIRPSection, IIRPUserMigrationRequest } from '../models/entities/IIRP';
 import correlationIDHelper from '../utils/correlationIDHelper';
 
 const logger = loggerFactory.getLogger('IRPService');
@@ -13,51 +12,26 @@ export class IRPService {
   public getAllSections() {
     const sectionsIRPUrl = `${this.irpUrl}/sections`;
     logger.info('getAllSections invoked', sectionsIRPUrl);
-    return new Promise<IIRPSection[]>((resolve, reject) => {
-      request(sectionsIRPUrl, {
-        headers: {
-          'curio-request-correlation-id': correlationIDHelper.getCorrelationId(),
-        }, gzip: true, json: true
-      }, (error: any, response: request.Response, body: IIRPSection[]) => {
-        if (error) return reject(error);
-        if (response.statusCode < 200 || response.statusCode >= 300) return reject(body);
-        return resolve(body);
-      });
-    });
+    return new Promise<IIRPSection[]>(this.requestURL(sectionsIRPUrl));
   }
 
-  public getAllUsersBySection(schoolId: string, sectionId: string) {
-    const now = new Date();
+  public getAllUsersBySection(sectionId: string) {
     const usersIRPUrl = `${this.irpUrl}/users/group/${sectionId}`;
     logger.info('getAllUsersBySection invoked', usersIRPUrl);
-    return new Promise<IUser[]>((resolve, reject) => {
+    return new Promise<IIRPUserMigrationRequest[]>(this.requestURL(usersIRPUrl));
+  }
+
+  private requestURL(usersIRPUrl: string) {
+    return (resolve, reject) => {
       request(usersIRPUrl, {
         headers: {
           'curio-request-correlation-id': correlationIDHelper.getCorrelationId(),
         }, gzip: true, json: true
-      }, (error: any, response: request.Response, body: IIRPUser[]) => {
+      }, (error: any, response: request.Response, body: any[]) => {
         if (error) return reject(error);
         if (response.statusCode < 200 || response.statusCode >= 300) return reject(body);
-        const result = this.mapIRPUsersToDbUsers(body, schoolId, now);
-        return resolve(result);
+        return resolve(body);
       });
-    });
-  }
-
-  private mapIRPUsersToDbUsers(irpUsers: IIRPUser[], schoolId: string, joinDate: Date) {
-    const result: IUser[] = [];
-    for (const user of irpUsers) {
-      result.push({
-        _id: user.username,
-        profile: {
-          name: user.name,
-          avatar: user.avatar,
-          grade: user.grade
-        },
-        role: user.role ? user.role.split(',').map(r => r.toLowerCase().trim()) : [],
-        registration: { schoolId, joinDate, status: Status.active }
-      });
-    }
-    return result;
+    };
   }
 }

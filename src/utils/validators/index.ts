@@ -8,7 +8,7 @@ import {
 import { validateCreateSection } from './SectionsSchema';
 import { validateCreateCourse, validateUpdateCourse } from './CoursesSchema';
 import { validateCreateLicense } from './LicenseSchema';
-import { validateCreateUser } from './UserSchema';
+import { validateMigrateUser, validateRegisterUser, validateUpdateUser } from './UserSchema';
 import { validateCreateInviteCode } from './InviteCodeSchema';
 import {
   validateStudentsList,
@@ -24,7 +24,9 @@ const validators = {
   validateCreateLicense,
   validateCreateSection,
   validateCreateCourse,
-  validateCreateUser,
+  validateRegisterUser,
+  validateMigrateUser,
+  validateUpdateUser,
   validateUpdateCourse,
   validateUpdateSchoolAcademicTerm,
   validateUpdateSchoolUsers,

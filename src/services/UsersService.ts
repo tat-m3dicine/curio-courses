@@ -2,7 +2,9 @@ import validators from '../utils/validators';
 import { CommandsProcessor } from './CommandsProcessor';
 import { IUnitOfWork } from '@saal-oryx/unit-of-work';
 import { UsersRepository } from '../repositories/UsersRepository';
-import { IUser } from '../models/entities/IUser';
+import { IUser, Status } from '../models/entities/IUser';
+import { IProfile } from '../models/entities/Common';
+import { IRPUserRegistrationRquest, IIRPUserMigrationRequest } from '../models/entities/IIRP';
 
 export class UsersService {
 
@@ -13,26 +15,61 @@ export class UsersService {
     return this._uow.getRepository('Users') as UsersRepository;
   }
 
-  async doAddMany(users: IUser[]) {
-    for (const user of users) {
-      validators.validateCreateUser(user);
-    }
+  async migrate(requests: IIRPUserMigrationRequest[]) {
+    const joinDate = new Date();
+    for (const request of requests) validators.validateMigrateUser(request);
+    const users: IUser[] = requests.map(user => ({
+      _id: user._id,
+      role: [user.role.toLowerCase()],
+      profile: {
+        name: user.name,
+        avatar: user.avatar
+      },
+      school: {
+        _id: user.schooluuid,
+        status: Status.active,
+        joinDate
+      }
+    }));
     return this.usersRepo.addMany(users, false);
   }
 
-  async doUpdate(userInfo: any) {
-    const userObj = userInfo.new_user_data;
-    const userUpdate: any = { profile: {} };
-    delete (userObj.id);
-    for (const key of Object.keys(userObj)) {
-      if (key !== 'role') {
-        userUpdate.profile[key] = userObj[key];
-      } else {
-        userUpdate[key] = userObj[key].split(',').map(r => r.toLowerCase().trim());
+  async register(request: IRPUserRegistrationRquest) {
+    validators.validateRegisterUser(request);
+    const { user_id, new_user_data: user, provider } = request;
+    const userObj: IUser = {
+      _id: user_id,
+      role: user.role,
+      profile: {
+        name: user.name,
+        avatar: user.avatar
+      },
+      registration: {
+        grade: user.grade,
+        school: {
+          _id: user.school.uuid,
+          name: user.school.name
+        },
+        sections: user.section.map(section => ({
+          _id: section.uuid,
+          name: section.name
+        })),
+        provider
       }
-    }
-    if (!userUpdate) return;
-    return this.usersRepo.patch({ _id: userInfo.user_id }, userUpdate);
+    };
+    return this.usersRepo.add(userObj);
   }
 
+  async update(request: IRPUserRegistrationRquest) {
+    validators.validateUpdateUser(request);
+    const user = request.new_user_data;
+    const userObj: Partial<IUser> = {};
+    if (user.role) userObj.role = user.role;
+    if (user.name || user.avatar) {
+      userObj.profile = <IProfile>{};
+      if (user.name) userObj.profile.name = user.name;
+      if (user.avatar) userObj.profile.avatar = user.avatar;
+    }
+    return this.usersRepo.patch({ _id: request.user_id }, userObj);
+  }
 }

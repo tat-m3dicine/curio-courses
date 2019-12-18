@@ -86,7 +86,7 @@ export class SchoolsService {
     this.authorize(byUser);
     validators.validateUpdateSchoolUsers(updateObjs);
     const usersIds: string[] = updateObjs.users.map(user => user._id);
-    const usersObjs: IUser[] = await this.usersRepo.findMany({ '_id': { $in: usersIds }, 'registration.schoolId': schoolId });
+    const usersObjs: IUser[] = await this.usersRepo.findMany({ '_id': { $in: usersIds }, 'school._id': schoolId });
     validateAllObjectsExist(usersObjs, usersIds, schoolId);
     return this._commandsProcessor.sendCommand('schools', this.doUpdateUsers, schoolId, updateObjs.users);
   }
