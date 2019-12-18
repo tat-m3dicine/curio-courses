@@ -12,6 +12,7 @@ export interface IUserCourseUpdates {
   sectionId: string;
   grade: string;
   subject: string;
+  curriculum: string;
   joinDate: Date;
   finishDate?: Date;
 }

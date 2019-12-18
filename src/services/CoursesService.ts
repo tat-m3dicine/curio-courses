@@ -26,6 +26,7 @@ import { SectionsRepository } from '../repositories/SectionsRepository';
 import { validateAllObjectsExist } from '../utils/validators/AllObjectsExist';
 import { KafkaService } from './KafkaService';
 import { IUserUpdatedEvent, IUserCourseUpdates } from '../models/events/IUserUpdatedEvent';
+import { AppError } from '../exceptions/AppError';
 
 export class CoursesService {
   constructor(
@@ -203,7 +204,7 @@ export class CoursesService {
     if (role === Role.student) await sectionsRepoWithTransactions.addStudentsToSections(sectionsUpdates);
 
     await this._uow.commit();
-    if (result.modifiedCount !== 0) await this.sendUsersChangesUpdates('enroll', role, allUsersIds);
+    await this.sendUsersChangesUpdates('enroll', role, allUsersIds);
     return result;
   }
 
@@ -229,7 +230,8 @@ export class CoursesService {
   private async sendUsersChangesUpdates(action: string, role: Role, usersIds: string[]) {
     usersIds = Array.from(new Set(usersIds));
     const users: IUser[] = await this.usersRepo.findMany({ _id: { $in: usersIds } });
-    const courses: ICourse[] = await this.coursesRepo.findMany({ [`${role}s`]: { $elemMatch: { _id: { $in: usersIds } } } });
+    const courses: ICourse[] = await this.coursesRepo.getActiveCoursesForStudents(role, usersIds);
+    if (courses.length === 0) throw new AppError('No active course found', `No active course found!`);
     const coursesUpdates = this.transformCoursesToUpdates(courses, role);
     const now = Date.now();
     const events = users.map(user => ({
@@ -238,6 +240,7 @@ export class CoursesService {
       data: <IUserUpdatedEvent>{
         _id: user._id, role,
         schoolId: user.registration.schoolId,
+        status: user.registration.status,
         courses: coursesUpdates[user._id]
       },
       v: '1.0.0',
@@ -255,6 +258,7 @@ export class CoursesService {
           sectionId: course.sectionId,
           grade: course.grade,
           subject: course.subject,
+          curriculum: course.curriculum,
           joinDate: user.joinDate
         };
         if (user.finishDate) courseUpdates.finishDate = user.finishDate;
