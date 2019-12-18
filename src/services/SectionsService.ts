@@ -44,7 +44,7 @@ export class SectionsService {
     }
     await this.validateWithSchoolLicense(grade, schoolId);
     return this._commandsProcessor.sendCommand('sections', this.doCreate, <ISection>{
-      _id: this.newSectionId(schoolId, grade, locales),
+      _id: section._id || this.newSectionId(schoolId, grade, locales),
       locales, schoolId, grade,
       students: students || []
     });

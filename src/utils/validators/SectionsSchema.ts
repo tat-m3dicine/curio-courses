@@ -4,6 +4,7 @@ import { ICreateSectionRequest } from '../../models/requests/ISectionRequests';
 import { localesSchema } from './LocalesSchema';
 
 const sectionsSchema = {
+  _id: 'string',
   locales: localesSchema('en'),
   schoolId: 'string',
   grade: 'string',
