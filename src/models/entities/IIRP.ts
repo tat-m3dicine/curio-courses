@@ -21,3 +21,21 @@ export interface IIRPUser {
     role: string;
     preferences: string[];
 }
+
+export interface IIRPSchool {
+    _id: string;
+    uuid: string;
+    name: string;
+    curriculum: string;
+    contactPerson: {
+        name: string;
+        phone: string;
+        email: string;
+    };
+    grades: string[];
+    subjects: string[];
+    adminUsers: string[];
+    providerLink: string[];
+    createdAt: string;
+    updatedAt?: string;
+}

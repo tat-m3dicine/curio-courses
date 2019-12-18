@@ -128,6 +128,11 @@ export class CoursesService {
     return this.coursesRepo.delete({ _id: courseId });
   }
 
+  async getAllUsers() {
+    const usersObjs: IUser[] = await this.usersRepo.findMany({});
+    return usersObjs;
+  }
+
   async enrollStudents(requestParam: IUserRequest, byUser: IUserToken) {
     return this.enrollUsers([requestParam], Role.student, byUser);
   }

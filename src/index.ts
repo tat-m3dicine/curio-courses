@@ -52,8 +52,9 @@ let server: import('http').Server;
   app.use(getUnitOfWorkHandler());
 
   // Migration
-  const migateUsers = new MigrationScripts();
-  if (config.irpUrl) await migateUsers.migrateIRPUsers(commandsProcessor);
+  const migateScripts = new MigrationScripts();
+  if (config.irpUrl) await migateScripts.migrateIRPUsers(commandsProcessor);
+  if (config.irpUrl) await migateScripts.migrateIRPSchools(commandsProcessor, kafkaService);
 
   server = app.listen(config.port, () => {
     logger.info(`application is listening on port ${config.port} ...`);

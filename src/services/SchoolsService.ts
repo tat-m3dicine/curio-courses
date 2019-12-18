@@ -184,4 +184,8 @@ export class SchoolsService {
   private newSchoolId(name: string) {
     return `${name.toLocaleLowerCase().replace(/\s/g, '')}_${generate('0123456789abcdef', 5)}`;
   }
+
+  async doAddMany(schools: ISchool[]) {
+    return this.schoolsRepo.addMany(schools, false);
+  }
 }
