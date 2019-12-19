@@ -14,6 +14,7 @@ export interface IUser extends IAuditable {
     status: Status;
     grade: string;
     provider: string;
+    inviteCode?: string;
   };
 }
 
@@ -21,7 +22,8 @@ export interface IUser extends IAuditable {
 export enum Status {
   active = 'active',
   inactive = 'inactive',
-  out_of_quota = 'out_of_quota',
-  pending_approval = 'pending_approval',
-  school_not_registered = 'school_not_registered',
+  outOfQuota = 'out_of_quota',
+  pendingApproval = 'pending_approval',
+  invalidInviteCode = 'invalid_invite_code',
+  schoolNotRegistered = 'school_not_registered',
 }

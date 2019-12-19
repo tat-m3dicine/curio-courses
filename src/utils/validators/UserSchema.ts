@@ -23,7 +23,10 @@ const migrateUserSchema = {
 
 const registerUserSchema = {
   user_id: 'string',
-  provider: 'string',
+  provider: {
+    type: 'string',
+    optional: true
+  },
   new_user_data: {
     type: 'object',
     props: {
