@@ -5,13 +5,13 @@ export interface IUser extends IAuditable {
   role: string[];
   school?: {
     _id: string;
-    status: Status;
     joinDate: Date;
     finishDate?: Date;
   };
   registration?: {
     school: { _id: string, name: string };
     sections: { _id: string, name: string }[];
+    status: Status;
     grade: string;
     provider: string;
   };
@@ -21,7 +21,6 @@ export interface IUser extends IAuditable {
 export enum Status {
   active = 'active',
   inactive = 'inactive',
-  withdrawn = 'withdrawn',
   out_of_quota = 'out_of_quota',
   pending_approval = 'pending_approval',
   school_not_registered = 'school_not_registered',

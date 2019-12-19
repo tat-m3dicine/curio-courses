@@ -6,7 +6,7 @@ import { CommandsProcessor } from './CommandsProcessor';
 import { IUnitOfWork, IPaging } from '@saal-oryx/unit-of-work';
 // models
 import { Role } from '../models/Role';
-import { IUser } from '../models/entities/IUser';
+import { IUser, Status } from '../models/entities/IUser';
 import { IUserToken } from '../models/IUserToken';
 import { ISchool } from '../models/entities/ISchool';
 import { IAcademicTerm } from '../models/entities/Common';
@@ -24,15 +24,15 @@ import { CoursesRepository } from '../repositories/CoursesRepository';
 import { SchoolsRepository } from '../repositories/SchoolsRepository';
 import { SectionsRepository } from '../repositories/SectionsRepository';
 import { validateAllObjectsExist } from '../utils/validators/AllObjectsExist';
-import { KafkaService } from './KafkaService';
 import { IUserUpdatedEvent, IUserCourseUpdates } from '../models/events/IUserUpdatedEvent';
 import { AppError } from '../exceptions/AppError';
+import { UpdatesProcessor } from './UpdatesProcessor';
 
 export class CoursesService {
   constructor(
     protected _uow: IUnitOfWork,
     protected _commandsProcessor: CommandsProcessor,
-    protected _kafkaService: KafkaService
+    protected _updatesProcessor: UpdatesProcessor
   ) { }
 
   protected get schoolsRepo() {
@@ -186,7 +186,7 @@ export class CoursesService {
   }
 
   private async doEnrollUsers(requests: IUserRequest[], role: Role, joinDate: Date) {
-    const coursesUpdates: any[] = [], sectionsUpdates: any[] = [], allUsersIds: string[] = [];
+    const coursesUpdates: any[] = [], sectionsUpdates: any[] = [];
     for (const request of requests) {
       const { schoolId, sectionId, courseId, usersIds } = request;
       coursesUpdates.push({
@@ -194,7 +194,6 @@ export class CoursesService {
         usersObjs: usersIds.map(_id => <IUserCourseInfo>{ _id, joinDate, isEnabled: true })
       });
       sectionsUpdates.push({ filter: { _id: sectionId, schoolId }, usersIds });
-      allUsersIds.push(...usersIds);
     }
 
     const coursesRepoWithTransactions = this._uow.getRepository('Courses', true) as CoursesRepository;
@@ -204,7 +203,7 @@ export class CoursesService {
     if (role === Role.student) await sectionsRepoWithTransactions.addStudentsToSections(sectionsUpdates);
 
     await this._uow.commit();
-    await this.sendUsersChangesUpdates('enroll', role, allUsersIds);
+    if (result.modifiedCount !== 0) await this.sendUsersChangesUpdates('enroll', role, requests);
     return result;
   }
 
@@ -216,37 +215,34 @@ export class CoursesService {
   }
 
   private async doDropUsers(requests: IUserRequest[], role: Role, finishDate: Date) {
-    const coursesUpdates: any[] = [], allUsersIds: string[] = [];
+    const coursesUpdates: any[] = [];
     for (const request of requests) {
       const { schoolId, sectionId, courseId, usersIds } = request;
       coursesUpdates.push({ filter: { _id: courseId, schoolId, sectionId }, usersIds });
-      allUsersIds.push(...usersIds);
     }
     const result = await this.coursesRepo.finishUsersInCourses(coursesUpdates, role, finishDate);
-    if (result.modifiedCount !== 0) await this.sendUsersChangesUpdates('drop', role, allUsersIds);
+    if (result.modifiedCount !== 0) await this.sendUsersChangesUpdates('drop', role, requests);
     return result;
   }
 
-  private async sendUsersChangesUpdates(action: string, role: Role, usersIds: string[]) {
-    usersIds = Array.from(new Set(usersIds));
+  private async sendUsersChangesUpdates(action: string, role: Role, requests: IUserRequest[]) {
+    const usersIds = Array.from(new Set(requests.reduce((list, request) => [...list, ...request.usersIds], <string[]>[])));
     const users: IUser[] = await this.usersRepo.findMany({ _id: { $in: usersIds } });
-    const courses: ICourse[] = await this.coursesRepo.getActiveCoursesForStudents(role, usersIds);
-    if (courses.length === 0) throw new AppError('No active course found', `No active course found!`);
+    const courses: ICourse[] = await this.coursesRepo.getActiveCourses(role, usersIds);
+    if (courses.length === 0) throw new AppError('no_course_found', `No active course found!`);
     const coursesUpdates = this.transformCoursesToUpdates(courses, role);
-    const now = Date.now();
-    const events = users.map(user => ({
-      event: `${action}_user`,
-      timestamp: now,
-      data: <IUserUpdatedEvent>{
-        _id: user._id, role,
-        schoolId: user.school && user.school._id,
-        status: user.school && user.school.status,
+    const coursesIds = requests.map(request => request.courseId);
+    const events = users.map(user => <IUserUpdatedEvent>{
+      event: action,
+      data: {
+        _id: user._id,
+        // tslint:disable-next-line: no-null-keyword
+        schoolId: user.school ? user.school._id : null,
+        status: user.registration ? user.registration.status : (user.school ? Status.active : Status.inactive),
         courses: coursesUpdates[user._id]
-      },
-      v: '1.0.0',
-      key: user._id
-    }));
-    await this._kafkaService.sendMany(config.kafkaUpdatesTopic, events);
+      }
+    });
+    this._updatesProcessor.sendEnrollmentUpdates(events, coursesIds);
   }
 
   private transformCoursesToUpdates(courses: ICourse[], role: Role): { [_id: string]: IUserCourseUpdates[] } {
@@ -258,10 +254,8 @@ export class CoursesService {
           sectionId: course.sectionId,
           grade: course.grade,
           subject: course.subject,
-          curriculum: course.curriculum,
-          joinDate: user.joinDate
+          curriculum: course.curriculum
         };
-        if (user.finishDate) courseUpdates.finishDate = user.finishDate;
         if (user._id in userCoursesUpdates) {
           userCoursesUpdates[user._id].push(courseUpdates);
         } else {

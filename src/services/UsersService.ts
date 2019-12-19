@@ -31,7 +31,6 @@ export class UsersService {
       },
       school: {
         _id: user.schooluuid,
-        status: Status.active,
         joinDate
       }
     }));
@@ -54,6 +53,7 @@ export class UsersService {
       },
       registration: {
         grade: user.grade,
+        status: Status.pending_approval,
         school: {
           _id: user.school.uuid,
           name: user.school.name
