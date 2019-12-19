@@ -21,7 +21,7 @@ export interface IIRPUserMigrationRequest {
   name: string;
   key: string;
   role: string;
-  preferences: any[];
+  preferences?: any[];
 }
 
 export interface IRPUserRegistrationRquest {
@@ -30,7 +30,7 @@ export interface IRPUserRegistrationRquest {
   new_user_data: {
     name: string;
     avatar: string;
-    preferences: any[];
+    preferences?: any[];
     role: string[];
     curriculum: string;
     grade: string;

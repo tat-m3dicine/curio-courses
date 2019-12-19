@@ -5,6 +5,8 @@ import { UsersRepository } from '../repositories/UsersRepository';
 import { IUser, Status } from '../models/entities/IUser';
 import { IProfile } from '../models/entities/Common';
 import { IRPUserRegistrationRquest, IIRPUserMigrationRequest } from '../models/entities/IIRP';
+import loggerFactory from '../utils/logging';
+const logger = loggerFactory.getLogger('UserSchema');
 
 export class UsersService {
 
@@ -17,7 +19,9 @@ export class UsersService {
 
   async migrate(requests: IIRPUserMigrationRequest[]) {
     const joinDate = new Date();
-    for (const request of requests) validators.validateMigrateUser(request);
+    requests = requests.filter(request => {
+      return validators.validateMigrateUser(request);
+    });
     const users: IUser[] = requests.map(user => ({
       _id: user._id,
       role: [user.role.toLowerCase()],
@@ -31,6 +35,10 @@ export class UsersService {
         joinDate
       }
     }));
+    if (!users || users.length === 0) {
+      logger.debug('No users found to migrate!');
+      return [];
+    }
     return this.usersRepo.addMany(users, false);
   }
 

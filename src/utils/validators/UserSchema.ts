@@ -1,6 +1,8 @@
 import Validator from 'fastest-validator';
 import { ValidationError } from '../../exceptions/ValidationError';
 import { IIRPUserMigrationRequest, IRPUserRegistrationRquest } from '../../models/entities/IIRP';
+import loggerFactory from '../logging';
+const logger = loggerFactory.getLogger('UserSchema');
 
 const migrateUserSchema = {
   _id: 'string',
@@ -13,7 +15,10 @@ const migrateUserSchema = {
   sectionname: 'string',
   sectionuuid: 'string',
   schooluuid: 'string',
-  preferences: 'array'
+  preferences: {
+    type: 'array',
+    optional: true
+  }
 };
 
 const registerUserSchema = {
@@ -26,7 +31,10 @@ const registerUserSchema = {
       grade: 'string',
       avatar: 'string',
       curriculum: 'string',
-      preferences: 'array',
+      preferences: {
+        type: 'array',
+        optional: true
+      },
       role: {
         type: 'array',
         items: 'string'
@@ -49,7 +57,10 @@ const registerUserSchema = {
           }
         }
       },
-      inviteCode: 'string'
+      inviteCode: {
+        type: 'string',
+        optional: true
+      }
     }
   }
 };
@@ -86,7 +97,8 @@ export const validateMigrateUser = (request: IIRPUserMigrationRequest) => {
   if (typeof isValidationPassed === 'boolean') {
     return isValidationPassed;
   } else {
-    throw new ValidationError(isValidationPassed);
+    logger.error(isValidationPassed);
+    return false;
   }
 };
 
