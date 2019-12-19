@@ -1,14 +1,14 @@
 import config from '../config';
 import validators from '../utils/validators';
 import generate from 'nanoid/non-secure/generate';
-import { IUser } from '../models/entities/IUser';
+import { IUser, Status } from '../models/entities/IUser';
 import { IUserToken } from '../models/IUserToken';
 import { IAcademicTerm } from '../models/entities/Common';
 import { ILicenseRequest } from '../models/requests/ILicenseRequest';
 import { ISchool, IAcademicTermRequest, ISchoolUserPermissions, ILicense } from '../models/entities/ISchool';
 import { ICreateSchoolRequest, IUpdateSchoolRequest, ICreateLicenseRequest, IDeleteAcademicTermRequest, IUpdateUserRequest } from '../models/requests/ISchoolRequests';
 import { CommandsProcessor } from './CommandsProcessor';
-import { IUnitOfWork, defaultPaging } from '@saal-oryx/unit-of-work';
+import { IUnitOfWork, defaultPaging, IPaging } from '@saal-oryx/unit-of-work';
 import { SchoolsRepository } from '../repositories/SchoolsRepository';
 import { CoursesRepository } from '../repositories/CoursesRepository';
 import { ForbiddenError } from '../exceptions/ForbiddenError';
@@ -17,6 +17,9 @@ import { InvalidRequestError } from '../exceptions/InvalidRequestError';
 import { ConditionalBadRequest } from '../exceptions/ConditionalBadRequest';
 import { UsersRepository } from '../repositories/UsersRepository';
 import { validateAllObjectsExist } from '../utils/validators/AllObjectsExist';
+import { Role } from '../models/Role';
+import loggerFactory from '../utils/logging';
+const logger = loggerFactory.getLogger('SchoolsService');
 
 export class SchoolsService {
 
@@ -89,6 +92,29 @@ export class SchoolsService {
     const usersObjs: IUser[] = await this.usersRepo.findMany({ '_id': { $in: usersIds }, 'school._id': schoolId });
     validateAllObjectsExist(usersObjs, usersIds, schoolId);
     return this._commandsProcessor.sendCommand('schools', this.doUpdateUsers, schoolId, updateObjs.users);
+  }
+
+  async getUsers(filter: { schoolId: string, role: Role, status: 'all' | Status }, paging: IPaging, byUser: IUserToken) {
+    this.authorize(byUser);
+    const _filter: any = {
+      role: filter.role
+    };
+    if (filter.status === 'all') {
+      _filter.$or = [
+        { ['school._id']: filter.schoolId },
+        { ['registration.schoolId']: filter.schoolId },
+      ];
+    } else if (filter.status === Status.active) {
+      _filter['school._id'] = filter.schoolId;
+    } else if (filter.status === Status.inactive) {
+      _filter['registration.schoolId'] = filter.schoolId;
+    }
+    else {
+      if (filter.status) _filter.registration.status = filter.status;
+      _filter['registration.school._id'] = filter.schoolId;
+    }
+    logger.debug('getUsers', _filter);
+    return this.usersRepo.findManyPage(_filter, paging);
   }
 
   private async doUpdateUsers(schoolId: string, users: ISchoolUserPermissions[]) {

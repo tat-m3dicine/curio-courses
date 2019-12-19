@@ -50,6 +50,14 @@ export default (commandsProccessor: CommandsProcessor) => {
     .delete('/:schoolId', (ctx: Koa.Context, next: () => void) => {
       const controller = new SchoolsController(new SchoolsService(ctx.uow, commandsProccessor));
       return controller.delete(ctx, next);
+    })
+    .get('/:schoolId/students', (ctx: Koa.Context, next: () => void) => {
+      const controller = new SchoolsController(new SchoolsService(ctx.uow, commandsProccessor));
+      return controller.getStudents(ctx, next);
+    })
+    .get('/:schoolId/teachers', (ctx: Koa.Context, next: () => void) => {
+      const controller = new SchoolsController(new SchoolsService(ctx.uow, commandsProccessor));
+      return controller.getTeachers(ctx, next);
     });
 
   return schoolRoutes;
