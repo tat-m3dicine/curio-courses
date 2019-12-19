@@ -14,7 +14,7 @@ import { ServerError } from '../../exceptions/ServerError';
 import { AppError } from '../../exceptions/AppError';
 import { InvalidRequestError } from '../../exceptions/InvalidRequestError';
 import { InviteCodesService } from '../InviteCodesService';
-import { KafkaService } from '../KafkaService';
+import { UpdatesProcessor } from '../UpdatesProcessor';
 
 const logger = loggerFactory.getLogger('CommandsStream');
 
@@ -26,7 +26,7 @@ export class CommandsStream {
 
   constructor(
     protected _kafkaStreams: KafkaStreams,
-    protected _kafkaService: KafkaService,
+    protected _updatesProcessor: UpdatesProcessor,
     protected _commandsProcessor: CommandsProcessor
   ) {
     logger.debug('Init ...');
@@ -40,7 +40,7 @@ export class CommandsStream {
     const services = new Map<string, object>();
     services.set('schools', new SchoolsService(uow, this._commandsProcessor));
     services.set('sections', new SectionsService(uow, this._commandsProcessor));
-    services.set('courses', new CoursesService(uow, this._commandsProcessor, this._kafkaService));
+    services.set('courses', new CoursesService(uow, this._commandsProcessor, this._updatesProcessor));
     services.set('inviteCodes', new InviteCodesService(uow, this._commandsProcessor));
     return { services, uow };
   }

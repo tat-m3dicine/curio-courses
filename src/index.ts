@@ -17,6 +17,7 @@ import { KafkaService } from './services/KafkaService';
 import { MigrationScripts } from './services/MigrationScripts';
 import { CommandsProcessor } from './services/CommandsProcessor';
 import { StreamsProcessor } from './services/streams/StreamsProcessor';
+import { UpdatesProcessor } from './services/UpdatesProcessor';
 
 const logger = loggerFactory.getLogger('Index');
 
@@ -35,8 +36,9 @@ let server: import('http').Server;
   }
 
   // Stream
+  const updatesProcessor = new UpdatesProcessor(kafkaService);
   const commandsProcessor = new CommandsProcessor(kafkaService);
-  const streamsProcessor = new StreamsProcessor(kafkaService, commandsProcessor);
+  const streamsProcessor = new StreamsProcessor(updatesProcessor, commandsProcessor);
   await streamsProcessor.start();
 
 
@@ -70,7 +72,7 @@ let server: import('http').Server;
   // Routes ...
   app.use(schoolRoutes(commandsProcessor).mount('/schools'));
   app.use(sectionsRoutes(commandsProcessor).mount('/schools'));
-  app.use(coursesRoutes(commandsProcessor, kafkaService).mount('/schools'));
+  app.use(coursesRoutes(commandsProcessor, updatesProcessor).mount('/schools'));
   app.use(inviteCodesRoutes(commandsProcessor).mount('/schools'));
 
   app.on('error', err => {
