@@ -31,29 +31,6 @@ export class UsersService {
     return this._uow.getRepository('InviteCodes') as InviteCodesRepository;
   }
 
-  async migrate(requests: IIRPUserMigrationRequest[]) {
-    const joinDate = new Date();
-    requests = requests.filter(request => {
-      return validators.validateMigrateUser(request);
-    });
-    const users: IUser[] = requests.map(user => ({
-      _id: user._id,
-      role: [user.role.toLowerCase()],
-      profile: {
-        name: user.name,
-        avatar: user.avatar
-      },
-      school: {
-        _id: user.schooluuid,
-        joinDate
-      }
-    }));
-    if (!users || users.length === 0) {
-      logger.debug('No users found to migrate!');
-      return [];
-    }
-    return this.usersRepo.addMany(users, false);
-  }
 
   async registerFromIRP(request: IRPUserRegistrationRquest) {
     validators.validateRegisterUser(request);

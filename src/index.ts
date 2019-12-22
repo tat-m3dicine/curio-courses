@@ -54,8 +54,10 @@ let server: import('http').Server;
   app.use(getUnitOfWorkHandler());
 
   // Migration
-  const migateUsers = new MigrationScripts();
-  if (config.irpUrl) await migateUsers.migrateIRPUsers(commandsProcessor);
+  if (config.irpUrl) {
+    const migateUsers = new MigrationScripts();
+    await migateUsers.migrateIRPUsers();
+  }
 
   server = app.listen(config.port, () => {
     logger.info(`application is listening on port ${config.port} ...`);
