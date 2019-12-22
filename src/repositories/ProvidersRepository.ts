@@ -55,4 +55,10 @@ export class ProvidersRepository extends AduitableRepository<IProvider> {
     });
   }
 
+  deleteAcademicTermProvider(schoolId: string, academicTermId: string) {
+    return this.update({ _id: schoolId }, {
+      $pull: { academicTerms: { _id: academicTermId } }
+    });
+  }
+
 }

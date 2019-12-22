@@ -26,6 +26,13 @@ export class ProvidersController {
     ctx.type = 'json';
   }
 
+  async deleteAcademicProviders(ctx: Context, next: () => void) {
+    const result = await this.providersService.deleteAcademicTermProvider(ctx.params, ctx.user);
+    ctx.status = result.done ? 201 : 202;
+    ctx.body = { result, ok: true };
+    ctx.type = 'json';
+  }
+
   extractPaging(object: any) {
     const { index, size } = object;
     let parsedIndex = parseInt(index);

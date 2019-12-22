@@ -1,7 +1,7 @@
 import config from '../config';
 import validators from '../utils/validators';
 import generate from 'nanoid/non-secure/generate';
-import { IProvider, IAcademicTermRequest } from '../models/entities/IProvider';
+import { IProvider, IAcademicTermRequest, IDeleteProviderAcademicTermRequest } from '../models/entities/IProvider';
 import { ICreateProviderRequest } from '../models/requests/IProviderRequest';
 import { CommandsProcessor } from './CommandsProcessor';
 import { IUnitOfWork, defaultPaging } from '@saal-oryx/unit-of-work';
@@ -11,6 +11,7 @@ import { UnauthorizedError } from '../exceptions/UnauthorizedError';
 import { InvalidRequestError } from '../exceptions/InvalidRequestError';
 import { IAcademicTerm } from '../models/entities/Common';
 import { IUserToken } from '../models/IUserToken';
+import { ConditionalBadRequest } from '../exceptions/ConditionalBadRequest';
 
 export class ProvidersService {
 
@@ -25,18 +26,22 @@ export class ProvidersService {
     validators.validateCreateProvider(createObj);
     const academicTerms: IAcademicTerm[] = [];
     if (createObj.academicTerm) {
-     academicTerms.push({
+      academicTerms.push({
         _id: generate('0123456789abcdef', 10),
-       ...createObj.academicTerm
-    });
+        ...createObj.academicTerm
+      });
     }
 
-     const provider: IProvider = {
+    const provider: IProvider = {
       _id: createObj._id,
       config: createObj.config,
       package: createObj.package,
       academicTerms
     };
+    return this._commandsProcessor.sendCommand('providers', this.doAdd, provider);
+  }
+
+  private async doAdd(provider: IProvider) {
     return this.providersRepo.add(provider);
   }
 
@@ -53,8 +58,27 @@ export class ProvidersService {
     };
     validators.validateUpdateProviderAcademicTerm({ academicTerm });
     if (academicTerm.startDate > academicTerm.endDate) throw new InvalidRequestError('Start Date should be less than End Date');
-    const result = await this.providersRepo.updateAcademicTerm(providerId, updateObj, academicTerm);
-return result;
+    return this._commandsProcessor.sendCommand('providers', this.doUpdateAcademicTerm, providerId, updateObj, academicTerm);
+  }
+
+  private async doUpdateAcademicTerm(providerId: string, updateObj: IAcademicTermRequest, academicTerm: IAcademicTerm) {
+    return this.providersRepo.updateAcademicTerm(providerId, updateObj, academicTerm);
+  }
+
+
+  async deleteAcademicTermProvider(requestParams: IDeleteProviderAcademicTermRequest, byUser: IUserToken) {
+    this.authorize(byUser);
+    const { _id: providerId, academicTermId } = { ...requestParams };
+    const activeCourses = await this.providersRepo.findMany({ 'academicTerm._id': academicTermId });
+    if (activeCourses.length !== 0) {
+      const coursesIds = activeCourses.map(course => course._id).join("', '");
+      throw new ConditionalBadRequest(`Unable to delete the Academic Term because ['${coursesIds}'] are active within.`);
+    }
+    return this._commandsProcessor.sendCommand('providers', this.doDeleteAcademicTermProvider, providerId, academicTermId);
+  }
+
+  private async doDeleteAcademicTermProvider(_id: string, academicTermId: string) {
+    return this.providersRepo.deleteAcademicTermProvider(_id, academicTermId);
   }
 
   private authorize(byUser: IUserToken) {

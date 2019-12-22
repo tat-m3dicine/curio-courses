@@ -37,3 +37,8 @@ export interface IAcademicTermRequest {
   gracePeriod: number;
   isEnabled: boolean;
 }
+
+export interface IDeleteProviderAcademicTermRequest {
+  _id: string;
+  academicTermId: string;
+}

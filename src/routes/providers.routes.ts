@@ -14,7 +14,10 @@ export default (commandsProccessor: CommandsProcessor) => {
     .post('/:providerId/academics', (ctx: Koa.Context, next: () => void) => {
         const controller = new ProvidersController(new ProvidersService(ctx.uow, commandsProccessor));
         return controller.updateAcademics(ctx, next);
+      })
+      .delete('/:providerId/academics/:academicTermId', (ctx: Koa.Context, next: () => void) => {
+        const controller = new ProvidersController(new ProvidersService(ctx.uow, commandsProccessor));
+        return controller.deleteAcademicProviders(ctx, next);
       });
-
   return providerRoutes;
 };
