@@ -2,6 +2,7 @@ import { ILocales } from '../entities/Common';
 import { IPackage } from '../entities/ISchool';
 
 export interface ICreateSchoolRequest {
+  _id: string;
   locales: ILocales;
   location: string;
 }

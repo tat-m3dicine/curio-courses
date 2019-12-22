@@ -5,11 +5,6 @@ export interface IAuditable extends IEntity {
   updatedAt?: Date;
 }
 
-export interface IStudentCourseInfo {
-  joinDate: Date;
-  isEnabled: boolean;
-}
-
 export interface IProfile {
   name: string;
   avatar: string;

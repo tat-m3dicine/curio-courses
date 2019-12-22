@@ -1,0 +1,102 @@
+import 'koa-body';
+import { Context } from 'koa';
+import loggerFactory from '../utils/logging';
+import { IPaging } from '@saal-oryx/unit-of-work';
+import { ProvidersService } from '../services/ProviderService';
+
+const logger = loggerFactory.getLogger('ProvidersController');
+
+export class ProvidersController {
+
+  constructor(protected providersService: ProvidersService) {
+  }
+
+  async create(ctx: Context, next: () => void) {
+    const result = await this.providersService.add(ctx.request.body);
+    ctx.status = 200;
+    ctx.body = { result, ok: true };
+    ctx.type = 'json';
+  }
+
+  async updateAcademics(ctx: Context, next: () => void) {
+    const result = await this.providersService.updateAcademicTerm(ctx.request.body, ctx.params.providerId, ctx.user);
+    if (!result)  ctx.status = 400;
+    ctx.status = 200;
+    ctx.body = { result, ok: true };
+    ctx.type = 'json';
+  }
+//   async update(ctx: Context, next: () => void) {
+//     const result = await this.schoolService.update(ctx.request.body, ctx.params.schoolId, ctx.user);
+//     ctx.status = result.done ? 201 : 202;
+//     ctx.body = { result, ok: true };
+//     ctx.type = 'json';
+//   }
+//   async updateAcademics(ctx: Context, next: () => void) {
+//     const result = await this.schoolService.updateAcademicTerm(ctx.request.body, ctx.params.schoolId, ctx.user);
+//     ctx.status = 200;
+//     ctx.body = { result, ok: true };
+//     ctx.type = 'json';
+//   }
+//   async deleteAcademics(ctx: Context, next: () => void) {
+//     const result = await this.schoolService.deleteAcademicTerm(ctx.params, ctx.user);
+//     ctx.status = result.done ? 201 : 202;
+//     ctx.body = { result, ok: true };
+//     ctx.type = 'json';
+//   }
+//   async updateUsers(ctx: Context, next: () => void) {
+//     const result = await this.schoolService.updateUsers(ctx.request.body, ctx.params.schoolId, ctx.user);
+//     ctx.status = 200;
+//     ctx.body = { result: result.data, ok: true };
+//     ctx.type = 'json';
+//   }
+//   async deleteUsers(ctx: Context, next: () => void) {
+//     const result = await this.schoolService.deleteUsers(ctx.request.body, ctx.params.schoolId, ctx.user);
+//     ctx.status = 200;
+//     ctx.body = { result: result.data, ok: true };
+//     ctx.type = 'json';
+//   }
+//   async patch(ctx: Context, next: () => void) {
+//     const result = await this.schoolService.patch(ctx.request.body, ctx.params.schoolId, ctx.user);
+//     ctx.status = 200;
+//     ctx.body = { result, ok: true };
+//     ctx.type = 'json';
+//   }
+//   async list(ctx: Context, next: () => void) {
+//     const result = await this.schoolService.list(this.extractPaging(ctx.request.query), ctx.user);
+//     ctx.status = 200;
+//     ctx.body = result;
+//     ctx.type = 'json';
+//   }
+//   async get(ctx: Context, next: () => void) {
+//     const result = await this.schoolService.get(ctx.params.schoolId, ctx.user);
+//     ctx.status = 200;
+//     ctx.body = result;
+//     ctx.type = 'json';
+//   }
+//   async delete(ctx: Context, next: () => void) {
+//     const result = await this.schoolService.delete(ctx.params.schoolId, ctx.user);
+//     ctx.status = 200;
+//     ctx.body = { result: result.data.result, done: result.done };
+//     ctx.type = 'json';
+//   }
+//   async addLicense(ctx: Context, next: () => void) {
+//     const result = await this.schoolService.patchLicense(ctx.request.body, ctx.params.schoolId, ctx.user);
+//     ctx.status = 200;
+//     ctx.body = { result, ok: true };
+//     ctx.type = 'json';
+//   }
+
+  extractPaging(object: any) {
+    const { index, size } = object;
+    let parsedIndex = parseInt(index);
+    let parsedSize = parseInt(size);
+    if (!parsedIndex || parsedIndex < 1 || isNaN(parsedIndex)) parsedIndex = 0;
+    else parsedIndex -= 1;
+    if (!parsedSize || parsedSize < 1 || isNaN(parsedSize)) parsedSize = 10;
+
+    return <IPaging>{
+      index: parsedIndex,
+      size: parsedSize
+    };
+  }
+}

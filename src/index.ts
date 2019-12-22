@@ -12,6 +12,7 @@ import { getUnitOfWorkHandler } from './utils/middlewares/unitOfWorkHandler';
 import schoolRoutes from './routes/schools.routes';
 import coursesRoutes from './routes/courses.routes';
 import sectionsRoutes from './routes/sections.routes';
+import providerRoutes from './routes/providers.routes';
 import inviteCodesRoutes from './routes/invite_codes.routes';
 import { KafkaService } from './services/KafkaService';
 import { MigrationScripts } from './services/MigrationScripts';
@@ -54,7 +55,7 @@ let server: import('http').Server;
   // Migration
   const migateScripts = new MigrationScripts();
   if (config.irpUrl) await migateScripts.migrateIRPUsers(commandsProcessor);
-  if (config.irpUrl) await migateScripts.migrateIRPSchools(commandsProcessor, kafkaService);
+  //if (config.irpUrl) await migateScripts.migrateIRPSchools(commandsProcessor, kafkaService);
 
   server = app.listen(config.port, () => {
     logger.info(`application is listening on port ${config.port} ...`);
@@ -73,6 +74,7 @@ let server: import('http').Server;
   app.use(sectionsRoutes(commandsProcessor).mount('/schools'));
   app.use(coursesRoutes(commandsProcessor, kafkaService).mount('/schools'));
   app.use(inviteCodesRoutes(commandsProcessor).mount('/schools'));
+  app.use(providerRoutes(commandsProcessor).mount('/provider'));
 
   app.on('error', err => {
     logger.error('app_error', err);
