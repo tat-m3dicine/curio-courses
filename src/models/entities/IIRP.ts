@@ -24,7 +24,7 @@ export interface IIRPUserMigrationRequest {
   preferences?: any[];
 }
 
-export interface IRPUserRegistrationRquest {
+export interface ISignupRequest {
   user_id: string;
   provider: string;
   new_user_data: {

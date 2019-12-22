@@ -1,6 +1,6 @@
 import Validator from 'fastest-validator';
 import { ValidationError } from '../../exceptions/ValidationError';
-import { IIRPUserMigrationRequest, IRPUserRegistrationRquest } from '../../models/entities/IIRP';
+import { IIRPUserMigrationRequest, ISignupRequest } from '../../models/entities/IIRP';
 import loggerFactory from '../logging';
 const logger = loggerFactory.getLogger('UserSchema');
 
@@ -105,7 +105,7 @@ export const validateMigrateUser = (request: IIRPUserMigrationRequest) => {
   }
 };
 
-export const validateRegisterUser = (request: IRPUserRegistrationRquest) => {
+export const validateRegisterUser = (request: ISignupRequest) => {
   const isValidationPassed = validateRegister(request);
   if (typeof isValidationPassed === 'boolean') {
     return isValidationPassed;

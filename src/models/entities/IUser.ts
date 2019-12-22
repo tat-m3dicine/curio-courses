@@ -8,14 +8,20 @@ export interface IUser extends IAuditable {
     joinDate: Date;
     finishDate?: Date;
   };
-  registration?: {
-    school: { _id: string, name: string };
-    sections: { _id: string, name: string }[];
-    status: Status;
-    grade: string;
-    provider: string;
-    inviteCode?: string;
-  };
+  registration?: IRegistration;
+}
+
+export interface IUserWithRegistration extends IUser {
+  registration: IRegistration;
+}
+
+export interface IRegistration {
+  school: { _id: string, name: string };
+  sections: { _id: string, name: string }[];
+  status: Status;
+  grade: string;
+  provider: string;
+  inviteCode?: string;
 }
 
 // TODO: validate against status when enrolling users

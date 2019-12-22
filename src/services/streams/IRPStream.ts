@@ -86,7 +86,7 @@ export class IRPStream {
 
       switch (appEvent.event) {
         case 'user_created':
-          await this._usersService.registerFromIRP(appEvent.data);
+          await this._usersService.signup(appEvent.data);
           break;
         case 'user_updated':
           await this._usersService.update(appEvent.data);
