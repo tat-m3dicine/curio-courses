@@ -9,10 +9,6 @@ import { ProvidersRepository } from '../repositories/ProvidersRepository';
 import { ForbiddenError } from '../exceptions/ForbiddenError';
 import { UnauthorizedError } from '../exceptions/UnauthorizedError';
 import { InvalidRequestError } from '../exceptions/InvalidRequestError';
-import { ConditionalBadRequest } from '../exceptions/ConditionalBadRequest';
-import { UsersRepository } from '../repositories/UsersRepository';
-import { validateAllObjectsExist } from '../utils/validators/AllObjectsExist';
-import nanoid = require('nanoid');
 import { IAcademicTerm } from '../models/entities/Common';
 import { IUserToken } from '../models/IUserToken';
 
@@ -24,25 +20,6 @@ export class ProvidersService {
   protected get providersRepo() {
     return this._uow.getRepository('Providers') as ProvidersRepository;
   }
-
-//   async get(schoolId: string, byUser: IUserToken) {
-//     this.authorize(byUser);
-//     return this.schoolsRepo.findById(schoolId);
-//   }
-
-//   async delete(schoolId: string, byUser: IUserToken) {
-//     this.authorize(byUser);
-//     return this._commandsProcessor.sendCommand('schools', this.doDelete, schoolId);
-//   }
-
-//   private async doDelete(schoolId: string) {
-//     return this.schoolsRepo.delete({ _id: schoolId });
-//   }
-
-//   async list(paging = defaultPaging, byUser: IUserToken) {
-//     this.authorize(byUser);
-//     return this.schoolsRepo.findManyPage({}, paging);
-//   }
 
   async add(createObj: ICreateProviderRequest) {
     validators.validateCreateProvider(createObj);
@@ -63,18 +40,8 @@ export class ProvidersService {
     return this.providersRepo.add(provider);
   }
 
-//   async update(updateObj: IUpdateSchoolRequest, schoolId: string, byUser: IUserToken) {
-//     this.authorize(byUser);
-//     validators.validateUpdateSchool(updateObj);
-//     return this._commandsProcessor.sendCommand('schools', this.doUpdate, schoolId, updateObj);
-//   }
-
-//   private async doUpdate(schoolId: string, updateObj: IUpdateSchoolRequest) {
-//     return this.schoolsRepo.update({ _id: schoolId }, { $set: updateObj });
-//   }
-
   async updateAcademicTerm(updateObj: IAcademicTermRequest, providerId: string, byUser: IUserToken) {
-    //this.authorize(byUser);
+    this.authorize(byUser);
     const academicTerm: IAcademicTerm = {
       _id: generate('0123456789abcdef', 10),
       year: updateObj.year,
@@ -95,73 +62,4 @@ return result;
     const isAuthorized = byUser.role.split(',').includes(config.authorizedRole);
     if (!isAuthorized) throw new UnauthorizedError('you are not authorized!');
   }
-
-//   private async doUpdateAcademicTerm(schoolId: string, updateObj: IAcademicTermRequest, academicTerm: IAcademicTerm) {
-//     return this.schoolsRepo.updateAcademicTerm(schoolId, updateObj, academicTerm);
-//   }
-
-//   async deleteAcademicTerm(requestParams: IDeleteAcademicTermRequest, byUser: IUserToken) {
-//     this.authorize(byUser);
-//     const { _id: schoolId, academicTermId } = { ...requestParams };
-//     const activeCourses = await this.coursesRepo.findMany({ 'academicTerm._id': academicTermId });
-//     if (activeCourses.length !== 0) {
-//       const coursesIds = activeCourses.map(course => course._id).join("', '");
-//       throw new ConditionalBadRequest(`Unable to delete the Academic Term because ['${coursesIds}'] are active within.`);
-//     }
-//     return this._commandsProcessor.sendCommand('schools', this.doDeleteAcademicTerm, schoolId, academicTermId);
-//   }
-
-//   private async doDeleteAcademicTerm(schoolId: string, academicTermId: string) {
-//     return this.schoolsRepo.deleteAcademicTerm(schoolId, academicTermId);
-//   }
-
-//   async patch(updateObj: IUpdateSchoolRequest, schoolId: string, byUser: IUserToken) {
-//     this.authorize(byUser);
-//     if (!updateObj) throw new InvalidRequestError('Request should not be empty!');
-//     validators.validateUpdateSchool(updateObj);
-//     return this._commandsProcessor.sendCommand('schools', this.doPatch, schoolId, updateObj);
-//   }
-
-//   private async doPatch(schoolId: string, updateObj: IUpdateSchoolRequest) {
-//     return this.schoolsRepo.patch({ _id: schoolId }, updateObj);
-//   }
-
-//   async patchLicense(licenseObj: ICreateLicenseRequest, schoolId: string, byUser: IUserToken) {
-//     this.authorize(byUser);
-//     validators.validateCreateLicense(licenseObj);
-//     const { grades, features = [], signupMethods = [] } = licenseObj.package;
-//     const license: ILicenseRequest = {
-//       students: { max: licenseObj.students },
-//       teachers: { max: licenseObj.teachers },
-//       isEnabled: licenseObj.isEnabled,
-//       validFrom: new Date(),
-//       validTo: new Date(licenseObj.validTo),
-//       reference: licenseObj.reference || byUser.sub,
-//       package: { grades, features, signupMethods }
-//     };
-//     /**
-//      * If validTo is less than existing license validTo
-//      */
-//     const isLicenseConflicts = await this.schoolsRepo.findOne({ '_id': schoolId, 'license.validTo': { $gt: license.validTo } });
-//     if (isLicenseConflicts) throw new InvalidRequestError('ValidTo conflicts with existing license validTo date, validTo should be greater');
-//     return this._commandsProcessor.sendCommand('schools', this.doPatchLicense, schoolId, license);
-//   }
-
-//   private async doPatchLicense(schoolId: string, updateObj: ILicense) {
-//     return this.schoolsRepo.patch({ _id: schoolId }, { license: updateObj });
-//   }
-
-//   private authorize(byUser: IUserToken) {
-//     if (!byUser) throw new ForbiddenError('access token is required!');
-//     const isAuthorized = byUser.role.split(',').includes(config.authorizedRole);
-//     if (!isAuthorized) throw new UnauthorizedError('you are not authorized!');
-//   }
-
-//   private newSchoolId(name: string) {
-//     return `${name.toLocaleLowerCase().replace(/\s/g, '')}_${generate('0123456789abcdef', 5)}`;
-//   }
-
-//   async doAddMany(schools: ISchool[]) {
-//     return this.schoolsRepo.addMany(schools, false);
-//   }
 }
