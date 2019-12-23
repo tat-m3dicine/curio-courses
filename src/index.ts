@@ -56,7 +56,7 @@ let server: import('http').Server;
   if (config.irpUrl) {
     const migateUsers = new MigrationScripts();
     await migateUsers.migrateIRPUsers();
-    // await migateScripts.migrateIRPSchools(commandsProcessor, kafkaService);
+    await migateUsers.migrateIRPSchools();
   }
 
   server = app.listen(config.port, () => {

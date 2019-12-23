@@ -32,7 +32,7 @@ export class CommandsStream {
   ) {
     logger.debug('Init ...');
     this._stream = _kafkaStreams.getKStream(config.kafkaCommandsTopic);
-    this._failuresStream = _kafkaStreams.getKStream(`${config.kafkaCommandsTopic}_commands_db_failed`);
+    this._failuresStream = _kafkaStreams.getKStream(`${config.kafkaCommandsTopic}_db_failed`);
   }
 
   async getServices() {
@@ -77,7 +77,7 @@ export class CommandsStream {
           .then(async processingResults => {
             // tslint:disable-next-line: no-string-literal
             const client = this._failuresStream['kafka']['consumer'];
-            await client.commitLocalOffsetsForTopic(`${config.kafkaCommandsTopic}_commands_db_failed`);
+            await client.commitLocalOffsetsForTopic(`${config.kafkaCommandsTopic}_db_failed`);
             logger.debug('failed-db-sink commited', message.offset);
             return processingResults;
           });
@@ -119,9 +119,9 @@ export class CommandsStream {
   }
 
   protected handleError(error: any, appEvent: IAppEvent) {
-    logger.error('Processing Error', JSON.stringify(error), error);
     if (error instanceof AppError) {
       if (appEvent.key) this._commandsProcessor.rejectCommand(appEvent.key, error);
+      logger.error('Processing Error', JSON.stringify(error), error);
       return;
     }
     // Duplicate key error handling
@@ -129,6 +129,7 @@ export class CommandsStream {
       if (appEvent.key) this._commandsProcessor.rejectCommand(appEvent.key, new InvalidRequestError('item already exists'));
       return;
     }
+    logger.error('Processing Error', JSON.stringify(error), error);
     return {
       key: appEvent.key,
       value: JSON.stringify({ ...appEvent, error: JSON.stringify(error) })

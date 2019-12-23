@@ -75,7 +75,7 @@ export default (commandsProccessor: CommandsProcessor, kafkaService: KafkaServic
     ctx.params.action = action;
     ctx.params.role = role;
     return controller.registerUsers(ctx, next);
-  }
+  };
 
   return schoolRoutes;
 };

@@ -6,7 +6,7 @@ services:
       PORT: 80
       # NODE_ENV: production # to test production builds enable this.
       KAFKA_TOPIC: rewards
-      IRP_URL: http://internal-dev3-saale.saal.ai:30307
+      # IRP_URL: http://internal-dev3-saale.saal.ai:30307
       MONGO_DB_URL: mongodb://courses-mongodb:27017/saale-courses?replicaSet=rs0
       KAFKA_BROKERS: kafka:9092
       REDIS_PORT: 6379
