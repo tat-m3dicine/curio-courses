@@ -15,7 +15,7 @@ export class SectionsRepository extends AduitableRepository<ISection> {
     })));
   }
 
-  async registerStudents(filter: object, studentIds: string[]) {
+  async addStudents(filter: object, studentIds: string[]) {
     return this.update(filter, {
       $addToSet: { students: { $each: studentIds } }
     });

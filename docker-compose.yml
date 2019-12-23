@@ -35,7 +35,7 @@ services:
       - mongod
 
   zoo-keeper:
-    image: wurstmeister/zookeeper
+    image: scr.saal.ai/zookeeper:3.4.9
     ports:
       - "2181:2181"
     environment:
@@ -47,7 +47,7 @@ services:
       - zoo-keeper-datalog-volume:/datalog
 
   kafka:
-    image: wurstmeister/kafka
+    image: scr.saal.ai/kafka:1.1.0
     ports:
       - "9092:9092"
       - "9094:9094"

@@ -4,14 +4,14 @@ import generate from 'nanoid/non-secure/generate';
 import { IProvider } from '../models/entities/IProvider';
 import { ICreateProviderRequest } from '../models/requests/IProviderRequest';
 import { CommandsProcessor } from './CommandsProcessor';
-import { IUnitOfWork, defaultPaging } from '@saal-oryx/unit-of-work';
+import { IUnitOfWork } from '@saal-oryx/unit-of-work';
 import { ProvidersRepository } from '../repositories/ProvidersRepository';
 import { ForbiddenError } from '../exceptions/ForbiddenError';
 import { UnauthorizedError } from '../exceptions/UnauthorizedError';
 import { InvalidRequestError } from '../exceptions/InvalidRequestError';
 import { IAcademicTerm } from '../models/entities/Common';
 import { IUserToken } from '../models/IUserToken';
-import { IAcademicTermRequest } from '../models/entities/ISchool';
+import { IUpdateAcademicTermRequest } from '../models/requests/ISchoolRequests';
 
 export class ProvidersService {
 
@@ -41,7 +41,7 @@ export class ProvidersService {
     return this.providersRepo.add(provider);
   }
 
-  async updateAcademicTerm(updateObj: IAcademicTermRequest, providerId: string, byUser: IUserToken) {
+  async updateAcademicTerm(updateObj: IUpdateAcademicTermRequest, providerId: string, byUser: IUserToken) {
     this.authorize(byUser);
     const academicTerm: IAcademicTerm = {
       _id: generate('0123456789abcdef', 10),
