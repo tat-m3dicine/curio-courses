@@ -3,6 +3,8 @@ import { Context } from 'koa';
 import loggerFactory from '../utils/logging';
 import { IPaging } from '@saal-oryx/unit-of-work';
 import { SchoolsService } from '../services/SchoolsService';
+import { Role } from '../models/Role';
+import { Status } from '../models/entities/IUser';
 
 const logger = loggerFactory.getLogger('SkillRatingsController');
 
@@ -75,6 +77,20 @@ export class SchoolsController {
     const result = await this.schoolService.patchLicense(ctx.request.body, ctx.params.schoolId, ctx.user);
     ctx.status = 200;
     ctx.body = { result, ok: true };
+    ctx.type = 'json';
+  }
+  async getStudents(ctx: Context, next: () => void) {
+    const status: Status = ctx.query.status || 'all';
+    const result = await this.schoolService.getUsers({ schoolId: ctx.params.schoolId, role: Role.student, status }, this.extractPaging(ctx.request.query), ctx.user);
+    ctx.status = 200;
+    ctx.body = result;
+    ctx.type = 'json';
+  }
+  async getTeachers(ctx: Context, next: () => void) {
+    const status: Status = ctx.query.status;
+    const result = await this.schoolService.getUsers({ schoolId: ctx.params.schoolId, role: Role.teacher, status }, this.extractPaging(ctx.request.query), ctx.user);
+    ctx.status = 200;
+    ctx.body = result;
     ctx.type = 'json';
   }
 

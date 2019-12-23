@@ -40,7 +40,7 @@ export interface IPackage {
 }
 
 export enum SignupMethods {
-  invite_codes = 'invite_codes',
+  inviteCodes = 'invite_codes',
   manual = 'manual',
   auto = 'auto'
 }

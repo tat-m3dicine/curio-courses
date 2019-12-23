@@ -1,7 +1,8 @@
 import { Collection } from 'mongodb';
-import { IProvider, IAcademicTermRequest } from '../models/entities/IProvider';
+import { IProvider } from '../models/entities/IProvider';
 import { AduitableRepository } from './AduitableRepository';
 import { IAcademicTerm } from '../models/entities/Common';
+import { IAcademicTermRequest } from '../models/entities/ISchool';
 
 export class ProvidersRepository extends AduitableRepository<IProvider> {
   constructor(collection: Collection) {
