@@ -5,8 +5,8 @@ import { IUser, Status } from '../models/entities/IUser';
 import { IUserToken } from '../models/IUserToken';
 import { IAcademicTerm } from '../models/entities/Common';
 import { ILicenseRequest } from '../models/requests/ILicenseRequest';
-import { ISchool, IAcademicTermRequest, ISchoolUserPermissions, ILicense } from '../models/entities/ISchool';
-import { ICreateSchoolRequest, IUpdateSchoolRequest, ICreateLicenseRequest, IDeleteAcademicTermRequest, IUpdateUserRequest } from '../models/requests/ISchoolRequests';
+import { ISchool, ISchoolUserPermissions, ILicense } from '../models/entities/ISchool';
+import { ICreateSchoolRequest, IUpdateSchoolRequest, ICreateLicenseRequest, IDeleteAcademicTermRequest, IUpdateUserRequest, IUpdateAcademicTermRequest } from '../models/requests/ISchoolRequests';
 import { CommandsProcessor } from './CommandsProcessor';
 import { IUnitOfWork, defaultPaging, IPaging } from '@saal-oryx/unit-of-work';
 import { SchoolsRepository } from '../repositories/SchoolsRepository';
@@ -235,7 +235,7 @@ export class SchoolsService {
     return this.schoolsRepo.deleteUsersPermission(schoolId, usersIds);
   }
 
-  async updateAcademicTerm(updateObj: IAcademicTermRequest, scoolId: string, byUser: IUserToken) {
+  async updateAcademicTerm(updateObj: IUpdateAcademicTermRequest, scoolId: string, byUser: IUserToken) {
     this.authorize(byUser);
     const academicTerm: IAcademicTerm = {
       _id: generate('0123456789abcdef', 10),
@@ -251,7 +251,7 @@ export class SchoolsService {
     return this._commandsProcessor.sendCommand('schools', this.doUpdateAcademicTerm, scoolId, updateObj, academicTerm);
   }
 
-  private async doUpdateAcademicTerm(schoolId: string, updateObj: IAcademicTermRequest, academicTerm: IAcademicTerm) {
+  private async doUpdateAcademicTerm(schoolId: string, updateObj: IUpdateAcademicTermRequest, academicTerm: IAcademicTerm) {
     return this.schoolsRepo.updateAcademicTerm(schoolId, updateObj, academicTerm);
   }
 
@@ -314,5 +314,9 @@ export class SchoolsService {
 
   private newSchoolId(name: string) {
     return `${name.toLocaleLowerCase().replace(/\s/g, '')}_${generate('0123456789abcdef', 5)}`;
+  }
+
+  async doAddMany(schools: ISchool[]) {
+    return this.schoolsRepo.addMany(schools, false);
   }
 }

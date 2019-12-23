@@ -58,10 +58,10 @@ Node.js Koa backend with MongoDb clsuter and Kafka.
 ### Downstream
 1. MongoDB
 2. Kafka
-3. Radius
+3. Redis
 
 ## Ports Used:
 * **80**
 
 ## API
-[Postman API Docs](https://documenter.getpostman.com/view/4856492/SWEDyttY)
+[Postman API Docs](https://documenter.getpostman.com/view/4891391/SWLYAWPm)

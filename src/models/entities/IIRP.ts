@@ -1,3 +1,5 @@
+import { IAuditable } from './Common';
+
 export interface IIRPSection {
   _id: string;
   uuid: string;
@@ -44,4 +46,19 @@ export interface ISignupRequest {
     }[],
     inviteCode: string;
   };
+}
+
+export interface IIRPSchool extends IAuditable {
+  uuid: string;
+  name: string;
+  curriculum: string;
+  contactPerson: {
+    name: string;
+    phone: string;
+    email: string;
+  };
+  grades: string[];
+  subjects: string[];
+  adminUsers: string[];
+  providerLink: string[];
 }

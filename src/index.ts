@@ -12,6 +12,7 @@ import { getUnitOfWorkHandler } from './utils/middlewares/unitOfWorkHandler';
 import schoolRoutes from './routes/schools.routes';
 import coursesRoutes from './routes/courses.routes';
 import sectionsRoutes from './routes/sections.routes';
+import providerRoutes from './routes/providers.routes';
 import inviteCodesRoutes from './routes/invite_codes.routes';
 import { KafkaService } from './services/KafkaService';
 import { MigrationScripts } from './services/MigrationScripts';
@@ -41,8 +42,6 @@ let server: import('http').Server;
   const streamsProcessor = new StreamsProcessor(updatesProcessor, commandsProcessor);
   await streamsProcessor.start();
 
-
-
   app.proxy = true;
   app.use(loggerHandler);
   app.use(healthCheckHandler);
@@ -57,6 +56,7 @@ let server: import('http').Server;
   if (config.irpUrl) {
     const migateUsers = new MigrationScripts();
     await migateUsers.migrateIRPUsers();
+    // await migateScripts.migrateIRPSchools(commandsProcessor, kafkaService);
   }
 
   server = app.listen(config.port, () => {
@@ -69,13 +69,12 @@ let server: import('http').Server;
   // Body Parser ...
   app.use(koaBody());
 
-
-
   // Routes ...
   app.use(schoolRoutes(commandsProcessor, kafkaService).mount('/schools'));
   app.use(sectionsRoutes(commandsProcessor).mount('/schools'));
   app.use(coursesRoutes(commandsProcessor, updatesProcessor).mount('/schools'));
   app.use(inviteCodesRoutes(commandsProcessor).mount('/schools'));
+  app.use(providerRoutes(commandsProcessor).mount('/provider'));
 
   app.on('error', err => {
     logger.error('app_error', err);

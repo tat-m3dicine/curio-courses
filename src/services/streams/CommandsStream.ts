@@ -15,6 +15,7 @@ import { AppError } from '../../exceptions/AppError';
 import { InvalidRequestError } from '../../exceptions/InvalidRequestError';
 import { InviteCodesService } from '../InviteCodesService';
 import { UpdatesProcessor } from '../UpdatesProcessor';
+import { KafkaService } from '../KafkaService';
 
 const logger = loggerFactory.getLogger('CommandsStream');
 
@@ -38,7 +39,7 @@ export class CommandsStream {
     const client = await getDbClient();
     const uow = new UnitOfWork(client, getFactory(), { useTransactions: true });
     const services = new Map<string, object>();
-    services.set('schools', new SchoolsService(uow, this._commandsProcessor, this._updatesProcessor));
+    services.set('schools', new SchoolsService(uow, this._commandsProcessor, this._commandsProcessor.kafkaService));
     services.set('sections', new SectionsService(uow, this._commandsProcessor));
     services.set('courses', new CoursesService(uow, this._commandsProcessor, this._updatesProcessor));
     services.set('inviteCodes', new InviteCodesService(uow, this._commandsProcessor));

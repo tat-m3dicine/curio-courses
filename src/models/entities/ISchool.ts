@@ -44,12 +44,3 @@ export enum SignupMethods {
   manual = 'manual',
   auto = 'auto'
 }
-
-export interface IAcademicTermRequest {
-  year: string;
-  term: string;
-  startDate: Date;
-  endDate: Date;
-  gracePeriod: number;
-  isEnabled: boolean;
-}

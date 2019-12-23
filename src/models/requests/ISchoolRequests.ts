@@ -2,7 +2,7 @@ import { ILocales } from '../entities/Common';
 import { IPackage } from '../entities/ISchool';
 
 export interface ICreateSchoolRequest {
-  _id?: string;
+  _id: string;
   locales: ILocales;
   location: string;
 }
@@ -21,6 +21,15 @@ export interface ICreateLicenseRequest {
   package: IPackage;
   students_consumed?: number;
   teachers_consumed?: number;
+}
+
+export interface IUpdateAcademicTermRequest {
+  year: string;
+  term: string;
+  startDate: Date;
+  endDate: Date;
+  gracePeriod: number;
+  isEnabled: boolean;
 }
 
 export interface IDeleteAcademicTermRequest {

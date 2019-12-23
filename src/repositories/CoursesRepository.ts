@@ -87,7 +87,7 @@ export class CoursesRepository extends AduitableRepository<ICourse> {
     });
   }
 
-  async getActiveCourses(role: Role, usersIds: string[]) {
+  async getActiveCoursesForUsers(role: Role, usersIds: string[]) {
     const currentDate = new Date();
     return this.findMany({
       [`${role}s`]: { $elemMatch: { _id: { $in: usersIds } } },
@@ -95,4 +95,14 @@ export class CoursesRepository extends AduitableRepository<ICourse> {
       'academicTerm.endDate': { $gte: currentDate }
     });
   }
+
+  async getActiveCoursesUnderSections(sectionsIds: string[]) {
+    const currentDate = new Date();
+    return this.findMany({
+      'sectionId': { $in: sectionsIds },
+      'academicTerm.startDate': { $lte: currentDate },
+      'academicTerm.endDate': { $gte: currentDate }
+    });
+  }
+
 }

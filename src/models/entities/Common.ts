@@ -23,6 +23,6 @@ export interface IAcademicTerm {
 export interface ILocales {
   [lang: string]: {
     name: string;
-    description: string;
+    description?: string;
   };
 }

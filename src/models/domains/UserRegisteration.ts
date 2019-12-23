@@ -11,28 +11,51 @@ interface IRequirements {
   enrollmentType?: EnrollmentType;
 }
 
-export class School {
+export class UserRegisteration {
 
   protected _requirements: IRequirements;
+  protected _result: IUser;
 
-  constructor(protected _dbSchool: ISchool | undefined, protected _user: IUserWithRegistration) {
+  constructor(protected _dbSchool: ISchool | undefined, protected _user: IUserWithRegistration, protected _inviteCode?: IInviteCode) {
     this._requirements = {
       status: Status.inactive,
       school: _user.registration.school,
       sections: _user.registration.sections,
       courses: []
     };
-  }
-
-  get id() {
-    return this._dbSchool && this._dbSchool._id;
+    this._result = this.getDbUser();
   }
 
   get license() {
     return this._dbSchool && this._dbSchool.license;
   }
 
-  getUserDbObject(): IUser {
+  get sections() {
+    return this._requirements.sections.map(section => section._id);
+  }
+
+  get courses() {
+    return this._requirements.courses;
+  }
+
+  get enrollmentType() {
+    return this._requirements.enrollmentType;
+  }
+
+  get role(): Role {
+    return this._user.role.includes(Role.teacher) ? Role.teacher : Role.student;
+  }
+
+  get dbUser(): IUser {
+    return this._result;
+  }
+
+  getDbUser(): IUser {
+    if (this._inviteCode) {
+      this.processInviteCode();
+    } else {
+      this._requirements.status = this.getRegistrationStatus();
+    }
     if (this._requirements.status === Status.active) {
       delete this._user.registration;
       const now = new Date();
@@ -56,15 +79,13 @@ export class School {
     }
   }
 
-  updateRegistrationStatus(role: Role) {
-    this._requirements.status = this.getRegistrationStatus(role);
-  }
 
-  private getRegistrationStatus(role: Role, howMany = 1) {
+
+  private getRegistrationStatus() {
     if (!this._dbSchool) return Status.schoolNotRegistered;
     if (!this.license) return Status.outOfQuota;
-    const { consumed, max } = this.license[`${role}s`];
-    if (max - consumed < howMany) return Status.outOfQuota;
+    const { consumed, max } = this.license[`${this.role}s`];
+    if (max - consumed < 1) return Status.outOfQuota;
     if (this.license.package.signupMethods.includes(SignupMethods.auto)) {
       return Status.active;
     } else {
@@ -72,27 +93,28 @@ export class School {
     }
   }
 
-  processInviteCode(inviteCode: IInviteCode) {
-    if (this.isInviteCodeValid(inviteCode)) {
-      const { type, courses, sectionId } = inviteCode.enrollment;
-      this._requirements = {
-        ...this._requirements,
-        status: Status.active,
-        sections: [{ _id: sectionId, name: sectionId }],
-        courses: courses || [],
-        enrollmentType: type
-      };
-    } else {
+  private processInviteCode() {
+    if (!this.isInviteCodeValid()) {
       this._requirements.status = Status.invalidInviteCode;
+      return;
     }
+    const { type, courses, sectionId } = this._inviteCode!.enrollment;
+    this._requirements = {
+      ...this._requirements,
+      status: Status.active,
+      sections: [{ _id: sectionId, name: sectionId }],
+      courses: courses || [],
+      enrollmentType: type
+    };
   }
 
-  private isInviteCodeValid(inviteCode: IInviteCode) {
+  private isInviteCodeValid() {
+    if (!this._inviteCode) return false;
     if (!this.license) return false;
     if (!this.license.package.signupMethods.includes(SignupMethods.inviteCodes)) return false;
-    if (!inviteCode.isEnabled) return false;
+    if (!this._inviteCode.isEnabled) return false;
     const now = new Date();
-    const { quota, validity: { fromDate, toDate } } = inviteCode;
+    const { quota, validity: { fromDate, toDate } } = this._inviteCode;
     if (fromDate > now || now > toDate) return false;
     if (quota.max - quota.consumed < 1) return false;
     return true;

@@ -228,7 +228,7 @@ export class CoursesService {
   private async sendUsersChangesUpdates(action: string, role: Role, requests: IUserRequest[]) {
     const usersIds = Array.from(new Set(requests.reduce((list, request) => [...list, ...request.usersIds], <string[]>[])));
     const users: IUser[] = await this.usersRepo.findMany({ _id: { $in: usersIds } });
-    const courses: ICourse[] = await this.coursesRepo.getActiveCourses(role, usersIds);
+    const courses: ICourse[] = await this.coursesRepo.getActiveCoursesForUsers(role, usersIds);
     if (courses.length === 0) throw new AppError('no_course_found', `No active course found!`);
     const coursesUpdates = this.transformCoursesToUpdates(courses, role);
     const coursesIds = requests.map(request => request.courseId);

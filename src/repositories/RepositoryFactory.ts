@@ -6,6 +6,7 @@ import { CoursesRepository } from './CoursesRepository';
 import { SectionsRepository } from './SectionsRepository';
 import { UsersRepository } from './UsersRepository';
 import { InviteCodesRepository } from './InviteCodesRepository';
+import { ProvidersRepository } from './ProvidersRepository';
 
 const logger = loggerFactory.getLogger('RepositoryFactory');
 
@@ -23,6 +24,8 @@ export const getFactory = () => {
         return new UsersRepository(client.db().collection('Users', { session }, (err, r) => r), session);
       case 'InviteCodes':
         return new InviteCodesRepository(client.db().collection('InviteCodes', { session }, (err, r) => r), session);
+        case 'Providers':
+        return new ProvidersRepository(client.db().collection('Providers', { session }, (err, r) => r), session);
       default:
         throw new Error('unknown repository');
     }

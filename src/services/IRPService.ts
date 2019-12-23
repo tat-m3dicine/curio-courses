@@ -1,8 +1,10 @@
 import request from 'request';
 import config from '../config';
+import nanoid = require('nanoid');
 import loggerFactory from '../utils/logging';
-import { IIRPSection, IIRPUserMigrationRequest } from '../models/entities/IIRP';
+import { IIRPSection, IIRPUserMigrationRequest, IIRPSchool } from '../models/entities/IIRP';
 import correlationIDHelper from '../utils/correlationIDHelper';
+import { IUserWithRegistration } from '../models/entities/IUser';
 
 const logger = loggerFactory.getLogger('IRPService');
 export class IRPService {
@@ -13,6 +15,12 @@ export class IRPService {
     const sectionsIRPUrl = `${this.irpUrl}/sections`;
     logger.info('getAllSections invoked', sectionsIRPUrl);
     return new Promise<IIRPSection[]>(this.requestURL(sectionsIRPUrl));
+  }
+
+  public getAllSchools() {
+    const schoolsIRPUrl = `${this.irpUrl}/schools`;
+    logger.info('getAllShools invoked', schoolsIRPUrl);
+    return new Promise<IIRPSchool[]>(this.requestURL(schoolsIRPUrl));
   }
 
   public getAllUsersBySection(sectionId: string) {

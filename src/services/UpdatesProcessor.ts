@@ -6,6 +6,10 @@ export class UpdatesProcessor {
 
   constructor(protected _kafkaService: KafkaService) { }
 
+  get kafkaService() {
+    return this._kafkaService;
+  }
+
   async sendEnrollmentUpdates(usersUpdates: IUserUpdatedEvent[], coursesIds: string[]) {
     const now = Date.now();
     const events: IAppEvent[] = [];
