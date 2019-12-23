@@ -1,17 +1,17 @@
 import { Collection } from 'mongodb';
-import { ISchool, ISchoolUserPermissions, IAcademicTermRequest } from '../models/entities/ISchool';
+import { IProvider, IAcademicTermRequest } from '../models/entities/IProvider';
 import { AduitableRepository } from './AduitableRepository';
 import { IAcademicTerm } from '../models/entities/Common';
 
-export class SchoolsRepository extends AduitableRepository<ISchool> {
+export class ProvidersRepository extends AduitableRepository<IProvider> {
   constructor(collection: Collection) {
-    super('Schools', collection);
+    super('Providers', collection);
   }
 
-  updateAcademicTerm(schoolId: string, updateObj: IAcademicTermRequest, academicTerm: IAcademicTerm) {
+  updateAcademicTerm(providerId: string, updateObj: IAcademicTermRequest, academicTerm: IAcademicTerm) {
     const { startDate, endDate } = updateObj;
     return this.update({
-      _id: schoolId,
+      _id: providerId,
       academicTerms: {
         $not: {
           $elemMatch: {
@@ -55,43 +55,4 @@ export class SchoolsRepository extends AduitableRepository<ISchool> {
     });
   }
 
-  deleteAcademicTerm(schoolId: string, academicTermId: string) {
-    return this.update({ _id: schoolId }, {
-      $pull: { academicTerms: { _id: academicTermId } }
-    });
-  }
-
-  async updateUsersPermission(schoolId: string, users: ISchoolUserPermissions[]) {
-    return this.update({ _id: schoolId }, [{
-      $set: {
-        users: {
-          $let: {
-            vars: {
-              users_removed: {
-                $filter: {
-                  input: `$users`,
-                  as: 'user',
-                  cond: {
-                    $not: { $in: ['$$user._id', users.map(user => user._id)] }
-                  }
-                }
-              }
-            },
-            in: {
-              $setUnion: [
-                users,
-                '$$users_removed'
-              ]
-            }
-          }
-        }
-      }
-    }]);
-  }
-
-  async deleteUsersPermission(schoolId: string, usersIds: string[]) {
-    return this.update({ _id: schoolId }, {
-      $pull: { users: { _id: { $in: usersIds } } }
-    });
-  }
 }

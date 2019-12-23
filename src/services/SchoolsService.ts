@@ -59,7 +59,7 @@ export class SchoolsService {
     validators.validateCreateSchool(createObj);
     const defaultLocale = createObj.locales.en || Object.values(createObj.locales)[0];
     const school: ISchool = {
-      _id: this.newSchoolId(defaultLocale.name),
+      _id: createObj._id || this.newSchoolId(defaultLocale.name),
       locales: createObj.locales,
       location: createObj.location,
       academicTerms: [],
@@ -116,6 +116,7 @@ export class SchoolsService {
       gracePeriod: updateObj.gracePeriod,
       isEnabled: updateObj.isEnabled
     };
+    // ToDo: validation school before moving forward
     validators.validateUpdateSchoolAcademicTerm({ academicTerm });
     return this._commandsProcessor.sendCommand('schools', this.doUpdateAcademicTerm, scoolId, updateObj, academicTerm);
   }
@@ -183,5 +184,9 @@ export class SchoolsService {
 
   private newSchoolId(name: string) {
     return `${name.toLocaleLowerCase().replace(/\s/g, '')}_${generate('0123456789abcdef', 5)}`;
+  }
+
+  async doAddMany(schools: ISchool[]) {
+    return this.schoolsRepo.addMany(schools, false);
   }
 }

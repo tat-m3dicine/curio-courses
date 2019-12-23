@@ -10,6 +10,7 @@ import { validateCreateCourse, validateUpdateCourse } from './CoursesSchema';
 import { validateCreateLicense } from './LicenseSchema';
 import { validateCreateUser } from './UserSchema';
 import { validateCreateInviteCode } from './InviteCodeSchema';
+import { validateCreateProvider, validateUpdateProviderAcademicTerm } from './ProvidersSchema';
 import {
   validateStudentsList,
   validateStudentsObjects,
@@ -35,6 +36,8 @@ const validators = {
   validateTeachersList,
   validateTeachersObjects,
   validateTeachersSwitch,
-  validateCreateInviteCode
+  validateCreateInviteCode,
+  validateCreateProvider,
+  validateUpdateProviderAcademicTerm
 };
 export default validators;
