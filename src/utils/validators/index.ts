@@ -3,7 +3,8 @@ import {
   validateUpdateSchool,
   validateUpdateSchoolAcademicTerm,
   validateUpdateSchoolUsers,
-  validateDeleteSchoolUsers
+  validateDeleteSchoolUsers,
+  validateUserRegisteration
 } from './SchoolsSchema';
 import { validateCreateSection } from './SectionsSchema';
 import { validateCreateCourse, validateUpdateCourse } from './CoursesSchema';
@@ -37,6 +38,7 @@ const validators = {
   validateTeachersList,
   validateTeachersObjects,
   validateTeachersSwitch,
-  validateCreateInviteCode
+  validateCreateInviteCode,
+  validateUserRegisteration
 };
 export default validators;

@@ -5,6 +5,7 @@ import { IPaging } from '@saal-oryx/unit-of-work';
 import { SchoolsService } from '../services/SchoolsService';
 import { Role } from '../models/Role';
 import { Status } from '../models/entities/IUser';
+import { IRegistrationAction } from '../models/requests/IRegistrationAction';
 
 const logger = loggerFactory.getLogger('SkillRatingsController');
 
@@ -91,6 +92,19 @@ export class SchoolsController {
     const result = await this.schoolService.getUsers({ schoolId: ctx.params.schoolId, role: Role.teacher, status }, this.extractPaging(ctx.request.query), ctx.user);
     ctx.status = 200;
     ctx.body = result;
+    ctx.type = 'json';
+  }
+  async registerUsers(ctx: Context, next: () => void) {
+    const role: Role = ctx.params.role;
+    const request: IRegistrationAction = {
+      schoolId: ctx.params.schoolId,
+      users: role === Role.student ? ctx.request.body.students : ctx.request.body.teachers,
+      action: ctx.params.action,
+      role
+    };
+    const result = await this.schoolService.registerUsers(request, ctx.user);
+    ctx.status = 200;
+    ctx.body = { result, ok: true };
     ctx.type = 'json';
   }
 

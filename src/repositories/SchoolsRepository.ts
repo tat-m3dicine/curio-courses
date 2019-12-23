@@ -2,6 +2,7 @@ import { Collection, ClientSession } from 'mongodb';
 import { ISchool, ISchoolUserPermissions, IAcademicTermRequest } from '../models/entities/ISchool';
 import { AduitableRepository } from './AduitableRepository';
 import { IAcademicTerm } from '../models/entities/Common';
+import { Role } from '../models/Role';
 
 export class SchoolsRepository extends AduitableRepository<ISchool> {
   constructor(collection: Collection, session?: ClientSession) {
@@ -92,6 +93,18 @@ export class SchoolsRepository extends AduitableRepository<ISchool> {
   async deleteUsersPermission(schoolId: string, usersIds: string[]) {
     return this.update({ _id: schoolId }, {
       $pull: { users: { _id: { $in: usersIds } } }
+    });
+  }
+
+  async consumeLicense(schoolId: string, role: string, count: number) {
+    return this.update({ _id: schoolId }, {
+      $inc: { [`license.${role}s.consumed`]: count }
+    });
+  }
+
+  async releaseLicense(schoolId: string, role: string, count: number) {
+    return this.update({ _id: schoolId }, {
+      $inc: { [`license.${role}s.consumed`]: -Math.abs(count) }
     });
   }
 }

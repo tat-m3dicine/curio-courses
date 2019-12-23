@@ -60,11 +60,11 @@ export class School {
     this._requirements.status = this.getRegistrationStatus(role);
   }
 
-  private getRegistrationStatus(role: Role) {
+  private getRegistrationStatus(role: Role, howMany = 1) {
     if (!this._dbSchool) return Status.schoolNotRegistered;
     if (!this.license) return Status.outOfQuota;
     const { consumed, max } = this.license[`${role}s`];
-    if (max - consumed < 1) return Status.outOfQuota;
+    if (max - consumed < howMany) return Status.outOfQuota;
     if (this.license.package.signupMethods.includes(SignupMethods.auto)) {
       return Status.active;
     } else {

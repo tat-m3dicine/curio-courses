@@ -72,7 +72,7 @@ let server: import('http').Server;
 
 
   // Routes ...
-  app.use(schoolRoutes(commandsProcessor).mount('/schools'));
+  app.use(schoolRoutes(commandsProcessor, kafkaService).mount('/schools'));
   app.use(sectionsRoutes(commandsProcessor).mount('/schools'));
   app.use(coursesRoutes(commandsProcessor, updatesProcessor).mount('/schools'));
   app.use(inviteCodesRoutes(commandsProcessor).mount('/schools'));

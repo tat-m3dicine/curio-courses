@@ -31,4 +31,23 @@ export class UsersRepository extends AduitableRepository<IUser> {
       }
     }, { upsert: true, returnOriginal: true });
   }
+
+  async count(filter: any) {
+    return this._collection.countDocuments(filter, { session: this._session });
+  }
+
+  async approveRegistrations(schoolId: string, users: string[]) {
+    return this.update({ _id: { $in: users } }, {
+      $unset: { registration: true },
+      $set: { school: { _id: schoolId } },
+    });
+  }
+
+  async reject(schoolId: string, users: string[]) {
+    return this.update({ '_id': { $in: users }, 'registration.school._id': schoolId }, { $unset: { registration: true } });
+  }
+
+  async withdraw(schoolId: string, users: string[]) {
+    return this.update({ '_id': { $in: users }, 'school._id': schoolId }, { $unset: { registration: true, school: true } });
+  }
 }

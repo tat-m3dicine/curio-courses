@@ -6,7 +6,6 @@ export interface IUser extends IAuditable {
   school?: {
     _id: string;
     joinDate: Date;
-    finishDate?: Date;
   };
   registration?: IRegistration;
 }
