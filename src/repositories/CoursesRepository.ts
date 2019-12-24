@@ -1,12 +1,11 @@
-import { Collection } from 'mongodb';
+import { Collection, ClientSession } from 'mongodb';
 import { AduitableRepository } from './AduitableRepository';
 import { ICourse, IUserCourseInfo } from '../models/entities/ICourse';
 import { Role } from '../models/Role';
 
 export class CoursesRepository extends AduitableRepository<ICourse> {
-
-  constructor(collection: Collection) {
-    super('Courses', collection);
+  constructor(collection: Collection, session?: ClientSession) {
+    super('Courses', collection, session);
   }
 
   async finishUsersInCourses(updates: { filter: object, usersIds: string[] }[], usersType: Role, date: Date) {

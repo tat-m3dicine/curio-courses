@@ -25,6 +25,10 @@ export class CommandsProcessor {
     });
   }
 
+  get kafkaService() {
+    return this._kafkaService;
+  }
+
   async resolveCommand<R>(eventKey: string, result: R) {
     this._messageBus.publish(<any>{ name: 'resolveCommand', data: { eventKey, result } });
 

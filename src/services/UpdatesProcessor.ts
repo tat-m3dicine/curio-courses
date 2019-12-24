@@ -1,47 +1,41 @@
 import { KafkaService } from './KafkaService';
 import config from '../config';
 import { IUserUpdatedEvent } from '../models/events/IUserUpdatedEvent';
+import { IAppEvent } from '../models/events/IAppEvent';
 export class UpdatesProcessor {
 
   constructor(protected _kafkaService: KafkaService) { }
 
+  get kafkaService() {
+    return this._kafkaService;
+  }
+
   async sendEnrollmentUpdates(usersUpdates: IUserUpdatedEvent[], coursesIds: string[]) {
-    const events: IUserUpdatedEvent[] = [];
+    const now = Date.now();
+    const events: IAppEvent[] = [];
     for (const userUpdate of usersUpdates) {
       events.push({
         event: Events[userUpdate.event],
         data: {
           ...userUpdate.data,
           courses: userUpdate.data.courses.filter(course => coursesIds.includes(course._id))
-        }
+        },
+        timestamp: now,
+        v: '1.0.0'
       });
       events.push({
-        isState: true,
+        key: userUpdate.data._id,
         event: Events.enrollment,
-        data: userUpdate.data
+        data: userUpdate.data,
+        timestamp: now,
+        v: '1.0.0'
       });
     }
-    this.sendManyUpdates(events);
-  }
-
-  async sendUpdate(userUpdate: IUserUpdatedEvent) {
-    await this.sendManyUpdates([userUpdate]);
-  }
-
-  async sendManyUpdates(usersUpdates: IUserUpdatedEvent[]) {
-    const now = Date.now();
-    const events = usersUpdates.map(userUpdate => ({
-      key: userUpdate.isState ? userUpdate.data._id : undefined,
-      event: userUpdate.event,
-      data: userUpdate.data,
-      timestamp: now,
-      v: '1.0.0'
-    }));
     await this._kafkaService.sendMany(config.kafkaUpdatesTopic, events);
   }
 }
 
-enum Events {
+export enum Events {
   enroll = 'user_enrolled',
   drop = 'user_dropped',
   enrollment = 'user_enrollment'

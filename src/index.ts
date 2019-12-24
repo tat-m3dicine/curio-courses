@@ -56,7 +56,7 @@ let server: import('http').Server;
   if (config.irpUrl) {
     const migateUsers = new MigrationScripts();
     await migateUsers.migrateIRPUsers();
-    // await migateScripts.migrateIRPSchools(commandsProcessor, kafkaService);
+    await migateUsers.migrateIRPSchools();
   }
 
   server = app.listen(config.port, () => {
@@ -70,7 +70,7 @@ let server: import('http').Server;
   app.use(koaBody());
 
   // Routes ...
-  app.use(schoolRoutes(commandsProcessor).mount('/schools'));
+  app.use(schoolRoutes(commandsProcessor, kafkaService).mount('/schools'));
   app.use(sectionsRoutes(commandsProcessor).mount('/schools'));
   app.use(coursesRoutes(commandsProcessor, updatesProcessor).mount('/schools'));
   app.use(inviteCodesRoutes(commandsProcessor).mount('/schools'));

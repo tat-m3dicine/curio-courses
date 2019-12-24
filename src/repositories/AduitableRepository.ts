@@ -21,7 +21,7 @@ export abstract class AduitableRepository<T extends IAuditable> extends BaseRepo
   }
 
   patch(filter: any, item: Partial<T>): Promise<T | undefined> {
-    item.updatedAt = new Date();
+    if (item) item.updatedAt = new Date();
     return super.patch(filter, item, false);
   }
 

@@ -1,4 +1,4 @@
-import { Collection } from 'mongodb';
+import { Collection, ClientSession } from 'mongodb';
 import { ISchool, ISchoolUserPermissions } from '../models/entities/ISchool';
 import { IUpdateAcademicTermRequest } from '../models/requests/ISchoolRequests';
 import { AduitableRepository } from './AduitableRepository';
@@ -6,8 +6,8 @@ import { IAcademicTerm } from '../models/entities/Common';
 import { Role } from '../models/Role';
 
 export class SchoolsRepository extends AduitableRepository<ISchool> {
-  constructor(collection: Collection) {
-    super('Schools', collection);
+  constructor(collection: Collection, session?: ClientSession) {
+    super('Schools', collection, session);
   }
 
   async updateAcademicTerm(schoolId: string, updateObj: IUpdateAcademicTermRequest, academicTerm: IAcademicTerm) {
@@ -94,6 +94,18 @@ export class SchoolsRepository extends AduitableRepository<ISchool> {
   async deleteUsersPermission(schoolId: string, usersIds: string[]) {
     return this.update({ _id: schoolId }, {
       $pull: { users: { _id: { $in: usersIds } } }
+    });
+  }
+
+  async consumeLicense(schoolId: string, role: string, count: number) {
+    return this.update({ _id: schoolId }, {
+      $inc: { [`license.${role}s.consumed`]: count }
+    });
+  }
+
+  async releaseLicense(schoolId: string, role: string, count: number) {
+    return this.update({ _id: schoolId }, {
+      $inc: { [`license.${role}s.consumed`]: -Math.abs(count) }
     });
   }
 

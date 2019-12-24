@@ -19,11 +19,15 @@ import { UsersRepository } from '../repositories/UsersRepository';
 import { validateAllObjectsExist } from '../utils/validators/AllObjectsExist';
 import { Role } from '../models/Role';
 import loggerFactory from '../utils/logging';
+import { IRegistrationAction } from '../models/requests/IRegistrationAction';
+import { InvalidLicenseError } from '../exceptions/InvalidLicenseError';
+import { KafkaService } from './KafkaService';
+import { Events } from './UpdatesProcessor';
 const logger = loggerFactory.getLogger('SchoolsService');
 
 export class SchoolsService {
 
-  constructor(protected _uow: IUnitOfWork, protected _commandsProcessor: CommandsProcessor) {
+  constructor(protected _uow: IUnitOfWork, protected _commandsProcessor: CommandsProcessor, protected _kafkaService: KafkaService) {
   }
 
   protected get schoolsRepo() {
@@ -113,8 +117,108 @@ export class SchoolsService {
       if (filter.status) _filter.registration.status = filter.status;
       _filter['registration.school._id'] = filter.schoolId;
     }
-    logger.debug('getUsers', _filter);
+    logger.debug('getUsers filter:', _filter);
     return this.usersRepo.findManyPage(_filter, paging);
+  }
+
+  async validateUsersInSchool(request: IRegistrationAction) {
+    const filter: any = { _id: { $in: request.users }, role: request.role };
+    if (request.action === 'withdraw') {
+      filter['school._id'] = request.schoolId;
+    } else {
+      filter['registration.school._id'] = request.schoolId;
+    }
+    const count = await this.usersRepo.count(filter);
+    if (count !== request.users.length) throw new InvalidRequestError(`Some ${request.role}s are not registered with the school '${request.schoolId}'!`);
+  }
+
+  async registerUsers(request: IRegistrationAction, byUser: IUserToken) {
+    this.authorize(byUser);
+    validators.validateUserRegisteration(request);
+
+    // Step 1: validated user registeration against school
+    await this.validateUsersInSchool(request);
+    const dbSchool = await this.schoolsRepo.findById(request.schoolId);
+    if (!dbSchool) throw new InvalidRequestError(`Invalid schoolId ${request.schoolId}`);
+    switch (request.action) {
+      case 'approve':
+        return this.approve(dbSchool, request);
+      case 'reject':
+        return this._commandsProcessor.sendCommand('schools', this.doReject, request);
+      case 'withdraw':
+        return this._commandsProcessor.sendCommand('schools', this.doWithdraw, request);
+      default:
+        throw new InvalidRequestError(`Unrecognized action ${request.action}!`);
+    }
+  }
+
+  private approve(school: ISchool, request: IRegistrationAction) {
+    // Step 2: valid license
+    const currentDate = new Date();
+    const usersKey = request.role + 's';
+    const usersCount = request.users.length;
+    if (!school.license || !school.license.isEnabled) throw new InvalidLicenseError(`No valid license for school ${school._id}`);
+
+    // Step 3: License validity
+    const isLicenseExpired = (school.license.validFrom < currentDate && school.license.validTo > currentDate);
+    if (!isLicenseExpired) throw new InvalidLicenseError(`License has been expired for school ${school._id}`);
+
+    // Step 3: License Quota
+    const isQuotaAvailable = (school.license[usersKey].max - school.license[usersKey].consumed) > usersCount;
+    if (!isQuotaAvailable) throw new InvalidLicenseError(`License quota is over for school ${school._id}`);
+
+    return this._commandsProcessor.sendCommand('schools', this.doApprove, request);
+  }
+
+  private async doApprove(request: IRegistrationAction) {
+    const schoolRepo = this._uow.getRepository('Schools', true) as SchoolsRepository;
+    const userRepo = this._uow.getRepository('Users', true) as UsersRepository;
+
+    await schoolRepo.consumeLicense(request.schoolId, request.role, request.users.length);
+
+    await userRepo.approveRegistrations(request.schoolId, request.users);
+
+    await this._kafkaService.sendMany(config.kafkaUpdatesTopic, request.users.map(userId => ({
+      event: Events.enrollment,
+      data: {
+        _id: userId,
+        status: Status.active,
+        schoolId: request.schoolId,
+        courses: []
+      },
+      timestamp: Date.now(),
+      v: '1.0.0'
+    })));
+
+    await this._uow.commit();
+  }
+
+  private doReject(request: IRegistrationAction) {
+    // Step 2: remove user registeration
+    return this.usersRepo.reject(request.schoolId, request.users);
+  }
+
+  private async doWithdraw(request: IRegistrationAction) {
+    const schoolRepo = this._uow.getRepository('Schools', true) as SchoolsRepository;
+    const userRepo = this._uow.getRepository('Users', true) as UsersRepository;
+
+    await schoolRepo.releaseLicense(request.schoolId, request.role, request.users.length);
+
+    await userRepo.withdraw(request.schoolId, request.users);
+
+    await this._kafkaService.sendMany(config.kafkaUpdatesTopic, request.users.map(userId => ({
+      event: Events.enrollment,
+      data: {
+        _id: userId,
+        status: Status.inactive,
+        // tslint:disable-next-line: no-null-keyword
+        schoolId: null,
+        courses: []
+      },
+      timestamp: Date.now(),
+      v: '1.0.0'
+    })));
+    await this._uow.commit();
   }
 
   private async doUpdateUsers(schoolId: string, users: ISchoolUserPermissions[]) {

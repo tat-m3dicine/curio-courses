@@ -15,6 +15,7 @@ import { AppError } from '../../exceptions/AppError';
 import { InvalidRequestError } from '../../exceptions/InvalidRequestError';
 import { InviteCodesService } from '../InviteCodesService';
 import { UpdatesProcessor } from '../UpdatesProcessor';
+import { KafkaService } from '../KafkaService';
 
 const logger = loggerFactory.getLogger('CommandsStream');
 
@@ -31,14 +32,14 @@ export class CommandsStream {
   ) {
     logger.debug('Init ...');
     this._stream = _kafkaStreams.getKStream(config.kafkaCommandsTopic);
-    this._failuresStream = _kafkaStreams.getKStream(`${config.kafkaCommandsTopic}_commands_db_failed`);
+    this._failuresStream = _kafkaStreams.getKStream(`${config.kafkaCommandsTopic}_db_failed`);
   }
 
   async getServices() {
     const client = await getDbClient();
     const uow = new UnitOfWork(client, getFactory(), { useTransactions: true });
     const services = new Map<string, object>();
-    services.set('schools', new SchoolsService(uow, this._commandsProcessor));
+    services.set('schools', new SchoolsService(uow, this._commandsProcessor, this._commandsProcessor.kafkaService));
     services.set('sections', new SectionsService(uow, this._commandsProcessor));
     services.set('courses', new CoursesService(uow, this._commandsProcessor, this._updatesProcessor));
     services.set('inviteCodes', new InviteCodesService(uow, this._commandsProcessor));
@@ -76,7 +77,7 @@ export class CommandsStream {
           .then(async processingResults => {
             // tslint:disable-next-line: no-string-literal
             const client = this._failuresStream['kafka']['consumer'];
-            await client.commitLocalOffsetsForTopic(`${config.kafkaCommandsTopic}_commands_db_failed`);
+            await client.commitLocalOffsetsForTopic(`${config.kafkaCommandsTopic}_db_failed`);
             logger.debug('failed-db-sink commited', message.offset);
             return processingResults;
           });
@@ -118,9 +119,9 @@ export class CommandsStream {
   }
 
   protected handleError(error: any, appEvent: IAppEvent) {
-    logger.error('Processing Error', JSON.stringify(error), error);
     if (error instanceof AppError) {
       if (appEvent.key) this._commandsProcessor.rejectCommand(appEvent.key, error);
+      logger.error('Processing Error', JSON.stringify(error), error);
       return;
     }
     // Duplicate key error handling
@@ -128,6 +129,7 @@ export class CommandsStream {
       if (appEvent.key) this._commandsProcessor.rejectCommand(appEvent.key, new InvalidRequestError('item already exists'));
       return;
     }
+    logger.error('Processing Error', JSON.stringify(error), error);
     return {
       key: appEvent.key,
       value: JSON.stringify({ ...appEvent, error: JSON.stringify(error) })

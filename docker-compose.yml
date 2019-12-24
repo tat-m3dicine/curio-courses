@@ -6,8 +6,8 @@ services:
       PORT: 80
       # NODE_ENV: production # to test production builds enable this.
       KAFKA_TOPIC: rewards
-      MONGO_DB_URL: mongodb://courses-mongodb:27017/saale-courses
-      IRP_URL: http://internal-dev3-saale.saal.ai:30307
+      # IRP_URL: http://internal-dev3-saale.saal.ai:30307
+      MONGO_DB_URL: mongodb://courses-mongodb:27017/saale-courses?replicaSet=rs0
       KAFKA_BROKERS: kafka:9092
       REDIS_PORT: 6379
       REDIS_HOST: courses-redis
@@ -21,9 +21,10 @@ services:
     depends_on:
       - courses-mongodb
       - kafka
+      - courses-redis
 
   courses-mongodb:
-    image: mongo:4.2-rc
+    image: mongo:4.2
     environment:
       MONGO_DATA_DIR: /data/db
       MONGO_LOG_DIR: /dev/null
@@ -31,8 +32,17 @@ services:
       - courses-mongodb-volume:/data/db
     ports:
       - 21017:27017
-    command:
-      - mongod
+    command: ["--replSet", "rs0"]
+    #
+    # Use this command to initalize db
+    #
+    # rs.initiate({
+    #   _id: "rs0",
+    #   protocolVersion: 1,
+    #   members: [
+    #      { _id: 0, host : "courses-mongodb:27017" }
+    #   ]
+    # })
 
   zoo-keeper:
     image: scr.saal.ai/zookeeper:3.4.9
