@@ -57,7 +57,6 @@ export class UserRegisteration {
       this._requirements.status = this.getRegistrationStatus();
     }
     if (this._requirements.status === Status.active) {
-      delete this._user.registration;
       const now = new Date();
       return {
         ...this._user,
@@ -78,8 +77,6 @@ export class UserRegisteration {
       };
     }
   }
-
-
 
   private getRegistrationStatus() {
     if (!this._dbSchool) return Status.schoolNotRegistered;

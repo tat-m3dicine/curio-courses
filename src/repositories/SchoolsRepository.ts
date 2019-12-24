@@ -3,7 +3,6 @@ import { ISchool, ISchoolUserPermissions } from '../models/entities/ISchool';
 import { IUpdateAcademicTermRequest } from '../models/requests/ISchoolRequests';
 import { AduitableRepository } from './AduitableRepository';
 import { IAcademicTerm } from '../models/entities/Common';
-import { Role } from '../models/Role';
 
 export class SchoolsRepository extends AduitableRepository<ISchool> {
   constructor(collection: Collection, session?: ClientSession) {
@@ -105,19 +104,7 @@ export class SchoolsRepository extends AduitableRepository<ISchool> {
 
   async releaseLicense(schoolId: string, role: string, count: number) {
     return this.update({ _id: schoolId }, {
-      $inc: { [`license.${role}s.consumed`]: -Math.abs(count) }
-    });
-  }
-
-  async incrementConsumedCount(schoolId: string, role: Role) {
-    return this.update({ _id: schoolId }, {
-      $inc: { [`license.${role}s.consumed`]: +1 }
-    });
-  }
-
-  async decrementConsumedCount(schoolId: string, role: Role) {
-    return this.update({ _id: schoolId }, {
-      $inc: { [`license.${role}s.consumed`]: -1 }
+      $inc: { [`license.${role}s.consumed`]: -count }
     });
   }
 }

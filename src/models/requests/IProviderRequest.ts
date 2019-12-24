@@ -6,6 +6,7 @@ export interface ICreateProviderRequest {
   _id: string;
   config: IConfig;
   package: IPackage;
+  location: string;
   academicTerm?: IUpdateAcademicTermRequest;
 }
 

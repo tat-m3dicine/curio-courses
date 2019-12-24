@@ -6,6 +6,10 @@ export interface ISchool extends IAuditable {
   license?: ILicense;
   academicTerms: IAcademicTerm[];
   users: ISchoolUserPermissions[];
+  provider?: {
+    _id: string;
+    links: string[];
+  };
 }
 
 export interface ISchoolUserPermissions {
