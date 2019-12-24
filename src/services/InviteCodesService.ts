@@ -14,10 +14,10 @@ import { CommandsProcessor } from './CommandsProcessor';
 import { validateAllObjectsExist } from '../utils/validators/AllObjectsExist';
 import { ICreateInviteCodeRequest } from '../models/requests/IInviteCodeRequests';
 import { IInviteCode, EnrollmentType } from '../models/entities/IInviteCode';
-import generate from 'nanoid/non-secure/generate';
 import { InviteCodesRepository } from '../repositories/InviteCodesRepository';
 import { ICourse } from '../models/entities/ICourse';
 import { InvalidRequestError } from '../exceptions/InvalidRequestError';
+import { newInviteCodeId } from '../utils/IdGenerator';
 
 export class InviteCodesService {
 
@@ -60,7 +60,7 @@ export class InviteCodesService {
       throw new InvalidLicenseError(`Sign up through invite codes isn't included in '${schoolId}' school's license package!`);
     }
     return this._commandsProcessor.sendCommand('inviteCodes', this.doCreate, <IInviteCode>{
-      _id: generate('0123456789abcdef', 8),
+      _id: newInviteCodeId(),
       schoolId, validity, isEnabled: true,
       quota: { max: quota, consumed: 0 },
       enrollment: { sectionId, courses, type }

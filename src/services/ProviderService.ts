@@ -1,6 +1,5 @@
 import config from '../config';
 import validators from '../utils/validators';
-import generate from 'nanoid/non-secure/generate';
 import { IProvider } from '../models/entities/IProvider';
 import { ICreateProviderRequest } from '../models/requests/IProviderRequest';
 import { CommandsProcessor } from './CommandsProcessor';
@@ -12,6 +11,7 @@ import { InvalidRequestError } from '../exceptions/InvalidRequestError';
 import { IAcademicTerm } from '../models/entities/Common';
 import { IUserToken } from '../models/IUserToken';
 import { IUpdateAcademicTermRequest } from '../models/requests/ISchoolRequests';
+import { newProviderId, newAcademicTermId } from '../utils/IdGenerator';
 
 export class ProvidersService {
 
@@ -27,7 +27,7 @@ export class ProvidersService {
     const academicTerms: IAcademicTerm[] = [];
     if (createObj.academicTerm) {
       academicTerms.push({
-        _id: generate('0123456789abcdef', 10),
+        _id: newProviderId(),
         ...createObj.academicTerm
       });
     }
@@ -36,6 +36,7 @@ export class ProvidersService {
       _id: createObj._id,
       config: createObj.config,
       package: createObj.package,
+      location: createObj.location,
       academicTerms
     };
     return this.providersRepo.add(provider);
@@ -44,7 +45,7 @@ export class ProvidersService {
   async updateAcademicTerm(updateObj: IUpdateAcademicTermRequest, providerId: string, byUser: IUserToken) {
     this.authorize(byUser);
     const academicTerm: IAcademicTerm = {
-      _id: generate('0123456789abcdef', 10),
+      _id: newAcademicTermId(),
       year: updateObj.year,
       term: updateObj.term,
       startDate: new Date(updateObj.startDate),
