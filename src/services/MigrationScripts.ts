@@ -1,54 +1,147 @@
 import loggerFactory from '../utils/logging';
-import { UsersService } from './UsersService';
 import { IRPService } from './IRPService';
-import { IUser } from '../models/entities/IUser';
 import { UnitOfWork } from '@saal-oryx/unit-of-work';
 import { getFactory } from '../repositories/RepositoryFactory';
 import { getDbClient } from '../utils/getDbClient';
-import { SchoolsService } from './SchoolsService';
 import { ISchool } from '../models/entities/ISchool';
-import { CoursesService } from '../services/CoursesService';
-import { KafkaService } from './KafkaService';
+import { IIRPUserMigrationRequest, IIRPSchool } from '../models/entities/IIRP';
+import validators from '../utils/validators';
+import { IUser } from '../models/entities/IUser';
+import { UsersRepository } from '../repositories/UsersRepository';
+import { SchoolsRepository } from '../repositories/SchoolsRepository';
+import nanoid = require('nanoid');
 
 const logger = loggerFactory.getLogger('MigrationScripts');
-const irpService = new IRPService();
 
 export class MigrationScripts {
 
-    async migrateIRPUsers(commandsProcessor) {
-        const client = await getDbClient();
-        const uow = new UnitOfWork(client, getFactory(), { useTransactions: false });
-        const userService = new UsersService(uow, commandsProcessor);
-        logger.info('migrateIRPUsers invoked');
-        const allSections = await irpService.getAllSections();
-        let usersList: IUser[] = [];
-        await Promise.all(allSections.map(async section => {
-            try{
-            const results = await irpService.getAllUsersBySection(section.schoolUuid, section.uuid);
-            usersList = usersList.concat(results);
+  async migrateIRPSchools() {
+    const client = await getDbClient();
+    const uow = new UnitOfWork(client, getFactory(), { useTransactions: false });
+    const irpService = new IRPService();
+    const usersRepo: UsersRepository = uow.getRepository('Users');
+    const schoolsRepo: SchoolsRepository = uow.getRepository('Schools');
+
+    const listOfUsers = await usersRepo.findMany({});
+    const allSchools = await irpService.getAllSchools();
+    let schoolList: ISchool[] = [];
+    await Promise.all(allSchools.map(async school => {
+      const results = await this.mapIRPSchoolsToDbSchools(school, listOfUsers);
+      schoolList = schoolList.concat(results);
+    }));
+    const response = await schoolsRepo.addMany(schoolList, false);
+    logger.info('Count of schools Migrated', response.length);
+  }
+
+  async migrateIRPUsers() {
+    logger.info('migrateIRPUsers invoked');
+
+    const irpService = new IRPService();
+    const allSections = await irpService.getAllSections();
+    let usersList: IIRPUserMigrationRequest[] = [];
+    await Promise.all(allSections.map(async section => {
+      const results = await irpService.getAllUsersBySection(section.uuid);
+      usersList = usersList.concat(results);
+    }));
+    const response = await this.migrate(usersList);
+    logger.info('Count of Users Migrated', response.length);
+  }
+
+  async migrate(requests: IIRPUserMigrationRequest[]) {
+    const now = new Date();
+
+    const client = await getDbClient();
+    const uow = new UnitOfWork(client, getFactory(), { useTransactions: false });
+
+    requests = requests.filter(request => {
+      return validators.validateMigrateUser(request);
+    });
+    const users: IUser[] = requests.map(user => ({
+      _id: user._id,
+      role: [user.role.toLowerCase()],
+      profile: {
+        name: user.name,
+        avatar: user.avatar
+      },
+      school: {
+        _id: user.schooluuid,
+        joinDate: now
+      }
+    }));
+    if (!users || users.length === 0) {
+      logger.debug('No users found to migrate!');
+      return [];
+    }
+    return uow.getRepository('Users').addMany(users, false);
+  }
+
+
+  public mapIRPSchoolsToDbSchools(irpSchool: IIRPSchool, listOfUsers: IUser[]) {
+    const result: any = [], teacherUsers = <IUser[]>[], studentUsers = <IUser[]>[];
+    for (const user of listOfUsers) {
+      if (user.registration && user.registration.school._id === irpSchool.uuid) {
+        if (user.role.includes('teacher')) {
+          teacherUsers.push(user);
+        } else if (user.role.includes('student')) {
+          studentUsers.push(user);
         }
-        catch (err) {
-            logger.info(`migrateIRPUsers failed with err: ${err}`);
-        } 
-        }));
-        const response = await userService.doAddMany(usersList);
-        logger.info('Count of Users Migrated', response.length);
-        return response;
+      }
     }
+    result.push({
+      _id: irpSchool.uuid,
+      locales: {
+        en: {
+          name: irpSchool.name
+        }
+      },
+      location: 'AbuDhabi',
+      license: {
+        students: {
+          max: 1000000,
+          consumed: studentUsers.length,
+        },
+        teachers: {
+          max: 1000000,
+          consumed: teacherUsers.length,
+        },
+        validFrom: new Date(),
+        validTo: new Date('Apr 01, 2020 03:24:00'),
+        reference: 'Curio-IRP',
+        isEnabled: true, // enable/disable
+        package: {
+          grades: this.generateGrades(irpSchool),
+          features: ['all'],
+          signupMethods: ['auto']
+        }
+      },
+      academicTerms: [{
+        _id: nanoid(5),
+        year: '2020',
+        term: '1',
+        startDate: new Date(),
+        endDate: new Date('Apr 01, 2020 03:24:00'),
+        gracePeriod: 30,
+        isEnabled: true
+      }],
+      users: irpSchool.adminUsers.reduce((previousValue, user) => {
+        const response = {
+          _id: user,
+          permissions: ['admin']
+        };
+        previousValue.push(response);
+        return previousValue;
+      }, [] as any)
+    });
+    return result;
+  }
 
-    async migrateIRPSchools(commandsProcessor, kafkaService) {
-        const client = await getDbClient();
-        const uow = new UnitOfWork(client, getFactory(), { useTransactions: false });
-        const schoolsService = new SchoolsService(uow, commandsProcessor);
-        const listOfUsers = await  new CoursesService(uow, commandsProcessor, kafkaService).getAllUsers();
-        const allSchools = await irpService.getAllSchools();
-        let schoolList: ISchool[] = [];
-        await Promise.all(allSchools.map(async school => {
-           const results = await irpService.mapIRPSchoolsToDbSchools(school, listOfUsers);
-            schoolList = schoolList.concat(results);
-      }));
-         const response = await schoolsService.doAddMany(schoolList);
-         logger.info('Count of schools Migrated', response.length);
-    }
-
+  generateGrades(irpSchool: IIRPSchool) {
+    return irpSchool.grades.reduce((previousValue, grade) => {
+      if (!previousValue[grade]) previousValue[grade] = {};
+      return irpSchool.subjects.reduce((_, subject) => {
+        previousValue[grade][subject] = irpSchool.curriculum.split(', ');
+        return previousValue;
+      }, {});
+    }, {});
+  }
 }

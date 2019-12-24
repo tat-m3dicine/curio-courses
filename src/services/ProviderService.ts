@@ -1,16 +1,17 @@
 import config from '../config';
 import validators from '../utils/validators';
 import generate from 'nanoid/non-secure/generate';
-import { IProvider, IAcademicTermRequest } from '../models/entities/IProvider';
+import { IProvider } from '../models/entities/IProvider';
 import { ICreateProviderRequest } from '../models/requests/IProviderRequest';
 import { CommandsProcessor } from './CommandsProcessor';
-import { IUnitOfWork, defaultPaging } from '@saal-oryx/unit-of-work';
+import { IUnitOfWork } from '@saal-oryx/unit-of-work';
 import { ProvidersRepository } from '../repositories/ProvidersRepository';
 import { ForbiddenError } from '../exceptions/ForbiddenError';
 import { UnauthorizedError } from '../exceptions/UnauthorizedError';
 import { InvalidRequestError } from '../exceptions/InvalidRequestError';
 import { IAcademicTerm } from '../models/entities/Common';
 import { IUserToken } from '../models/IUserToken';
+import { IUpdateAcademicTermRequest } from '../models/requests/ISchoolRequests';
 
 export class ProvidersService {
 
@@ -25,13 +26,13 @@ export class ProvidersService {
     validators.validateCreateProvider(createObj);
     const academicTerms: IAcademicTerm[] = [];
     if (createObj.academicTerm) {
-     academicTerms.push({
+      academicTerms.push({
         _id: generate('0123456789abcdef', 10),
-       ...createObj.academicTerm
-    });
+        ...createObj.academicTerm
+      });
     }
 
-     const provider: IProvider = {
+    const provider: IProvider = {
       _id: createObj._id,
       config: createObj.config,
       package: createObj.package,
@@ -40,7 +41,7 @@ export class ProvidersService {
     return this.providersRepo.add(provider);
   }
 
-  async updateAcademicTerm(updateObj: IAcademicTermRequest, providerId: string, byUser: IUserToken) {
+  async updateAcademicTerm(updateObj: IUpdateAcademicTermRequest, providerId: string, byUser: IUserToken) {
     this.authorize(byUser);
     const academicTerm: IAcademicTerm = {
       _id: generate('0123456789abcdef', 10),
@@ -54,7 +55,7 @@ export class ProvidersService {
     validators.validateUpdateProviderAcademicTerm({ academicTerm });
     if (academicTerm.startDate > academicTerm.endDate) throw new InvalidRequestError('Start Date should be less than End Date');
     const result = await this.providersRepo.updateAcademicTerm(providerId, updateObj, academicTerm);
-return result;
+    return result;
   }
 
   private authorize(byUser: IUserToken) {

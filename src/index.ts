@@ -18,6 +18,7 @@ import { KafkaService } from './services/KafkaService';
 import { MigrationScripts } from './services/MigrationScripts';
 import { CommandsProcessor } from './services/CommandsProcessor';
 import { StreamsProcessor } from './services/streams/StreamsProcessor';
+import { UpdatesProcessor } from './services/UpdatesProcessor';
 
 const logger = loggerFactory.getLogger('Index');
 
@@ -36,11 +37,10 @@ let server: import('http').Server;
   }
 
   // Stream
+  const updatesProcessor = new UpdatesProcessor(kafkaService);
   const commandsProcessor = new CommandsProcessor(kafkaService);
-  const streamsProcessor = new StreamsProcessor(kafkaService, commandsProcessor);
+  const streamsProcessor = new StreamsProcessor(updatesProcessor, commandsProcessor);
   await streamsProcessor.start();
-
-
 
   app.proxy = true;
   app.use(loggerHandler);
@@ -53,9 +53,11 @@ let server: import('http').Server;
   app.use(getUnitOfWorkHandler());
 
   // Migration
-  const migateScripts = new MigrationScripts();
-  if (config.irpUrl) await migateScripts.migrateIRPUsers(commandsProcessor);
-  //if (config.irpUrl) await migateScripts.migrateIRPSchools(commandsProcessor, kafkaService);
+  if (config.irpUrl) {
+    const migateUsers = new MigrationScripts();
+    await migateUsers.migrateIRPUsers();
+    await migateUsers.migrateIRPSchools();
+  }
 
   server = app.listen(config.port, () => {
     logger.info(`application is listening on port ${config.port} ...`);
@@ -67,12 +69,10 @@ let server: import('http').Server;
   // Body Parser ...
   app.use(koaBody());
 
-
-
   // Routes ...
-  app.use(schoolRoutes(commandsProcessor).mount('/schools'));
+  app.use(schoolRoutes(commandsProcessor, kafkaService).mount('/schools'));
   app.use(sectionsRoutes(commandsProcessor).mount('/schools'));
-  app.use(coursesRoutes(commandsProcessor, kafkaService).mount('/schools'));
+  app.use(coursesRoutes(commandsProcessor, updatesProcessor).mount('/schools'));
   app.use(inviteCodesRoutes(commandsProcessor).mount('/schools'));
   app.use(providerRoutes(commandsProcessor).mount('/provider'));
 

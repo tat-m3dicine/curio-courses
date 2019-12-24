@@ -94,7 +94,7 @@ export class SectionsService {
   }
 
   private async doRegisterStudents(schoolId: string, sectionId: string, studentIds: string[]) {
-    return this.sectionsRepo.registerStudents({ _id: sectionId, schoolId }, studentIds);
+    return this.sectionsRepo.addStudents({ _id: sectionId, schoolId }, studentIds);
   }
 
   async removeStudents(schoolId: string, sectionId: string, studentIds: string[], byUser: IUserToken) {
@@ -126,7 +126,7 @@ export class SectionsService {
   }
 
   protected async validateStudentsInSchool(studentIds: string[], schoolId: string) {
-    const dbStudents: IUser[] = await this.usersRepo.findMany({ '_id': { $in: studentIds }, 'registration.schoolId': schoolId, 'role': Role.student });
+    const dbStudents: IUser[] = await this.usersRepo.findMany({ '_id': { $in: studentIds }, 'school._id': schoolId, 'role': Role.student });
     validateAllObjectsExist(dbStudents, studentIds, schoolId, Role.student);
   }
 

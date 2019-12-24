@@ -1,12 +1,11 @@
-import { Collection } from 'mongodb';
+import { Collection, ClientSession } from 'mongodb';
 import { AduitableRepository } from './AduitableRepository';
 import { ICourse, IUserCourseInfo } from '../models/entities/ICourse';
 import { Role } from '../models/Role';
 
 export class CoursesRepository extends AduitableRepository<ICourse> {
-
-  constructor(collection: Collection) {
-    super('Courses', collection);
+  constructor(collection: Collection, session?: ClientSession) {
+    super('Courses', collection, session);
   }
 
   async finishUsersInCourses(updates: { filter: object, usersIds: string[] }[], usersType: Role, date: Date) {
@@ -88,7 +87,7 @@ export class CoursesRepository extends AduitableRepository<ICourse> {
     });
   }
 
-  async getActiveCoursesForStudents(role: Role, usersIds: string[]) {
+  async getActiveCoursesForUsers(role: Role, usersIds: string[]) {
     const currentDate = new Date();
     return this.findMany({
       [`${role}s`]: { $elemMatch: { _id: { $in: usersIds } } },
@@ -96,4 +95,14 @@ export class CoursesRepository extends AduitableRepository<ICourse> {
       'academicTerm.endDate': { $gte: currentDate }
     });
   }
+
+  async getActiveCoursesUnderSections(sectionsIds: string[]) {
+    const currentDate = new Date();
+    return this.findMany({
+      'sectionId': { $in: sectionsIds },
+      'academicTerm.startDate': { $lte: currentDate },
+      'academicTerm.endDate': { $gte: currentDate }
+    });
+  }
+
 }

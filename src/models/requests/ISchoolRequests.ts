@@ -23,6 +23,15 @@ export interface ICreateLicenseRequest {
   teachers_consumed?: number;
 }
 
+export interface IUpdateAcademicTermRequest {
+  year: string;
+  term: string;
+  startDate: Date;
+  endDate: Date;
+  gracePeriod: number;
+  isEnabled: boolean;
+}
+
 export interface IDeleteAcademicTermRequest {
   _id: string;
   academicTermId: string;

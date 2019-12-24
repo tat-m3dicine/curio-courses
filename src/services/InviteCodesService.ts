@@ -56,7 +56,7 @@ export class InviteCodesService {
     }
     if (!school.license || !school.license.package) throw new InvalidLicenseError(`'${schoolId}' school doesn't have a vaild license!`);
     const { signupMethods } = school.license.package;
-    if (!(signupMethods instanceof Array) || !signupMethods.includes(SignupMethods.invite_codes)) {
+    if (!(signupMethods instanceof Array) || !signupMethods.includes(SignupMethods.inviteCodes)) {
       throw new InvalidLicenseError(`Sign up through invite codes isn't included in '${schoolId}' school's license package!`);
     }
     return this._commandsProcessor.sendCommand('inviteCodes', this.doCreate, <IInviteCode>{

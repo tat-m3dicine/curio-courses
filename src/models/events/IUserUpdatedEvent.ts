@@ -1,10 +1,11 @@
-import { Role } from '../Role';
-
 export interface IUserUpdatedEvent {
-  _id: string;
-  role: Role;
-  schoolId: string;
-  courses: IUserCourseUpdates[];
+  isState?: boolean;
+  event: string;
+  data: {
+    _id: string;
+    schoolId: string;
+    courses: IUserCourseUpdates[];
+  };
 }
 
 export interface IUserCourseUpdates {
@@ -13,6 +14,4 @@ export interface IUserCourseUpdates {
   grade: string;
   subject: string;
   curriculum: string;
-  joinDate: Date;
-  finishDate?: Date;
 }
