@@ -10,6 +10,8 @@ import { IUser } from '../models/entities/IUser';
 import { UsersRepository } from '../repositories/UsersRepository';
 import { SchoolsRepository } from '../repositories/SchoolsRepository';
 import nanoid = require('nanoid');
+import { ICreateSectionRequest } from '../models/requests/ISectionRequests';
+import { ISection } from '../models/entities/ISection';
 
 const logger = loggerFactory.getLogger('MigrationScripts');
 
@@ -33,7 +35,7 @@ export class MigrationScripts {
     logger.info('Count of schools Migrated', response.length);
   }
 
-  async migrateIRPUsers() {
+  async migrateIRPUsersAndSections() {
     logger.info('migrateIRPUsers invoked');
 
     const irpService = new IRPService();
@@ -43,8 +45,9 @@ export class MigrationScripts {
       const results = await irpService.getAllUsersBySection(section.uuid);
       usersList = usersList.concat(results);
     }));
-    const response = await this.migrate(usersList);
-    logger.info('Count of Users Migrated', response.length);
+    const [users, sections] = await Promise.all([this.migrate(usersList), this.migrateSections(usersList)]);
+    logger.info('Count of Users Migrated', users.length);
+    logger.info('Count of Sections Migrated', sections.length);
   }
 
   async migrate(requests: IIRPUserMigrationRequest[]) {
@@ -75,6 +78,29 @@ export class MigrationScripts {
     return uow.getRepository('Users').addMany(users, false);
   }
 
+  async migrateSections(requests: IIRPUserMigrationRequest[]) {
+    const client = await getDbClient();
+    const uow = new UnitOfWork(client, getFactory(), { useTransactions: false });
+    const sections: ISection[] = Object.values(requests.reduce((section: ICreateSectionRequest, curVal: IIRPUserMigrationRequest) => {
+      if (!section[curVal.sectionuuid]) {
+        section[curVal.sectionuuid] = {
+          _id: curVal.sectionuuid,
+          locales: {
+            en: {
+              name: curVal.sectionname
+            }
+          },
+          schoolId: curVal.schooluuid,
+          grade: curVal.grade
+        };
+      }
+
+      if (!section[curVal.sectionuuid].students) section[curVal.sectionuuid].students = [];
+      section[curVal.sectionuuid].students.push(curVal.username);
+      return section;
+    }, {} as ICreateSectionRequest));
+    return uow.getRepository('Sections').addMany(sections, false);
+  }
 
   public mapIRPSchoolsToDbSchools(irpSchool: IIRPSchool, listOfUsers: IUser[]) {
     const result: any = [], teacherUsers = <IUser[]>[], studentUsers = <IUser[]>[];

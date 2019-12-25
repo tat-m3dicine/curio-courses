@@ -54,9 +54,15 @@ let server: import('http').Server;
 
   // Migration
   if (config.irpUrl) {
-    const migateUsers = new MigrationScripts();
-    await migateUsers.migrateIRPUsers();
-    await migateUsers.migrateIRPSchools();
+    try {
+      const migateUsers = new MigrationScripts();
+      await Promise.all([
+        migateUsers.migrateIRPUsersAndSections(),
+        migateUsers.migrateIRPSchools()
+      ]);
+    } catch (err) {
+      logger.error('Migration errors', err);
+    }
   }
 
   server = app.listen(config.port, () => {

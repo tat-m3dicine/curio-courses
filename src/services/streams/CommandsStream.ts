@@ -2,7 +2,7 @@ import config from '../../config';
 import { KafkaStreams, KStream } from 'kafka-streams';
 import loggerFactory from '../../utils/logging';
 import { getDbClient } from '../../utils/getDbClient';
-import { fromPromise } from 'most';
+import { fromPromise, await } from 'most';
 import { UnitOfWork } from '@saal-oryx/unit-of-work';
 import { getFactory } from '../../repositories/RepositoryFactory';
 import { IAppEvent } from '../../models/events/IAppEvent';
@@ -15,7 +15,6 @@ import { AppError } from '../../exceptions/AppError';
 import { InvalidRequestError } from '../../exceptions/InvalidRequestError';
 import { InviteCodesService } from '../InviteCodesService';
 import { UpdatesProcessor } from '../UpdatesProcessor';
-import { KafkaService } from '../KafkaService';
 
 const logger = loggerFactory.getLogger('CommandsStream');
 
@@ -109,6 +108,8 @@ export class CommandsStream {
         return;
       }
       const result = await service[functionName](...appEvent.data);
+      // tslint:disable-next-line: no-string-literal
+      if (uow['_session'] && uow['_session'].inTransaction()) await uow.commit();
       if (appEvent.key) this._commandsProcessor.resolveCommand(appEvent.key, result);
       return;
     } catch (error) {

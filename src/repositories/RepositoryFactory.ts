@@ -11,21 +11,20 @@ import { ProvidersRepository } from './ProvidersRepository';
 const logger = loggerFactory.getLogger('RepositoryFactory');
 
 export const getFactory = () => {
-
   return function RepositoryFactory(name: string, client: MongoClient, session?: ClientSession) {
     switch (name) {
       case 'Schools':
-        return new SchoolsRepository(client.db().collection('Schools', { session }, (err, r) => r), session);
+        return new SchoolsRepository(client.db().collection('Schools', { session }), session);
       case 'Sections':
-        return new SectionsRepository(client.db().collection('Sections', { session }, (err, r) => r), session);
+        return new SectionsRepository(client.db().collection('Sections', { session }), session);
       case 'Courses':
-        return new CoursesRepository(client.db().collection('Courses', { session }, (err, r) => r), session);
+        return new CoursesRepository(client.db().collection('Courses', { session }), session);
       case 'Users':
-        return new UsersRepository(client.db().collection('Users', { session }, (err, r) => r), session);
+        return new UsersRepository(client.db().collection('Users', { session }), session);
       case 'InviteCodes':
-        return new InviteCodesRepository(client.db().collection('InviteCodes', { session }, (err, r) => r), session);
-        case 'Providers':
-        return new ProvidersRepository(client.db().collection('Providers', { session }, (err, r) => r), session);
+        return new InviteCodesRepository(client.db().collection('InviteCodes', { session }), session);
+      case 'Providers':
+        return new ProvidersRepository(client.db().collection('Providers', { session }), session);
       default:
         throw new Error('unknown repository');
     }
