@@ -7,7 +7,7 @@ import { getDbClient } from '../../utils/getDbClient';
 import { UnitOfWork } from '@saal-oryx/unit-of-work';
 import { getFactory } from '../../repositories/RepositoryFactory';
 import { IAppEvent } from '../../models/events/IAppEvent';
-import { CommandsProcessor } from '../CommandsProcessor';
+import { KafkaService } from '../KafkaService';
 
 const logger = loggerFactory.getLogger('IRPStream');
 
@@ -18,7 +18,7 @@ export class IRPStream {
 
   protected _usersService?: UsersService;
 
-  constructor(protected _kafkaStreams: KafkaStreams, protected _commandsProcessor: CommandsProcessor) {
+  constructor(protected _kafkaStreams: KafkaStreams, protected _kafkaService: KafkaService) {
     logger.debug('Init ...');
     this._stream = _kafkaStreams.getKStream(config.kafkaIRPTopic);
     this._failuresStream = _kafkaStreams.getKStream(`${config.kafkaIRPTopic}_irp_db_failed`);
@@ -27,7 +27,7 @@ export class IRPStream {
   async start() {
     const client = await getDbClient();
     const uow = new UnitOfWork(client, getFactory(), { useTransactions: false });
-    this._usersService = new UsersService(uow, this._commandsProcessor);
+    this._usersService = new UsersService(uow, this._kafkaService);
     return Promise.all([this.rawStart(), this.failuresStart()]);
   }
 

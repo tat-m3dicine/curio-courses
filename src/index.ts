@@ -39,7 +39,7 @@ let server: import('http').Server;
   // Stream
   const updatesProcessor = new UpdatesProcessor(kafkaService);
   const commandsProcessor = new CommandsProcessor(kafkaService);
-  const streamsProcessor = new StreamsProcessor(updatesProcessor, commandsProcessor);
+  const streamsProcessor = new StreamsProcessor(updatesProcessor, commandsProcessor, kafkaService);
   await streamsProcessor.start();
 
   app.proxy = true;
