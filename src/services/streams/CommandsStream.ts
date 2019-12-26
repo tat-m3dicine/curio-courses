@@ -109,7 +109,7 @@ export class CommandsStream {
       }
       const result = await service[functionName](...appEvent.data);
       // tslint:disable-next-line: no-string-literal
-      if (uow['_session'] && uow['_session'].inTransaction()) await uow.commit();
+      await uow.commit();
       if (appEvent.key) this._commandsProcessor.resolveCommand(appEvent.key, result);
       return;
     } catch (error) {
