@@ -143,7 +143,7 @@ export class MigrationScripts {
             students: section.students
           };
           const courseService = new CoursesService(uow, this._commandsProcessor, this._updatesProcessor);
-          return courseService.create(req, <IUserToken>{role: config.authorizedRole});
+          return courseService.create(req, <IUserToken>{ role: config.authorizedRole });
         }));
       }
       return;
@@ -153,7 +153,7 @@ export class MigrationScripts {
   public mapIRPSchoolsToDbSchools(irpSchool: IIRPSchool, listOfUsers: IUser[]) {
     const result: any = [], teacherUsers = <IUser[]>[], studentUsers = <IUser[]>[];
     for (const user of listOfUsers) {
-      if (user.registration && user.registration.school._id === irpSchool.uuid) {
+      if (user.registration && user.registration.school && user.registration.school._id === irpSchool.uuid) {
         if (user.role.includes('teacher')) {
           teacherUsers.push(user);
         } else if (user.role.includes('student')) {

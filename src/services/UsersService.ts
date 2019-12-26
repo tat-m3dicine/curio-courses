@@ -68,26 +68,33 @@ export class UsersService {
     if (registration.inviteCode) {
       inviteCode = await this.getInviteCode(registration.inviteCode);
       if (inviteCode) schoolId = inviteCode.schoolId;
+      else inviteCode = <IInviteCode>{ isEnabled: false };
+      registration.provider = 'curio';
     }
 
     let dbSchool: ISchool | undefined;
-    if (registration.provider === 'curio') {
-      dbSchool = await this.schoolsRepo.findById(schoolId);
-    } else {
-      dbSchool = await this.schoolsRepo.findOne({ 'provider.links': schoolId });
-      if (!dbSchool && !inviteCode) {
-        const provider = await this.validateAndGetProvider(registration.provider, 'School');
-        dbSchool = await this.createSchool(registration.school, provider);
+    if (schoolId) {
+      if (registration.provider === 'curio') {
+        dbSchool = await this.schoolsRepo.findById(schoolId);
+      } else {
+        dbSchool = await this.schoolsRepo.findOne({ 'provider.links': schoolId });
+        if (!dbSchool && registration.school) {
+          const provider = await this.validateAndGetProvider(registration.provider, 'School');
+          dbSchool = await this.createSchool(registration.school, provider);
+        }
       }
     }
+    return this.completeRegisteration(user, dbSchool, inviteCode);
+  }
 
-    const { dbUser, sections, courses, enrollmentType } = new UserRegisteration(dbSchool, user);
+  protected async completeRegisteration(user: IUserWithRegistration, dbSchool?: ISchool, inviteCode?: IInviteCode) {
+    const { dbUser, sections, courses, enrollmentType } = new UserRegisteration(dbSchool, user, inviteCode);
     if (dbUser.school) {
-      await this.doRegisterUser(dbUser, inviteCode);
+      await this.doRegisterUser(dbUser, dbUser.school._id, inviteCode && inviteCode._id);
       if (enrollmentType === EnrollmentType.auto) {
-        await this.doEnrollCourses(dbUser, sections, registration.provider);
+        await this.doEnrollCourses(dbUser, sections, user.registration.provider);
       } else if (enrollmentType === EnrollmentType.courses) {
-        await this.doEnrollCourses(dbUser, sections, registration.provider, courses);
+        await this.doEnrollCourses(dbUser, sections, user.registration.provider, courses);
       }
     } else {
       await this.usersRepo.addRegisteration(dbUser);
@@ -95,17 +102,15 @@ export class UsersService {
     return this._uow.commit();
   }
 
-  async doRegisterUser(user: IUser, inviteCode?: IInviteCode) {
-    await this.usersRepo.assignSchool(user);
-    if (user.school) {
-      await this.schoolsRepo.consumeLicense(user.school._id, this.getRole(user), +1);
-    }
-    if (inviteCode) {
-      await this.inviteCodesRepo.incrementConsumedCount(inviteCode._id);
-    }
+  async doRegisterUser(user: IUserWithRegistration, schoolId: string, inviteCodeId: string | undefined) {
+    return Promise.all([
+      this.usersRepo.assignSchool(user),
+      this.schoolsRepo.consumeLicense(schoolId, this.getRole(user), +1),
+      inviteCodeId ? this.inviteCodesRepo.incrementConsumedCount(inviteCodeId) : Promise.resolve()
+    ]);
   }
 
-  async doEnrollCourses(user: IUser, sections: string[], providerId: string, courses?: string[]) {
+  async doEnrollCourses(user: IUserWithRegistration, sections: string[], providerId: string, courses?: string[]) {
     const dbSections = await this.sectionsRepo.findMany({ _id: { $in: sections } });
     if (dbSections.length !== sections.length && providerId !== 'curio') {
       const newSections: string[] = getNotMatchingObjects(dbSections, sections);
@@ -143,13 +148,13 @@ export class UsersService {
     return dbSchool;
   }
 
-  private async createSections(sectionsIds: string[], user: IUser) {
+  private async createSections(sectionsIds: string[], user: IUserWithRegistration) {
     const dbSections = sectionsIds.map(sectionId => {
-      const section = <ISection>{
+      const section: ISection = {
         _id: '',
         locales: { en: { name: sectionId } },
         schoolId: user.school!._id,
-        grade: user.registration!.grade,
+        grade: user.registration.grade,
         students: [user._id],
         providerLinks: [sectionId]
       };
@@ -159,11 +164,11 @@ export class UsersService {
     return this.sectionsRepo.addMany(dbSections);
   }
 
-  private async createCourses(coursesIds: string[], user: IUser) {
+  private async createCourses(coursesIds: string[], user: IUserWithRegistration) {
     const now = new Date();
     const school = await this.schoolsRepo.findById(user.school!._id);
     const academicTerm = school!.academicTerms.find(term => term.startDate < now && now < term.endDate);
-    const { grade, curriculum, } = user.registration!;
+    const { grade, curriculum, } = user.registration;
     const dbCourses = coursesIds.map(courseId => <ICourse>{
       _id: courseId,
       grade, curriculum,
@@ -207,8 +212,9 @@ export class UsersService {
     return this._uow.commit();
   }
 
-  private transformToUser({ user_id, new_user_data: data, provider }: ISignupRequest) {
-    return <IUserWithRegistration>{
+  private transformToUser(request: ISignupRequest): IUserWithRegistration {
+    const { user_id, new_user_data: data, provider } = request;
+    return {
       _id: user_id,
       role: data.role,
       profile: {
@@ -219,11 +225,11 @@ export class UsersService {
         grade: data.grade,
         curriculum: data.curriculum,
         status: Status.pendingApproval,
-        school: {
+        school: data.inviteCode ? undefined : data.school && {
           _id: data.school.uuid,
           name: data.school.name
         },
-        sections: data.section.map(section => ({
+        sections: data.inviteCode ? undefined : data.section && data.section.map(section => ({
           _id: section.uuid,
           name: section.name
         })),

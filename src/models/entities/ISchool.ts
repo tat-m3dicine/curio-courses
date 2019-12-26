@@ -45,6 +45,7 @@ export interface IPackage {
 
 export enum SignupMethods {
   inviteCodes = 'invite_codes',
+  provider = 'provider',
   manual = 'manual',
   auto = 'auto'
 }

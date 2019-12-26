@@ -36,15 +36,15 @@ export interface ISignupRequest {
     role: string[];
     curriculum: string;
     grade: string;
-    school: {
+    inviteCode?: string;
+    school?: {
       name: string;
       uuid: string;
     };
-    section: {
+    section?: {
       uuid: string;
       name: string;
     }[],
-    inviteCode: string;
   };
 }
 
