@@ -1,10 +1,8 @@
 import request from 'request';
 import config from '../config';
-import nanoid = require('nanoid');
 import loggerFactory from '../utils/logging';
 import { IIRPSection, IIRPUserMigrationRequest, IIRPSchool } from '../models/entities/IIRP';
 import correlationIDHelper from '../utils/correlationIDHelper';
-import { IUserWithRegistration } from '../models/entities/IUser';
 
 const logger = loggerFactory.getLogger('IRPService');
 export class IRPService {

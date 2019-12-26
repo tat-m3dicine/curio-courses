@@ -171,13 +171,9 @@ export class SchoolsService {
   }
 
   private async doApprove(request: IRegistrationAction) {
-    const schoolRepo = this._uow.getRepository('Schools', true) as SchoolsRepository;
-    const userRepo = this._uow.getRepository('Users', true) as UsersRepository;
+    await this.schoolsRepo.consumeLicense(request.schoolId, request.role, request.users.length);
 
-    await schoolRepo.consumeLicense(request.schoolId, request.role, request.users.length);
-
-    await userRepo.approveRegistrations(request.schoolId, request.users);
-
+    await this.usersRepo.approveRegistrations(request.schoolId, request.users);
     await this._kafkaService.sendMany(config.kafkaUpdatesTopic, request.users.map(userId => ({
       event: Events.enrollment,
       data: {
@@ -189,13 +185,12 @@ export class SchoolsService {
       timestamp: Date.now(),
       v: '1.0.0'
     })));
-
-    await this._uow.commit();
   }
 
-  private doReject(request: IRegistrationAction) {
+  private async doReject(request: IRegistrationAction) {
     // Step 2: remove user registeration
-    return this.usersRepo.reject(request.schoolId, request.users);
+    await this.usersRepo.reject(request.schoolId, request.users);
+    return { ok: 1 };
   }
 
   private async doWithdraw(request: IRegistrationAction) {
