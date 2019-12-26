@@ -1,7 +1,6 @@
 
 import config from '../config';
 import validators from '../utils/validators';
-import generate from 'nanoid/non-secure/generate';
 import { CommandsProcessor } from './CommandsProcessor';
 import { IUnitOfWork, IPaging } from '@saal-oryx/unit-of-work';
 // models
@@ -27,6 +26,7 @@ import { validateAllObjectsExist } from '../utils/validators/AllObjectsExist';
 import { IUserUpdatedEvent, IUserCourseUpdates } from '../models/events/IUserUpdatedEvent';
 import { AppError } from '../exceptions/AppError';
 import { UpdatesProcessor } from './UpdatesProcessor';
+import { newCourseId } from '../utils/IdGenerator';
 
 export class CoursesService {
   constructor(
@@ -83,7 +83,7 @@ export class CoursesService {
     }
 
     return this._commandsProcessor.sendCommand('courses', this.doCreate, <ICourse>{
-      _id: this.newCourseId(sectionId, subject, academicTerm.year),
+      _id: newCourseId(sectionId, subject, academicTerm.year),
       schoolId, sectionId, curriculum, grade, subject, academicTerm,
       defaultLocale: course.defaultLocale || Object.keys(course.locales)[0] || 'en',
       isEnabled: course.isEnabled === undefined ? true : course.isEnabled,
@@ -307,9 +307,5 @@ export class CoursesService {
     if (!byUser) throw new ForbiddenError('access token is required!');
     const isAuthorized = byUser.role.split(',').includes(config.authorizedRole);
     if (!isAuthorized) throw new UnauthorizedError('you are not authorized!');
-  }
-
-  protected newCourseId(sectionId: string, subject: string, year: string) {
-    return `${sectionId}_${subject}_${year}_${generate('0123456789abcdef', 3)}`.toLocaleLowerCase().replace(/\s/g, '');
   }
 }

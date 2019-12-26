@@ -17,7 +17,7 @@ import { InvalidRequestError } from '../exceptions/InvalidRequestError';
 import { Role } from '../models/Role';
 import { IUser } from '../models/entities/IUser';
 import { validateAllObjectsExist } from '../utils/validators/AllObjectsExist';
-import { ILocales } from '../models/entities/Common';
+import { newSectionId } from '../utils/IdGenerator';
 
 export class SectionsService {
 
@@ -44,7 +44,7 @@ export class SectionsService {
     }
     await this.validateWithSchoolLicense(grade, schoolId);
     return this._commandsProcessor.sendCommand('sections', this.doCreate, <ISection>{
-      _id: section._id || this.newSectionId(schoolId, grade, locales),
+      _id: section._id || newSectionId(schoolId, grade, locales),
       locales, schoolId, grade,
       students: students || []
     });
@@ -119,10 +119,6 @@ export class SectionsService {
     if (!byUser) throw new ForbiddenError('access token is required!');
     const isAuthorized = byUser.role.split(',').includes(config.authorizedRole);
     if (!isAuthorized) throw new UnauthorizedError('you are not authorized!');
-  }
-
-  protected newSectionId(schoolId: string, grade: string, locales: ILocales) {
-    return `${schoolId}_${grade}_${locales.en.name}`.toLocaleLowerCase().replace(/\s/g, '');
   }
 
   protected async validateStudentsInSchool(studentIds: string[], schoolId: string) {

@@ -4,6 +4,7 @@ import { IPackage } from './ISchool';
 export interface IProvider extends IAuditable {
   _id: string;
   config: IConfig;
+  location: string;
   package: IPackage;
   academicTerms?: IAcademicTerm[];
 }

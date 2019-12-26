@@ -19,6 +19,7 @@ export interface IRegistration {
   sections: { _id: string, name: string }[];
   status: Status;
   grade: string;
+  curriculum: string;
   provider: string;
   inviteCode?: string;
 }

@@ -1,6 +1,5 @@
 import config from '../config';
 import validators from '../utils/validators';
-import generate from 'nanoid/non-secure/generate';
 import { IUser, Status } from '../models/entities/IUser';
 import { IUserToken } from '../models/IUserToken';
 import { IAcademicTerm } from '../models/entities/Common';
@@ -23,6 +22,7 @@ import { IRegistrationAction } from '../models/requests/IRegistrationAction';
 import { InvalidLicenseError } from '../exceptions/InvalidLicenseError';
 import { KafkaService } from './KafkaService';
 import { Events } from './UpdatesProcessor';
+import { newSchoolId, newAcademicTermId } from '../utils/IdGenerator';
 const logger = loggerFactory.getLogger('SchoolsService');
 
 export class SchoolsService {
@@ -66,7 +66,7 @@ export class SchoolsService {
     validators.validateCreateSchool(createObj);
     const defaultLocale = createObj.locales.en || Object.values(createObj.locales)[0];
     const school: ISchool = {
-      _id: createObj._id || this.newSchoolId(defaultLocale.name),
+      _id: createObj._id || newSchoolId(defaultLocale.name),
       locales: createObj.locales,
       location: createObj.location,
       academicTerms: [],
@@ -238,7 +238,7 @@ export class SchoolsService {
   async updateAcademicTerm(updateObj: IUpdateAcademicTermRequest, scoolId: string, byUser: IUserToken) {
     this.authorize(byUser);
     const academicTerm: IAcademicTerm = {
-      _id: generate('0123456789abcdef', 10),
+      _id: newAcademicTermId(),
       year: updateObj.year,
       term: updateObj.term,
       startDate: new Date(updateObj.startDate),
@@ -310,10 +310,6 @@ export class SchoolsService {
     if (!byUser) throw new ForbiddenError('access token is required!');
     const isAuthorized = byUser.role.split(',').includes(config.authorizedRole);
     if (!isAuthorized) throw new UnauthorizedError('you are not authorized!');
-  }
-
-  private newSchoolId(name: string) {
-    return `${name.toLocaleLowerCase().replace(/\s/g, '')}_${generate('0123456789abcdef', 5)}`;
   }
 
   async doAddMany(schools: ISchool[]) {
