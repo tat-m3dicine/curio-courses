@@ -44,6 +44,7 @@ const registerUserSchema = {
       },
       school: {
         type: 'object',
+        optional: true,
         props: {
           name: 'string',
           uuid: 'string'
@@ -51,7 +52,7 @@ const registerUserSchema = {
       },
       section: {
         type: 'array',
-        min: 1,
+        optional: true,
         items: {
           type: 'object',
           props: {

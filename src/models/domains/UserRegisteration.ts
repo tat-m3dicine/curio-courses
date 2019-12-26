@@ -1,28 +1,32 @@
 import { ISchool, SignupMethods } from '../entities/ISchool';
 import { Role } from '../Role';
-import { Status, IUserWithRegistration, IUser } from '../entities/IUser';
+import { Status, IUserWithRegistration } from '../entities/IUser';
 import { IInviteCode, EnrollmentType } from '../entities/IInviteCode';
+import { threadId } from 'worker_threads';
 
 interface IRequirements {
-  school: { _id: string, name: string };
-  sections: { _id: string, name: string }[];
   status: Status;
-  courses: string[];
-  enrollmentType?: EnrollmentType;
+  school?: { _id: string, name: string };
+  sections?: { _id: string, name: string }[];
+  enrollmentType?: EnrollmentType | SignupMethods;
+  courses?: string[];
 }
 
 export class UserRegisteration {
 
-  protected _requirements: IRequirements;
-  protected _result: IUser;
+  protected _requirements: IRequirements = { status: Status.inactive };
+  protected _result: IUserWithRegistration;
 
-  constructor(protected _dbSchool: ISchool | undefined, protected _user: IUserWithRegistration, protected _inviteCode?: IInviteCode) {
-    this._requirements = {
-      status: Status.inactive,
-      school: _user.registration.school,
-      sections: _user.registration.sections,
-      courses: []
-    };
+  constructor(
+    protected _dbSchool: ISchool | undefined,
+    protected _user: IUserWithRegistration,
+    protected _inviteCode: IInviteCode | undefined
+  ) {
+    if (this._inviteCode) {
+      this.processInviteCode();
+    } else {
+      this.processRegistration();
+    }
     this._result = this.getDbUser();
   }
 
@@ -31,7 +35,7 @@ export class UserRegisteration {
   }
 
   get sections() {
-    return this._requirements.sections.map(section => section._id);
+    return this._requirements.sections ? this._requirements.sections.map(section => section._id) : [];
   }
 
   get courses() {
@@ -46,66 +50,85 @@ export class UserRegisteration {
     return this._user.role.includes(Role.teacher) ? Role.teacher : Role.student;
   }
 
-  get dbUser(): IUser {
+  get dbUser(): IUserWithRegistration {
     return this._result;
   }
 
-  getDbUser(): IUser {
-    if (this._inviteCode) {
-      this.processInviteCode();
-    } else {
-      this._requirements.status = this.getRegistrationStatus();
-    }
-    if (this._requirements.status === Status.active) {
-      const now = new Date();
-      return {
-        ...this._user,
-        school: {
-          _id: this._requirements.school._id,
-          joinDate: now
+  protected getDbUser(): IUserWithRegistration {
+    const { school, status, sections } = this._requirements;
+    const now = new Date();
+    return {
+      ...this._user,
+      ...(status === Status.active ?
+        {
+          school: {
+            _id: school!._id,
+            joinDate: now
+          }
+        } : {
+          registration: {
+            ...this._user.registration,
+            school, sections, status
+          }
         }
-      };
-    } else {
-      delete this._user.school;
-      const { school, sections, status } = this._requirements;
-      return {
-        ...this._user,
-        registration: {
-          ...this._user.registration,
-          school, sections, status
-        }
-      };
-    }
+      )
+    };
   }
 
-  private getRegistrationStatus() {
+  protected processRegistration() {
+    const type = this._user.registration.provider === 'curio' ? SignupMethods.auto : SignupMethods.provider;
+    const status = this.getRegistrationStatus(type);
+    if (status !== Status.active) {
+      this._requirements.status = status;
+      return;
+    }
+    this._requirements = {
+      school: this._user.registration.school,
+      sections: this._user.registration.sections,
+      enrollmentType: type,
+      status: Status.active
+    };
+  }
+
+  protected processInviteCode() {
+    if (!this.isInviteCodeValid()) {
+      this._requirements.status = Status.invalidInviteCode;
+      return;
+    }
+    const { schoolId, enrollment } = this._inviteCode!;
+    const { type, courses, sectionId } = enrollment;
+    this._requirements = {
+      ...this._requirements,
+      status: this.getRegistrationStatus(SignupMethods.inviteCodes),
+      sections: [{ _id: sectionId, name: sectionId }],
+      school: { _id: schoolId, name: schoolId },
+      courses: courses || [],
+      enrollmentType: type
+    };
+  }
+
+  protected getRegistrationStatus(neededMethod: SignupMethods) {
     if (!this._dbSchool) return Status.schoolNotRegistered;
-    if (!this.license) return Status.outOfQuota;
+    if (!this.license) return Status.schoolHasNoLicense;
     const { consumed, max } = this.license[`${this.role}s`];
     if (max - consumed < 1) return Status.outOfQuota;
-    if (this.license.package.signupMethods.includes(SignupMethods.auto)) {
+    const { signupMethods, grades } = this.license.package;
+    if (neededMethod === SignupMethods.provider) {
+      if (!this._dbSchool.provider || this._dbSchool.provider._id !== this._user.registration.provider) {
+        return Status.schoolHasNoLicense;
+      }
+      if (!grades[this._user.registration.grade]) {
+        return Status.gradeNotPurchased;
+      }
+    }
+    if (signupMethods.includes(neededMethod)) {
       return Status.active;
     } else {
       return Status.pendingApproval;
     }
   }
 
-  private processInviteCode() {
-    if (!this.isInviteCodeValid()) {
-      this._requirements.status = Status.invalidInviteCode;
-      return;
-    }
-    const { type, courses, sectionId } = this._inviteCode!.enrollment;
-    this._requirements = {
-      ...this._requirements,
-      status: Status.active,
-      sections: [{ _id: sectionId, name: sectionId }],
-      courses: courses || [],
-      enrollmentType: type
-    };
-  }
-
-  private isInviteCodeValid() {
+  protected isInviteCodeValid() {
     if (!this._inviteCode) return false;
     if (!this.license) return false;
     if (!this.license.package.signupMethods.includes(SignupMethods.inviteCodes)) return false;
