@@ -1,6 +1,6 @@
 import loggerFactory from '../utils/logging';
 import { IRPService } from './IRPService';
-import { UnitOfWork } from '@saal-oryx/unit-of-work';
+import { UnitOfWork, IUnitOfWork } from '@saal-oryx/unit-of-work';
 import { getFactory } from '../repositories/RepositoryFactory';
 import { getDbClient } from '../utils/getDbClient';
 import { ISchool } from '../models/entities/ISchool';
@@ -12,10 +12,21 @@ import { SchoolsRepository } from '../repositories/SchoolsRepository';
 import nanoid = require('nanoid');
 import { ICreateSectionRequest } from '../models/requests/ISectionRequests';
 import { ISection } from '../models/entities/ISection';
+import { CoursesService } from './CoursesService';
+import { UpdatesProcessor } from './UpdatesProcessor';
+import { CommandsProcessor } from './CommandsProcessor';
+import { ICreateCourseRequest } from '../models/requests/ICourseRequests';
+import { CoursesRepository } from '../repositories/CoursesRepository';
+import { ICourse } from '../models/entities/ICourse';
+import config from '../config';
+import { IUserToken } from '../models/IUserToken';
 
 const logger = loggerFactory.getLogger('MigrationScripts');
 
 export class MigrationScripts {
+  constructor(protected _updatesProcessor: UpdatesProcessor, protected _commandsProcessor: CommandsProcessor) {
+
+  }
 
   async migrateIRPSchools() {
     const client = await getDbClient();
@@ -99,7 +110,44 @@ export class MigrationScripts {
       section[curVal.sectionuuid].students.push(curVal.username);
       return section;
     }, {} as ICreateSectionRequest));
-    return uow.getRepository('Sections').addMany(sections, false);
+    const response = await uow.getRepository('Sections').addMany(sections, false);
+    await this.createCourses(sections, uow);
+    return response;
+  }
+
+  async createCourses(sections: ISection[], uow: IUnitOfWork) {
+    const schoolRepo = uow.getRepository('Schools') as SchoolsRepository;
+    const courseRepo = uow.getRepository('Courses') as CoursesRepository;
+    const [schools, courses] = await Promise.all([
+      schoolRepo.findMany({ _id: { $in: sections.map(section => section.schoolId) } }),
+      courseRepo.findMany({ sectionId: { $in: sections.map(section => section._id) } }, { sectionId: 1 })
+    ]);
+
+    return Promise.all(sections.map(section => {
+      const school: ISchool | undefined = schools.find(school => school._id === section.schoolId);
+      const course: ICourse | undefined = courses.find(course => course.sectionId === section._id);
+      if (!course && school && school.license && school.license.package && school.license.package.grades && school.license.package.grades[section.grade]) {
+        const subjects = school.license.package.grades[section.grade];
+        return Promise.all(Object.keys(subjects).map(subject => {
+          const req: ICreateCourseRequest = {
+            schoolId: school._id,
+            sectionId: section._id,
+            subject,
+            locales: {
+              en: {
+                name: subject
+              }
+            },
+            curriculum: subjects[subject][0],
+            grade: section.grade,
+            students: section.students
+          };
+          const courseService = new CoursesService(uow, this._commandsProcessor, this._updatesProcessor);
+          return courseService.create(req, <IUserToken>{role: config.authorizedRole});
+        }));
+      }
+      return;
+    }).filter(x => x));
   }
 
   public mapIRPSchoolsToDbSchools(irpSchool: IIRPSchool, listOfUsers: IUser[]) {

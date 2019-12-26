@@ -55,7 +55,7 @@ let server: import('http').Server;
   // Migration
   if (config.irpUrl) {
     try {
-      const migateUsers = new MigrationScripts();
+      const migateUsers = new MigrationScripts(updatesProcessor, commandsProcessor);
       await Promise.all([
         migateUsers.migrateIRPUsersAndSections(),
         migateUsers.migrateIRPSchools()
