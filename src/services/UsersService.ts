@@ -57,7 +57,6 @@ export class UsersService {
   }
 
   async signup(request: ISignupRequest) {
-    validators.validateRegisterUser(request);
     const user = this.transformToUser(request);
     await this.register(user);
   }

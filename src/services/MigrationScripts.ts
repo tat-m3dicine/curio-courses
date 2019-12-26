@@ -210,6 +210,7 @@ export class MigrationScripts {
   }
 
   generateGrades(irpSchool: IIRPSchool) {
+    if (!irpSchool.grades) return {};
     return irpSchool.grades.reduce((previousValue, grade) => {
       if (!previousValue[grade]) previousValue[grade] = {};
       return irpSchool.subjects.reduce((_, subject) => {
