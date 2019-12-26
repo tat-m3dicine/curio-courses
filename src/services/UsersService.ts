@@ -1,5 +1,4 @@
 import validators from '../utils/validators';
-import { CommandsProcessor } from './CommandsProcessor';
 import { IUnitOfWork } from '@saal-oryx/unit-of-work';
 import { UsersRepository } from '../repositories/UsersRepository';
 import { IUser, Status, IUserWithRegistration } from '../models/entities/IUser';
@@ -21,13 +20,16 @@ import { newSchoolId, newSectionId } from '../utils/IdGenerator';
 import { getNotMatchingObjects } from '../utils/validators/AllObjectsExist';
 import { ISection } from '../models/entities/ISection';
 import { ICourse, IUserCourseInfo } from '../models/entities/ICourse';
+import { KafkaService } from './KafkaService';
+import config from '../config';
+import { Events } from './UpdatesProcessor';
 const logger = loggerFactory.getLogger('UserSchema');
 
 export class UsersService {
 
   private provider?: IProvider;
 
-  constructor(protected _uow: IUnitOfWork, protected _commandsProcessor: CommandsProcessor) {
+  constructor(protected _uow: IUnitOfWork, protected _kafkaService: KafkaService) {
   }
 
   protected get usersRepo() {
@@ -91,15 +93,36 @@ export class UsersService {
     const { dbUser, sections, courses, enrollmentType } = new UserRegisteration(dbSchool, user, inviteCode);
     if (dbUser.school) {
       await this.doRegisterUser(dbUser, dbUser.school._id, inviteCode && inviteCode._id);
+      let enrolledCourses: string[] = [];
       if (enrollmentType === EnrollmentType.auto) {
-        await this.doEnrollCourses(dbUser, sections, user.registration.provider);
+        enrolledCourses = await this.doEnrollCourses(dbUser, sections, user.registration.provider);
       } else if (enrollmentType === EnrollmentType.courses) {
-        await this.doEnrollCourses(dbUser, sections, user.registration.provider, courses);
+        enrolledCourses = await this.doEnrollCourses(dbUser, sections, user.registration.provider, courses);
       }
+      this.sendUpdate({
+        _id: user._id,
+        status: Status.active,
+        schoolId: dbUser.school._id,
+        courses: enrolledCourses
+      });
     } else {
       await this.usersRepo.addRegisteration(dbUser);
+      this.sendUpdate({
+        _id: user._id,
+        status: user.registration.status
+      });
     }
     return this._uow.commit();
+  }
+
+  protected sendUpdate(data: any) {
+    this._kafkaService.send(config.kafkaUpdatesTopic, {
+      data,
+      key: data._id,
+      event: Events.enrollment,
+      timestamp: Date.now(),
+      v: '1.0.0'
+    });
   }
 
   async doRegisterUser(user: IUserWithRegistration, schoolId: string, inviteCodeId: string | undefined) {
@@ -133,6 +156,7 @@ export class UsersService {
       filter: { _id: { $in: courses } },
       usersObjs: [{ _id: user._id, joinDate: new Date(), isEnabled: true }]
     }], this.getRole(user));
+    return courses;
   }
 
   private async createSchool(school: { _id: string; name: string; }, provider: IProvider): Promise<ISchool> {
