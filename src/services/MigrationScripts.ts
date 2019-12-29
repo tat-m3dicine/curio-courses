@@ -78,7 +78,7 @@ export class MigrationScripts {
         for (const preference of teacher.preferences) {
           for (const subject of preference.subjects) {
             await coursesRepo.addUsersToCourses([{
-              filter: { schoolId: school._id, sectionId: preference.sectionId, subject: subject },
+              filter: { schoolId: school._id, sectionId: preference.sectionId, subject },
               usersObjs: [{ _id: teacher._id, joinDate: new Date(), isEnabled: true }]
             }], Role.teacher);
           }
