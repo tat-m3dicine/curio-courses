@@ -19,6 +19,7 @@ import { MigrationScripts } from './services/MigrationScripts';
 import { CommandsProcessor } from './services/CommandsProcessor';
 import { StreamsProcessor } from './services/streams/StreamsProcessor';
 import { UpdatesProcessor } from './services/UpdatesProcessor';
+import { await } from 'most';
 
 const logger = loggerFactory.getLogger('Index');
 
@@ -56,10 +57,9 @@ let server: import('http').Server;
   if (config.irpUrl) {
     try {
       const migateUsers = new MigrationScripts(updatesProcessor, commandsProcessor);
-      await Promise.all([
-        migateUsers.migrateIRPUsersAndSections(),
-        migateUsers.migrateIRPSchools()
-      ]);
+      await migateUsers.migrateIRPSchools();
+      await migateUsers.migrateIRPUsersAndSections();
+      await migateUsers.migrateTeachers();
     } catch (err) {
       logger.error('Migration errors', err);
     }

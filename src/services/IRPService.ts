@@ -27,6 +27,12 @@ export class IRPService {
     return new Promise<IIRPUserMigrationRequest[]>(this.requestURL(usersIRPUrl));
   }
 
+  public getTeachersByPrefrences(schoolId: string) {
+    const usersIRPUrl = `${config.irpUrl}/internal/schools/${schoolId}/teachers?size=10000`;
+    logger.info('getTeachersByPrefrences invoked', usersIRPUrl);
+    return new Promise<IIRPUserMigrationRequest[]>(this.requestURL(usersIRPUrl));
+  }
+
   private requestURL(usersIRPUrl: string) {
     return (resolve, reject) => {
       request(usersIRPUrl, {

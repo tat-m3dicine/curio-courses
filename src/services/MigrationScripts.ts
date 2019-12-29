@@ -20,6 +20,7 @@ import { CoursesRepository } from '../repositories/CoursesRepository';
 import { ICourse } from '../models/entities/ICourse';
 import config from '../config';
 import { IUserToken } from '../models/IUserToken';
+import { Role } from '../models/Role';
 
 const logger = loggerFactory.getLogger('MigrationScripts');
 
@@ -57,9 +58,62 @@ export class MigrationScripts {
       usersList = usersList.concat(results);
     }));
     const [users, sections] = await Promise.all([this.migrate(usersList), this.migrateSections(usersList)]);
-    logger.info('Count of Users Migrated', users.length);
-    logger.info('Count of Sections Migrated', sections.length);
+    logger.info('Count of Users Migrated', users && users.length);
+    logger.info('Count of Sections Migrated', sections && sections.length);
   }
+
+  async migrateTeachers() {
+    const client = await getDbClient();
+    const uow = new UnitOfWork(client, getFactory(), { useTransactions: false });
+    const irpService = new IRPService();
+    const schoolsRepo: SchoolsRepository = uow.getRepository('Schools');
+    const coursesRepo: CoursesRepository = uow.getRepository('Courses');
+
+    const schools = await schoolsRepo.findMany({});
+    await Promise.all(schools.map(async school => {
+      const irpTeachers = await irpService.getTeachersByPrefrences(school._id);
+      await this.registerTeachers(school._id, irpTeachers.map(t => ({ _id: t._id, name: t.name, avatar: t.avatar })));
+      for (const teacher of irpTeachers) {
+        if (!teacher.preferences) continue;
+        for (const preference of teacher.preferences) {
+          for (const subject of preference.subjects) {
+            await coursesRepo.addUsersToCourses([{
+              filter: { schoolId: school._id, sectionId: preference.sectionId, subject: subject },
+              usersObjs: [{ _id: teacher._id, joinDate: new Date(), isEnabled: true }]
+            }], Role.teacher);
+          }
+        }
+      }
+    }));
+  }
+
+  async registerTeachers(schoolId: string, profiles: { _id: string, name: string, avatar: string }[]) {
+    const now = new Date();
+    const client = await getDbClient();
+    const uow = new UnitOfWork(client, getFactory(), { useTransactions: false });
+    const users: IUser[] = profiles.map(profile => ({
+      _id: profile._id,
+      role: [Role.teacher],
+      profile: {
+        name: profile.name,
+        avatar: profile.avatar
+      },
+      school: {
+        _id: schoolId,
+        joinDate: now
+      }
+    }));
+    if (!users || users.length === 0) {
+      logger.debug('No teachers found to migrate!');
+      return [];
+    }
+    return uow.getRepository('Users').addMany(users, false)
+      .catch(err => {
+        if (err && err.code === 11000) return undefined;
+        throw err;
+      });
+  }
+
 
   async migrate(requests: IIRPUserMigrationRequest[]) {
     const now = new Date();
@@ -86,7 +140,11 @@ export class MigrationScripts {
       logger.debug('No users found to migrate!');
       return [];
     }
-    return uow.getRepository('Users').addMany(users, false);
+    return uow.getRepository('Users').addMany(users, false)
+      .catch(err => {
+        if (err && err.code === 11000) return undefined;
+        throw err;
+      });
   }
 
   async migrateSections(requests: IIRPUserMigrationRequest[]) {
@@ -197,14 +255,14 @@ export class MigrationScripts {
         gracePeriod: 30,
         isEnabled: true
       }],
-      users: irpSchool.adminUsers.reduce((previousValue, user) => {
+      users: irpSchool.adminUsers ? irpSchool.adminUsers.reduce((previousValue, user) => {
         const response = {
           _id: user,
           permissions: ['admin']
         };
         previousValue.push(response);
         return previousValue;
-      }, [] as any)
+      }, [] as any) : []
     });
     return result;
   }
