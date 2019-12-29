@@ -178,6 +178,27 @@ export class CoursesService {
     return this.dropUsers(requestParams, Role.teacher, byUser);
   }
 
+  async getActiveCourses(userId: string, role?: Role) {
+    if (!role) return [];
+    const courses = await this.coursesRepo.getActiveCoursesForUsers(role, [userId]);
+    if (role === Role.student) {
+      return {
+        courses: courses.map(c => ({ ...c, students: undefined, teachers: undefined }))
+      };
+    }
+    const userIds = courses.map(c =>
+      c.students.filter(s => s.isEnabled && !s.finishDate).map(s => s._id)
+        .concat(c.teachers.filter(t => t.isEnabled && !t.finishDate).map(s => s._id))
+    );
+    const users = await this.usersRepo.findMany({ _id: { $in: ([] as string[]).concat(...userIds) } });
+
+    return {
+      courses: courses.map(c => ({ ...c, students: c.students.map(s => s._id), teachers: c.teachers.map(t => t._id) })),
+      students: users.filter(x => x.role.includes(Role.student)).map(x => ({ _id: x._id, profile: x.profile })),
+      teachers: users.filter(x => x.role.includes(Role.teacher)).map(x => ({ _id: x._id, profile: x.profile }))
+    };
+  }
+
   private async enrollUsers(requestParams: IUserRequest[], role: Role, byUser: IUserToken, sameSection = true) {
     this.authorize(byUser);
     const joinDate = new Date();

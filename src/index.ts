@@ -19,6 +19,7 @@ import { MigrationScripts } from './services/MigrationScripts';
 import { CommandsProcessor } from './services/CommandsProcessor';
 import { StreamsProcessor } from './services/streams/StreamsProcessor';
 import { UpdatesProcessor } from './services/UpdatesProcessor';
+import meRoutes from './routes/me.routes';
 
 const logger = loggerFactory.getLogger('Index');
 
@@ -75,6 +76,7 @@ let server: import('http').Server;
   app.use(koaBody());
 
   // Routes ...
+  app.use(meRoutes(commandsProcessor, updatesProcessor).mount('/me'));
   app.use(schoolRoutes(commandsProcessor, kafkaService).mount('/schools'));
   app.use(sectionsRoutes(commandsProcessor).mount('/schools'));
   app.use(coursesRoutes(commandsProcessor, updatesProcessor).mount('/schools'));

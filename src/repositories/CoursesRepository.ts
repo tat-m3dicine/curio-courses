@@ -92,8 +92,83 @@ export class CoursesRepository extends AduitableRepository<ICourse> {
     return this.findMany({
       [`${role}s`]: { $elemMatch: { _id: { $in: usersIds } } },
       'academicTerm.startDate': { $lte: currentDate },
-      'academicTerm.endDate': { $gte: currentDate }
+      'academicTerm.endDate': { $gte: currentDate },
+      'isEnabled': true
     });
+  }
+
+  async getActiveCoursesForUser(role: Role, usersId: string) {
+    const currentDate = new Date();
+    const pipeline: any[] = [
+      {
+        $match: {
+          [`${role}s`]: { $elemMatch: { _id: { $eq: usersId } } },
+          'academicTerm.startDate': { $lte: currentDate },
+          'academicTerm.endDate': { $gte: currentDate },
+          'isEnabled': true
+        }
+      }
+    ];
+
+    if (role === Role.student) {
+      pipeline.push({ $project: { students: 0, teachers: 0 } });
+    } else {
+      pipeline.push(
+        {
+          $addFields: {
+            students: {
+              $filter: {
+                input: '$students',
+                as: 'student',
+                cond: {
+                  $and: [
+                    { $eq: ['$$student.isEnabled', true] },
+                    { $not: '$$student.finishDate' }
+                  ]
+                }
+              }
+            },
+            teachers: {
+              $filter: {
+                input: '$teachers',
+                as: 'teacher',
+                cond: {
+                  $and: [
+                    { $eq: ['$$teacher.isEnabled', true] },
+                    { $not: '$$teacher.finishDate' }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          $lookup:
+          {
+            from: 'Users',
+            let: { students: '$students' },
+            pipeline: [
+              { $match: { $expr: { $in: ['$_id', '$$students._id'] } } },
+              { $project: { profile: 1, _id: 1 } }
+            ],
+            as: 'students'
+          }
+        },
+        {
+          $lookup:
+          {
+            from: 'Users',
+            let: { teachers: '$teachers' },
+            pipeline: [
+              { $match: { $expr: { $in: ['$_id', '$$teachers._id'] } } },
+              { $project: { profile: 1, _id: 1 } }
+            ],
+            as: 'teachers'
+          }
+        }
+      );
+    }
+    return this._collection.aggregate(pipeline, { session: this._session }).toArray();
   }
 
   async getActiveCoursesUnderSections(sectionsIds: string[]) {
@@ -101,7 +176,8 @@ export class CoursesRepository extends AduitableRepository<ICourse> {
     return this.findMany({
       'sectionId': { $in: sectionsIds },
       'academicTerm.startDate': { $lte: currentDate },
-      'academicTerm.endDate': { $gte: currentDate }
+      'academicTerm.endDate': { $gte: currentDate },
+      'isEnabled': true
     });
   }
 
