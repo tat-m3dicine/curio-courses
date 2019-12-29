@@ -17,6 +17,8 @@ export interface IUserToken {
   sectionuuid: string;
   sectionname: string;
   fullname: string;
+  status: string;
+  courses: any[];
 }
 
 export interface IUserProfile {

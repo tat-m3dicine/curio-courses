@@ -24,6 +24,7 @@ export const tokenHandler = async (ctx, next) => {
   ctx.user = user;
   if (user && user.sub) {
     ctx.user._id = user.sub;
+    if (ctx.user.role === 'string') ctx.user.role = ctx.user.role.split(',');
     ctx.profile = {
       id: user.sub,
       name: user.fullname,
