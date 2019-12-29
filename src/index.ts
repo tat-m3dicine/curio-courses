@@ -19,7 +19,6 @@ import { MigrationScripts } from './services/MigrationScripts';
 import { CommandsProcessor } from './services/CommandsProcessor';
 import { StreamsProcessor } from './services/streams/StreamsProcessor';
 import { UpdatesProcessor } from './services/UpdatesProcessor';
-import { await } from 'most';
 
 const logger = loggerFactory.getLogger('Index');
 
