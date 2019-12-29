@@ -21,6 +21,7 @@ import { ICourse } from '../models/entities/ICourse';
 import config from '../config';
 import { IUserToken } from '../models/IUserToken';
 import { Role } from '../models/Role';
+import { Repo } from '../repositories/RepoNames';
 
 const logger = loggerFactory.getLogger('MigrationScripts');
 
@@ -33,8 +34,8 @@ export class MigrationScripts {
     const client = await getDbClient();
     const uow = new UnitOfWork(client, getFactory(), { useTransactions: false });
     const irpService = new IRPService();
-    const usersRepo: UsersRepository = uow.getRepository('Users');
-    const schoolsRepo: SchoolsRepository = uow.getRepository('Schools');
+    const usersRepo: UsersRepository = uow.getRepository(Repo.users);
+    const schoolsRepo: SchoolsRepository = uow.getRepository(Repo.schools);
 
     const listOfUsers = await usersRepo.findMany({});
     const allSchools = await irpService.getAllSchools();
@@ -140,7 +141,7 @@ export class MigrationScripts {
       logger.debug('No users found to migrate!');
       return [];
     }
-    return uow.getRepository('Users').addMany(users, false)
+    return uow.getRepository(Repo.users).addMany(users, false)
       .catch(err => {
         if (err && err.code === 11000) return undefined;
         throw err;
@@ -168,14 +169,14 @@ export class MigrationScripts {
       section[curVal.sectionuuid].students.push(curVal.username);
       return section;
     }, {} as ICreateSectionRequest));
-    const response = await uow.getRepository('Sections').addMany(sections, false);
+    const response = await uow.getRepository(Repo.sections).addMany(sections, false);
     await this.createCourses(sections, uow);
     return response;
   }
 
   async createCourses(sections: ISection[], uow: IUnitOfWork) {
-    const schoolRepo = uow.getRepository('Schools') as SchoolsRepository;
-    const courseRepo = uow.getRepository('Courses') as CoursesRepository;
+    const schoolRepo = uow.getRepository(Repo.schools) as SchoolsRepository;
+    const courseRepo = uow.getRepository(Repo.courses) as CoursesRepository;
     const [schools, courses] = await Promise.all([
       schoolRepo.findMany({ _id: { $in: sections.map(section => section.schoolId) } }),
       courseRepo.findMany({ sectionId: { $in: sections.map(section => section._id) } }, { sectionId: 1 })

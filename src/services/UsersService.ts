@@ -23,6 +23,7 @@ import { ICourse, IUserCourseInfo } from '../models/entities/ICourse';
 import { KafkaService } from './KafkaService';
 import config from '../config';
 import { Events } from './UpdatesProcessor';
+import { Repo } from '../repositories/RepoNames';
 const logger = loggerFactory.getLogger('UserSchema');
 
 export class UsersService {
@@ -33,27 +34,27 @@ export class UsersService {
   }
 
   protected get usersRepo() {
-    return this._uow.getRepository('Users', true) as UsersRepository;
+    return this._uow.getRepository(Repo.users, true) as UsersRepository;
   }
 
   protected get schoolsRepo() {
-    return this._uow.getRepository('Schools', true) as SchoolsRepository;
+    return this._uow.getRepository(Repo.schools, true) as SchoolsRepository;
   }
 
   protected get inviteCodesRepo() {
-    return this._uow.getRepository('InviteCodes', true) as InviteCodesRepository;
+    return this._uow.getRepository(Repo.inviteCodes, true) as InviteCodesRepository;
   }
 
   protected get sectionsRepo() {
-    return this._uow.getRepository('Sections', true) as SectionsRepository;
+    return this._uow.getRepository(Repo.sections, true) as SectionsRepository;
   }
 
   protected get coursesRepo() {
-    return this._uow.getRepository('Courses', true) as CoursesRepository;
+    return this._uow.getRepository(Repo.courses, true) as CoursesRepository;
   }
 
   protected get providersRepo() {
-    return this._uow.getRepository('Providers', true) as ProvidersRepository;
+    return this._uow.getRepository(Repo.providers, true) as ProvidersRepository;
   }
 
   async signup(request: ISignupRequest) {

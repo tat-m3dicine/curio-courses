@@ -23,6 +23,7 @@ import { InvalidLicenseError } from '../exceptions/InvalidLicenseError';
 import { KafkaService } from './KafkaService';
 import { Events } from './UpdatesProcessor';
 import { newSchoolId, newAcademicTermId } from '../utils/IdGenerator';
+import { Repo } from '../repositories/RepoNames';
 const logger = loggerFactory.getLogger('SchoolsService');
 
 export class SchoolsService {
@@ -31,15 +32,15 @@ export class SchoolsService {
   }
 
   protected get schoolsRepo() {
-    return this._uow.getRepository('Schools') as SchoolsRepository;
+    return this._uow.getRepository(Repo.schools) as SchoolsRepository;
   }
 
   protected get coursesRepo() {
-    return this._uow.getRepository('Courses') as CoursesRepository;
+    return this._uow.getRepository(Repo.courses) as CoursesRepository;
   }
 
   protected get usersRepo() {
-    return this._uow.getRepository('Users') as UsersRepository;
+    return this._uow.getRepository(Repo.users) as UsersRepository;
   }
 
   async get(schoolId: string, byUser: IUserToken) {
@@ -194,8 +195,8 @@ export class SchoolsService {
   }
 
   private async doWithdraw(request: IRegistrationAction) {
-    const schoolRepo = this._uow.getRepository('Schools', true) as SchoolsRepository;
-    const userRepo = this._uow.getRepository('Users', true) as UsersRepository;
+    const schoolRepo = this._uow.getRepository(Repo.schools, true) as SchoolsRepository;
+    const userRepo = this._uow.getRepository(Repo.users, true) as UsersRepository;
 
     await schoolRepo.releaseLicense(request.schoolId, request.role, request.users.length);
 

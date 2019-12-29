@@ -1,6 +1,7 @@
 import { MongoClient } from 'mongodb';
 import config from '../config';
 import loggerFactory from './logging';
+import { Repo } from '../repositories/RepoNames';
 
 
 const logger = loggerFactory.getLogger('getDbClient');
@@ -21,14 +22,14 @@ export const getDbClient = async () => {
     _dbClient
       .then(async result => {
         // Collections..
-        await result.db().createCollection('Schools');
-        await result.db().createCollection('Sections');
-        await result.db().createCollection('Courses');
-        await result.db().createCollection('Users');
-        await result.db().createCollection('InviteCodes');
+        await result.db().createCollection(Repo.schools);
+        await result.db().createCollection(Repo.sections);
+        await result.db().createCollection(Repo.courses);
+        await result.db().createCollection(Repo.users);
+        await result.db().createCollection(Repo.inviteCodes);
 
         // Indices..
-        // await result.db().collection('Schools').createIndex({ user_id: 1 });
+        // await result.db().collection(Repo.schools).createIndex({ user_id: 1 });
 
         logger.info('Database is ready...');
         return result;

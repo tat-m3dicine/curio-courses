@@ -18,6 +18,7 @@ import { Role } from '../models/Role';
 import { IUser } from '../models/entities/IUser';
 import { validateAllObjectsExist } from '../utils/validators/AllObjectsExist';
 import { newSectionId } from '../utils/IdGenerator';
+import { Repo } from '../repositories/RepoNames';
 
 export class SectionsService {
 
@@ -25,15 +26,15 @@ export class SectionsService {
   }
 
   protected get schoolsRepo() {
-    return this._uow.getRepository('Schools') as SchoolsRepository;
+    return this._uow.getRepository(Repo.schools) as SchoolsRepository;
   }
 
   protected get sectionsRepo() {
-    return this._uow.getRepository('Sections') as SectionsRepository;
+    return this._uow.getRepository(Repo.sections) as SectionsRepository;
   }
 
   protected get usersRepo() {
-    return this._uow.getRepository('Users') as UsersRepository;
+    return this._uow.getRepository(Repo.users) as UsersRepository;
   }
 
   async create(section: ICreateSectionRequest, byUser: IUserToken) {
@@ -105,8 +106,8 @@ export class SectionsService {
   }
 
   private async doRemoveStudents(schoolId: string, sectionId: string, studentIds: string[], finishDate: Date) {
-    const coursesRepoWithTransactions = this._uow.getRepository('Courses', true) as CoursesRepository;
-    const sectionsRepoWithTransactions = this._uow.getRepository('Sections', true) as SectionsRepository;
+    const coursesRepoWithTransactions = this._uow.getRepository(Repo.courses, true) as CoursesRepository;
+    const sectionsRepoWithTransactions = this._uow.getRepository(Repo.sections, true) as SectionsRepository;
 
     const coursesUpdates = [{ filter: { sectionId, schoolId }, usersIds: studentIds }];
     await coursesRepoWithTransactions.finishUsersInCourses(coursesUpdates, Role.student, finishDate);

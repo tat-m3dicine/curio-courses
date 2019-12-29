@@ -3,10 +3,11 @@ import { IProvider } from '../models/entities/IProvider';
 import { AduitableRepository } from './AduitableRepository';
 import { IAcademicTerm } from '../models/entities/Common';
 import { IUpdateAcademicTermRequest } from '../models/requests/ISchoolRequests';
+import { Repo } from './RepoNames';
 
 export class ProvidersRepository extends AduitableRepository<IProvider> {
   constructor(collection: Collection, session?: ClientSession) {
-    super('Providers', collection, session);
+    super(Repo.providers, collection, session);
   }
 
   updateAcademicTerm(providerId: string, updateObj: IUpdateAcademicTermRequest, academicTerm: IAcademicTerm) {

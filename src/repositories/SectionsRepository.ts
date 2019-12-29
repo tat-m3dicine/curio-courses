@@ -1,10 +1,11 @@
 import { Collection, ClientSession } from 'mongodb';
 import { ISection } from '../models/entities/ISection';
 import { AduitableRepository } from './AduitableRepository';
+import { Repo } from './RepoNames';
 
 export class SectionsRepository extends AduitableRepository<ISection> {
   constructor(collection: Collection, session?: ClientSession) {
-    super('Sections', collection, session);
+    super(Repo.sections, collection, session);
   }
 
   async addStudentsToSections(updates: { filter: object, usersIds: string[] }[]) {

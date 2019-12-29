@@ -18,6 +18,7 @@ import { InviteCodesRepository } from '../repositories/InviteCodesRepository';
 import { ICourse } from '../models/entities/ICourse';
 import { InvalidRequestError } from '../exceptions/InvalidRequestError';
 import { newInviteCodeId } from '../utils/IdGenerator';
+import { Repo } from '../repositories/RepoNames';
 
 export class InviteCodesService {
 
@@ -25,19 +26,19 @@ export class InviteCodesService {
   }
 
   protected get inviteCodesRepo() {
-    return this._uow.getRepository('InviteCodes') as InviteCodesRepository;
+    return this._uow.getRepository(Repo.inviteCodes) as InviteCodesRepository;
   }
 
   protected get schoolsRepo() {
-    return this._uow.getRepository('Schools') as SchoolsRepository;
+    return this._uow.getRepository(Repo.schools) as SchoolsRepository;
   }
 
   protected get sectionsRepo() {
-    return this._uow.getRepository('Sections') as SectionsRepository;
+    return this._uow.getRepository(Repo.sections) as SectionsRepository;
   }
 
   protected get coursesRepo() {
-    return this._uow.getRepository('Courses') as CoursesRepository;
+    return this._uow.getRepository(Repo.courses) as CoursesRepository;
   }
 
   async create(inviteCode: ICreateInviteCodeRequest, byUser: IUserToken) {
