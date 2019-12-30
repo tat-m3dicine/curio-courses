@@ -1,11 +1,16 @@
+import { Status } from '../entities/IUser';
+
 export interface IUserUpdatedEvent {
   isState?: boolean;
   event: string;
-  data: {
-    _id: string;
-    schoolId: string;
-    courses: IUserCourseUpdates[];
-  };
+  data: IUserUpdatedData;
+}
+
+export interface IUserUpdatedData {
+  _id: string;
+  status: Status;
+  schoolId: string | null;
+  courses: IUserCourseUpdates[];
 }
 
 export interface IUserCourseUpdates {

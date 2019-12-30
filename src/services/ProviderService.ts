@@ -36,7 +36,7 @@ export class ProvidersService {
     const provider: IProvider = {
       _id: createObj._id,
       config: createObj.config,
-      package: createObj.package,
+      license: createObj.license,
       location: createObj.location,
       academicTerms
     };

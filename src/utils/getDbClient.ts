@@ -27,6 +27,7 @@ export const getDbClient = async () => {
         await result.db().createCollection(Repo.courses);
         await result.db().createCollection(Repo.users);
         await result.db().createCollection(Repo.inviteCodes);
+        await result.db().createCollection(Repo.providers);
 
         // Indices..
         // await result.db().collection(Repo.schools).createIndex({ user_id: 1 });

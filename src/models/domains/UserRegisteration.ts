@@ -2,14 +2,16 @@ import { ISchool, SignupMethods } from '../entities/ISchool';
 import { Role } from '../Role';
 import { Status, IUserWithRegistration } from '../entities/IUser';
 import { IInviteCode, EnrollmentType } from '../entities/IInviteCode';
-import { threadId } from 'worker_threads';
+import { ICourse, IUserCourseInfo } from '../entities/ICourse';
+import { newCourseId } from '../../utils/IdGenerator';
+import { InvalidRequestError } from '../../exceptions/InvalidRequestError';
 
 interface IRequirements {
   status: Status;
   school?: { _id: string, name: string };
   sections?: { _id: string, name: string }[];
-  enrollmentType?: EnrollmentType | SignupMethods;
-  courses?: string[];
+  enrollmentType?: EnrollmentType;
+  courses?: string[] | ICourse[];
 }
 
 export class UserRegisteration {
@@ -40,6 +42,10 @@ export class UserRegisteration {
 
   get courses() {
     return this._requirements.courses;
+  }
+
+  get status() {
+    return this._requirements.status;
   }
 
   get enrollmentType() {
@@ -76,17 +82,19 @@ export class UserRegisteration {
   }
 
   protected processRegistration() {
-    const type = this._user.registration.provider === 'curio' ? SignupMethods.auto : SignupMethods.provider;
+    const isProvider = this._user.registration.provider !== 'curio';
+    const type = isProvider ? SignupMethods.provider : SignupMethods.auto;
     const status = this.getRegistrationStatus(type);
     if (status !== Status.active) {
       this._requirements.status = status;
       return;
     }
     this._requirements = {
+      status: Status.active,
       school: this._user.registration.school,
       sections: this._user.registration.sections,
-      enrollmentType: type,
-      status: Status.active
+      enrollmentType: isProvider ? EnrollmentType.courses : EnrollmentType.auto,
+      courses: isProvider ? this.getCoursesFromSchool() : undefined
     };
   }
 
@@ -129,14 +137,39 @@ export class UserRegisteration {
   }
 
   protected isInviteCodeValid() {
-    if (!this._inviteCode) return false;
     if (!this.license) return false;
     if (!this.license.package.signupMethods.includes(SignupMethods.inviteCodes)) return false;
-    if (!this._inviteCode.isEnabled) return false;
     const now = new Date();
-    const { quota, validity: { fromDate, toDate } } = this._inviteCode;
+    const { quota, validity: { fromDate, toDate }, isEnabled } = this._inviteCode!;
     if (fromDate > now || now > toDate) return false;
     if (quota.max - quota.consumed < 1) return false;
+    if (!isEnabled) return false;
     return true;
+  }
+
+  protected getCoursesFromSchool() {
+    const now = new Date();
+    const { academicTerms, _id: schoolId } = this._dbSchool!;
+    const academicTerm = academicTerms.find(term => term.startDate < now && now < term.endDate);
+    if (!academicTerm) throw new InvalidRequestError('Provider school has no valid academic term for courses creation!');
+    const { grade, sections = [] } = this._user.registration;
+    const subjects = this.license!.package.grades[grade];
+    const courses: ICourse[] = [];
+    for (const section of sections) {
+      for (const subject in subjects) {
+        courses.push({
+          _id: newCourseId(section._id, subject, academicTerm.year),
+          grade, academicTerm, schoolId, subject,
+          sectionId: section._id,
+          defaultLocale: 'en',
+          locales: { en: { name: section.name } },
+          curriculum: subjects[subject][0],
+          isEnabled: true,
+          teachers: <IUserCourseInfo[]>[],
+          students: [{ _id: this._user._id, joinDate: now, isEnabled: true }]
+        });
+      }
+    }
+    return courses;
   }
 }
