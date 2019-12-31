@@ -14,7 +14,7 @@
   "dependencies": {
     "@saal-oryx/distributed-cache": "^1.0.0",
     "@saal-oryx/message-bus": "^0.0.4",
-    "@saal-oryx/unit-of-work": "^0.5.2",
+    "@saal-oryx/unit-of-work": "^0.5.3",
     "bson": "^4.0.1",
     "continuation-local-storage": "^3.2.1",
     "fastest-validator": "^0.6.17",
