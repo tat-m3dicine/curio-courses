@@ -214,7 +214,7 @@ export class MigrationScripts {
             students: section.students
           };
           const courseService = new CoursesService(uow, this._commandsProcessor, this._updatesProcessor);
-          return courseService.create(req, <IUserToken>{ role: config.authorizedRole });
+          return courseService.create(req, <IUserToken>{ role: [config.authorizedRole] });
         }));
       }
       return;
