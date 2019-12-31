@@ -200,6 +200,22 @@ export class CoursesService {
     };
   }
 
+  public async notifyForUserEnrollment(role: Role, userIds: string[]) {
+    const users: IUser[] = await this.usersRepo.findMany({ _id: { $in: usersIds } });
+    const courses: ICourse[] = await this.coursesRepo.getActiveCoursesForUsers(role, usersIds);
+    const coursesUpdates = this.transformCoursesToUpdates(courses, role);
+    const coursesIds = courses.map(c => c._id);
+    const events = users.map(user => ({
+      _id: user._id,
+      // tslint:disable-next-line: no-null-keyword
+      schoolId: user.school ? user.school._id : null,
+      status: user.registration ? user.registration.status : (user.school ? Status.active : Status.inactive),
+      courses: coursesUpdates[user._id]
+    }));
+    this._updatesProcessor.sendEnrollmentUpdates(events);
+  }
+
+
   private async enrollUsers(requestParams: IUserRequest[], role: Role, byUser: IUserToken, sameSection = true) {
     this.authorize(byUser);
     const joinDate = new Date();
@@ -247,6 +263,8 @@ export class CoursesService {
     return result;
   }
 
+
+
   private async sendUsersChangesUpdates(action: string, role: Role, requests: IUserRequest[]) {
     const usersIds = Array.from(new Set(requests.reduce((list, request) => [...list, ...request.usersIds], <string[]>[])));
     const users: IUser[] = await this.usersRepo.findMany({ _id: { $in: usersIds } });
@@ -264,7 +282,7 @@ export class CoursesService {
         courses: coursesUpdates[user._id]
       }
     });
-    this._updatesProcessor.sendEnrollmentUpdates(events, coursesIds);
+    this._updatesProcessor.sendEnrollmentUpdatesWithActions(events, coursesIds);
   }
 
   private transformCoursesToUpdates(courses: ICourse[], role: Role): { [_id: string]: IUserCourseUpdates[] } {
