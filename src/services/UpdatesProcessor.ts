@@ -1,6 +1,6 @@
 import { KafkaService } from './KafkaService';
 import config from '../config';
-import { IUserUpdatedEvent } from '../models/events/IUserUpdatedEvent';
+import { IUserUpdatedEvent, IUserUpdatedData } from '../models/events/IUserUpdatedEvent';
 import { IAppEvent } from '../models/events/IAppEvent';
 export class UpdatesProcessor {
 
@@ -34,12 +34,12 @@ export class UpdatesProcessor {
     await this._kafkaService.sendMany(config.kafkaUpdatesTopic, events);
   }
 
-  async sendEnrollmentUpdates(usersUpdates: IUserUpdatedEvent[]) {
+  async sendEnrollmentUpdates(usersUpdates: IUserUpdatedData[]) {
     const now = Date.now();
-    const events: IAppEvent[] = usersUpdates.map(userUpdate => ({
-      key: userUpdate.data._id,
+    const events: IAppEvent[] = usersUpdates.map(data => ({
+      key: data._id,
       event: Events.enrollment,
-      data: userUpdate.data,
+      data,
       timestamp: now,
       v: '1.0.0'
     }));

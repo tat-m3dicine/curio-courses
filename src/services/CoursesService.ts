@@ -201,10 +201,9 @@ export class CoursesService {
   }
 
   public async notifyForUserEnrollment(role: Role, userIds: string[]) {
-    const users: IUser[] = await this.usersRepo.findMany({ _id: { $in: usersIds } });
-    const courses: ICourse[] = await this.coursesRepo.getActiveCoursesForUsers(role, usersIds);
+    const users: IUser[] = await this.usersRepo.findMany({ _id: { $in: userIds } });
+    const courses: ICourse[] = await this.coursesRepo.getActiveCoursesForUsers(role, userIds);
     const coursesUpdates = this.transformCoursesToUpdates(courses, role);
-    const coursesIds = courses.map(c => c._id);
     const events = users.map(user => ({
       _id: user._id,
       // tslint:disable-next-line: no-null-keyword
