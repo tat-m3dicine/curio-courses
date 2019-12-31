@@ -61,7 +61,14 @@ export class MigrationScripts {
     const [users, sections] = await Promise.all([this.migrate(usersList), this.migrateSections(usersList)]);
     logger.info('Count of Users Migrated', users && users.length);
     logger.info('Count of Sections Migrated', sections && sections.length);
+    const userIds = usersList.map(x => x._id);
+
+    const client = await getDbClient();
+    const uow = new UnitOfWork(client, getFactory(), { useTransactions: false });
+    const courseService = new CoursesService(uow, this._commandsProcessor, this._updatesProcessor);
+    await courseService.notifyForUserEnrollment(Role.student, userIds);
   }
+
 
   async migrateTeachers() {
     const client = await getDbClient();
@@ -70,9 +77,11 @@ export class MigrationScripts {
     const schoolsRepo: SchoolsRepository = uow.getRepository('Schools');
     const coursesRepo: CoursesRepository = uow.getRepository('Courses');
 
+    const userIds: string[] = [];
     const schools = await schoolsRepo.findMany({});
     await Promise.all(schools.map(async school => {
       const irpTeachers = await irpService.getTeachersByPrefrences(school._id);
+      irpTeachers.forEach(t => userIds.push(t._id));
       await this.registerTeachers(school._id, irpTeachers.map(t => ({ _id: t._id, name: t.name, avatar: t.avatar })));
       for (const teacher of irpTeachers) {
         if (!teacher.preferences) continue;
@@ -86,6 +95,9 @@ export class MigrationScripts {
         }
       }
     }));
+
+    const courseService = new CoursesService(uow, this._commandsProcessor, this._updatesProcessor);
+    await courseService.notifyForUserEnrollment(Role.teacher, userIds);
   }
 
   async registerTeachers(schoolId: string, profiles: { _id: string, name: string, avatar: string }[]) {
