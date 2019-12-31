@@ -1,11 +1,11 @@
 import { IAcademicTerm, IAuditable } from './Common';
-import { IPackage } from './ISchool';
+import { ILicense } from './ISchool';
 
 export interface IProvider extends IAuditable {
   _id: string;
   config: IConfig;
   location: string;
-  package: IPackage;
+  license: ILicense;
   academicTerms?: IAcademicTerm[];
 }
 

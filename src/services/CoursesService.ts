@@ -27,6 +27,7 @@ import { IUserUpdatedEvent, IUserCourseUpdates } from '../models/events/IUserUpd
 import { AppError } from '../exceptions/AppError';
 import { UpdatesProcessor } from './UpdatesProcessor';
 import { newCourseId } from '../utils/IdGenerator';
+import { Repo } from '../repositories/RepoNames';
 
 export class CoursesService {
   constructor(
@@ -36,19 +37,19 @@ export class CoursesService {
   ) { }
 
   protected get schoolsRepo() {
-    return this._uow.getRepository('Schools') as SchoolsRepository;
+    return this._uow.getRepository(Repo.schools) as SchoolsRepository;
   }
 
   protected get sectionsRepo() {
-    return this._uow.getRepository('Sections') as SectionsRepository;
+    return this._uow.getRepository(Repo.sections) as SectionsRepository;
   }
 
   protected get usersRepo() {
-    return this._uow.getRepository('Users') as UsersRepository;
+    return this._uow.getRepository(Repo.users) as UsersRepository;
   }
 
   protected get coursesRepo() {
-    return this._uow.getRepository('Courses') as CoursesRepository;
+    return this._uow.getRepository(Repo.courses) as CoursesRepository;
   }
 
   async create(course: ICreateCourseRequest, byUser: IUserToken) {
@@ -217,8 +218,8 @@ export class CoursesService {
       sectionsUpdates.push({ filter: { _id: sectionId, schoolId }, usersIds });
     }
 
-    const coursesRepoWithTransactions = this._uow.getRepository('Courses', true) as CoursesRepository;
-    const sectionsRepoWithTransactions = this._uow.getRepository('Sections', true) as SectionsRepository;
+    const coursesRepoWithTransactions = this._uow.getRepository(Repo.courses, true) as CoursesRepository;
+    const sectionsRepoWithTransactions = this._uow.getRepository(Repo.sections, true) as SectionsRepository;
 
     const result = await coursesRepoWithTransactions.addUsersToCourses(coursesUpdates, role);
     if (role === Role.student) await sectionsRepoWithTransactions.addStudentsToSections(sectionsUpdates);

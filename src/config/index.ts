@@ -37,13 +37,13 @@ if (process.env.AUTHORIZED_ROLE) config.authorizedRole = process.env.AUTHORIZED_
 if (process.env.COMMANDS_TIMEOUT) config.commandsTimeout = parseInt(process.env.COMMANDS_TIMEOUT);
 
 if (process.env.REDIS_PORT) config.redisPort = parseInt(process.env.REDIS_PORT);
-else {
+else if (process.env.NODE_ENV !== 'test') {
   logger.error('Missing parameter: REDIS_PORT! Exiting...');
   process.exit(1);
 }
 
 if (process.env.REDIS_HOST) config.redisHost = process.env.REDIS_HOST;
-else {
+else if (process.env.NODE_ENV !== 'test') {
   logger.error('Missing parameter: REDIS_HOST! Exiting...');
   process.exit(1);
 }
@@ -51,13 +51,13 @@ else {
 if (process.env.KAFKA_BROKERS) {
   config.kafkaBrokers = process.env.KAFKA_BROKERS.split(',').map(x => x.trim());
 }
-else {
+else if (process.env.NODE_ENV !== 'test') {
   logger.error('Missing parameter: KAFKA_BROKERS! Exiting...');
   process.exit(1);
 }
 
 if (process.env.MONGO_DB_URL) config.mongoDbUrl = process.env.MONGO_DB_URL;
-else {
+else if (process.env.NODE_ENV !== 'test') {
   logger.error('Missing parameter: MONGO_DB_URL! Exiting...');
   process.exit(1);
 }

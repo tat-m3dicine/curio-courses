@@ -1,10 +1,11 @@
 import { Collection, ClientSession } from 'mongodb';
 import { AduitableRepository } from './AduitableRepository';
 import { IUser } from '../models/entities/IUser';
+import { Repo } from './RepoNames';
 
 export class UsersRepository extends AduitableRepository<IUser> {
   constructor(collection: Collection, session?: ClientSession) {
-    super('Users', collection, session);
+    super(Repo.users, collection, session);
   }
 
   async addRegisteration(user: IUser) {

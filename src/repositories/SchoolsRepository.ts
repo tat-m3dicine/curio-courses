@@ -3,10 +3,11 @@ import { ISchool, ISchoolUserPermissions } from '../models/entities/ISchool';
 import { IUpdateAcademicTermRequest } from '../models/requests/ISchoolRequests';
 import { AduitableRepository } from './AduitableRepository';
 import { IAcademicTerm } from '../models/entities/Common';
+import { Repo } from './RepoNames';
 
 export class SchoolsRepository extends AduitableRepository<ISchool> {
   constructor(collection: Collection, session?: ClientSession) {
-    super('Schools', collection, session);
+    super(Repo.schools, collection, session);
   }
 
   async updateAcademicTerm(schoolId: string, updateObj: IUpdateAcademicTermRequest, academicTerm: IAcademicTerm) {

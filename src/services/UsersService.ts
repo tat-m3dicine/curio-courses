@@ -19,10 +19,12 @@ import { ISchool } from '../models/entities/ISchool';
 import { newSchoolId, newSectionId } from '../utils/IdGenerator';
 import { getNotMatchingObjects } from '../utils/validators/AllObjectsExist';
 import { ISection } from '../models/entities/ISection';
-import { ICourse, IUserCourseInfo } from '../models/entities/ICourse';
 import { KafkaService } from './KafkaService';
 import config from '../config';
 import { Events } from './UpdatesProcessor';
+import { Repo } from '../repositories/RepoNames';
+import { IUserUpdatedData } from '../models/events/IUserUpdatedEvent';
+import { NotFoundError } from '../exceptions/NotFoundError';
 const logger = loggerFactory.getLogger('UserSchema');
 
 export class UsersService {
@@ -33,32 +35,32 @@ export class UsersService {
   }
 
   protected get usersRepo() {
-    return this._uow.getRepository('Users', true) as UsersRepository;
+    return this._uow.getRepository(Repo.users, true) as UsersRepository;
   }
 
   protected get schoolsRepo() {
-    return this._uow.getRepository('Schools', true) as SchoolsRepository;
+    return this._uow.getRepository(Repo.schools, true) as SchoolsRepository;
   }
 
   protected get inviteCodesRepo() {
-    return this._uow.getRepository('InviteCodes', true) as InviteCodesRepository;
+    return this._uow.getRepository(Repo.inviteCodes, true) as InviteCodesRepository;
   }
 
   protected get sectionsRepo() {
-    return this._uow.getRepository('Sections', true) as SectionsRepository;
+    return this._uow.getRepository(Repo.sections, true) as SectionsRepository;
   }
 
   protected get coursesRepo() {
-    return this._uow.getRepository('Courses', true) as CoursesRepository;
+    return this._uow.getRepository(Repo.courses, true) as CoursesRepository;
   }
 
   protected get providersRepo() {
-    return this._uow.getRepository('Providers', true) as ProvidersRepository;
+    return this._uow.getRepository(Repo.providers, true) as ProvidersRepository;
   }
 
   async signup(request: ISignupRequest) {
     const user = this.transformToUser(request);
-    await this.register(user);
+    return this.register(user);
   }
 
   private async register(user: IUserWithRegistration) {
@@ -67,9 +69,12 @@ export class UsersService {
     let inviteCode: IInviteCode | undefined;
 
     if (registration.inviteCode) {
-      inviteCode = await this.getInviteCode(registration.inviteCode);
+      inviteCode = await this.inviteCodesRepo.findById(registration.inviteCode);
       if (inviteCode) schoolId = inviteCode.schoolId;
-      else inviteCode = <IInviteCode>{ isEnabled: false };
+      else {
+        inviteCode = <IInviteCode>{ isEnabled: false };
+        schoolId = undefined;
+      }
       registration.provider = 'curio';
     }
 
@@ -80,8 +85,8 @@ export class UsersService {
       } else {
         dbSchool = await this.schoolsRepo.findOne({ 'provider.links': schoolId });
         if (!dbSchool && registration.school) {
-          const provider = await this.validateAndGetProvider(registration.provider, 'School');
-          dbSchool = await this.createSchool(registration.school, provider);
+          await this.validateProvider(registration.provider, 'School');
+          dbSchool = await this.createSchool(registration.school, this.provider!);
         }
       }
     }
@@ -89,32 +94,35 @@ export class UsersService {
   }
 
   protected async completeRegisteration(user: IUserWithRegistration, dbSchool?: ISchool, inviteCode?: IInviteCode) {
-    const { dbUser, sections, courses, enrollmentType } = new UserRegisteration(dbSchool, user, inviteCode);
+    const { dbUser, sections, courses, status, enrollmentType } = new UserRegisteration(dbSchool, user, inviteCode);
     if (dbUser.school) {
       await this.doRegisterUser(dbUser, dbUser.school._id, inviteCode && inviteCode._id);
-      let enrolledCourses: string[] = [];
       if (enrollmentType === EnrollmentType.auto) {
-        enrolledCourses = await this.doEnrollCourses(dbUser, sections, user.registration.provider);
+        await this.doEnrollCourses(dbUser, sections);
       } else if (enrollmentType === EnrollmentType.courses) {
-        enrolledCourses = await this.doEnrollCourses(dbUser, sections, user.registration.provider, courses);
+        await this.doEnrollCourses(dbUser, sections, courses);
       }
-      this.sendUpdate({
-        _id: user._id,
-        status: Status.active,
-        schoolId: dbUser.school._id,
-        courses: enrolledCourses
-      });
     } else {
       await this.usersRepo.addRegisteration(dbUser);
-      this.sendUpdate({
-        _id: user._id,
-        status: user.registration.status
-      });
     }
+
+    const userCourses = await this.coursesRepo.getActiveCoursesForUsers(this.getRole(dbUser), [dbUser._id]);
+    this.sendUpdate({
+      _id: dbUser._id, status,
+      // tslint:disable-next-line: no-null-keyword
+      schoolId: dbUser.school ? dbUser.school._id : null,
+      courses: userCourses.map(course => ({
+        _id: course._id,
+        sectionId: course.sectionId,
+        grade: course.grade,
+        subject: course.subject,
+        curriculum: course.curriculum
+      }))
+    });
     return this._uow.commit();
   }
 
-  protected sendUpdate(data: any) {
+  protected sendUpdate(data: IUserUpdatedData) {
     this._kafkaService.send(config.kafkaUpdatesTopic, {
       data,
       key: data._id,
@@ -132,30 +140,36 @@ export class UsersService {
     ]);
   }
 
-  async doEnrollCourses(user: IUserWithRegistration, sections: string[], providerId: string, courses?: string[]) {
-    const dbSections = await this.sectionsRepo.findMany({ _id: { $in: sections } });
-    if (dbSections.length !== sections.length && providerId !== 'curio') {
-      const newSections: string[] = getNotMatchingObjects(dbSections, sections);
-      this.validateAndGetProvider(providerId, 'Section');
-      await this.createSections(newSections, user);
-    }
-    await this.sectionsRepo.addStudents({ _id: { $in: sections } }, [user._id]);
-    if (courses) {
-      const dbCourses = await this.coursesRepo.findMany({ _id: { $in: courses } });
-      if (dbCourses.length !== courses.length && providerId !== 'curio') {
-        const newCourses: string[] = getNotMatchingObjects(dbCourses, courses);
-        this.validateAndGetProvider(providerId, 'Course');
-        await this.createCourses(newCourses, user);
+  async doEnrollCourses(user: IUserWithRegistration, sections: string[], courses?: any[]) {
+    const providerId = user.registration.provider;
+    const role = this.getRole(user);
+    if (role === Role.student) {
+      if (providerId !== 'curio') {
+        const dbSections = await this.sectionsRepo.findMany({ _id: { $in: sections } });
+        if (dbSections.length !== sections.length) {
+          this.validateProvider(providerId, 'Section');
+          const newSections: string[] = getNotMatchingObjects(dbSections, sections);
+          await this.createSections(newSections, user);
+        }
       }
-    } else {
-      const activeCourses = await this.coursesRepo.getActiveCoursesUnderSections(sections);
-      courses = activeCourses.map(course => course._id);
+      await this.sectionsRepo.addStudents({ _id: { $in: sections } }, [user._id]);
     }
+    if (!courses || (courses && courses.length > 0 && providerId !== 'curio')) {
+      const activeCourses = await this.coursesRepo.getActiveCoursesUnderSections(sections);
+      if (courses) {
+        this.validateProvider(providerId, 'Course');
+        const coursesToAdd = courses.filter(c => !activeCourses.some(a => a.grade === c.grade && a.subject === c.subject));
+        await this.coursesRepo.addMany(coursesToAdd);
+        courses = courses.map(c => c._id);
+      } else {
+        courses = activeCourses.map(c => c._id);
+      }
+    }
+    const now = new Date();
     await this.coursesRepo.addUsersToCourses([{
       filter: { _id: { $in: courses } },
-      usersObjs: [{ _id: user._id, joinDate: new Date(), isEnabled: true }]
-    }], this.getRole(user));
-    return courses;
+      usersObjs: [{ _id: user._id, joinDate: now, isEnabled: true }]
+    }], role);
   }
 
   private async createSchool(school: { _id: string; name: string; }, provider: IProvider): Promise<ISchool> {
@@ -165,6 +179,7 @@ export class UsersService {
       provider: { _id: provider._id, links: [school._id] },
       academicTerms: provider.academicTerms || [],
       location: provider.location,
+      license: provider.license,
       users: []
     };
     await this.schoolsRepo.add(dbSchool);
@@ -173,52 +188,33 @@ export class UsersService {
 
   private async createSections(sectionsIds: string[], user: IUserWithRegistration) {
     const dbSections = sectionsIds.map(sectionId => {
+      const { name } = user.registration.sections!.find(s => s._id === sectionId) || { name: sectionId };
       const section: ISection = {
         _id: '',
-        locales: { en: { name: sectionId } },
+        locales: { en: { name } },
         schoolId: user.school!._id,
         grade: user.registration.grade,
         students: [user._id],
         providerLinks: [sectionId]
       };
-      section._id = newSectionId(section._id, section.grade, section.locales);
+      section._id = newSectionId(section.schoolId, section.grade, section.locales);
       return section;
     });
     return this.sectionsRepo.addMany(dbSections);
-  }
-
-  private async createCourses(coursesIds: string[], user: IUserWithRegistration) {
-    const now = new Date();
-    const school = await this.schoolsRepo.findById(user.school!._id);
-    const academicTerm = school!.academicTerms.find(term => term.startDate < now && now < term.endDate);
-    const { grade, curriculum, } = user.registration;
-    const dbCourses = coursesIds.map(courseId => <ICourse>{
-      _id: courseId,
-      grade, curriculum,
-      academicTerm,
-      isEnabled: true,
-      schoolId: user.school!._id,
-      teachers: <IUserCourseInfo[]>[],
-      students: [{ _id: user._id, joinDate: now, isEnabled: true }]
-    });
-    return this.coursesRepo.addMany(dbCourses);
   }
 
   private getRole(user: IUser): Role {
     return user.role.includes(Role.teacher) ? Role.teacher : Role.student;
   }
 
-  private async getInviteCode(codeId: string) {
-    return this.inviteCodesRepo.findById(codeId);
-  }
-
-  private async validateAndGetProvider(providerId: string, entity: 'School' | 'Section' | 'Course') {
+  private async validateProvider(providerId: string, entity: 'School' | 'Section' | 'Course') {
     if (!this.provider) {
       this.provider = await this.providersRepo.findById(providerId);
-      if (!this.provider) throw new InvalidRequestError('Requested provider was not found!');
+      if (!this.provider) throw new NotFoundError('Requested provider was not found!');
     }
-    if (!this.provider.config[`autoCreate${entity}`]) throw new InvalidRequestError(`Provider is not configured to auto create ${entity}!`);
-    return this.provider;
+    if (!this.provider.config[`autoCreate${entity}`]) {
+      throw new InvalidRequestError(`Provider is not configured to auto create ${entity}!`);
+    }
   }
 
   async update(request: ISignupRequest) {
@@ -247,7 +243,7 @@ export class UsersService {
       registration: {
         grade: data.grade,
         curriculum: data.curriculum,
-        status: Status.pendingApproval,
+        status: Status.inactive,
         school: data.inviteCode ? undefined : data.school && {
           _id: data.school.uuid,
           name: data.school.name

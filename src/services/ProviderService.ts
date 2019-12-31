@@ -12,6 +12,7 @@ import { IAcademicTerm } from '../models/entities/Common';
 import { IUserToken } from '../models/IUserToken';
 import { IUpdateAcademicTermRequest } from '../models/requests/ISchoolRequests';
 import { newProviderId, newAcademicTermId } from '../utils/IdGenerator';
+import { Repo } from '../repositories/RepoNames';
 
 export class ProvidersService {
 
@@ -19,7 +20,7 @@ export class ProvidersService {
   }
 
   protected get providersRepo() {
-    return this._uow.getRepository('Providers') as ProvidersRepository;
+    return this._uow.getRepository(Repo.providers) as ProvidersRepository;
   }
 
   async add(createObj: ICreateProviderRequest) {
@@ -35,7 +36,7 @@ export class ProvidersService {
     const provider: IProvider = {
       _id: createObj._id,
       config: createObj.config,
-      package: createObj.package,
+      license: createObj.license,
       location: createObj.location,
       academicTerms
     };
