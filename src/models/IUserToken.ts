@@ -9,7 +9,7 @@ export interface IUserToken {
   key: string;
   aud: string;
   avatar: string;
-  role: string;
+  role: string[];
   curriculum: string;
   grade: string;
   schooluuid: string;

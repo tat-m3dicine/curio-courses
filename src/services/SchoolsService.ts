@@ -302,12 +302,11 @@ export class SchoolsService {
     return this.schoolsRepo.patch({ _id: schoolId }, { license: updateObj });
   }
 
-  private authorize(byUser: IUserToken) {
+  protected authorize(byUser: IUserToken) {
     if (!byUser) throw new ForbiddenError('access token is required!');
-    const isAuthorized = byUser.role.split(',').includes(config.authorizedRole);
-    if (!isAuthorized) throw new UnauthorizedError('you are not authorized!');
+    if (byUser.role.includes(config.authorizedRole)) return true;
+    throw new UnauthorizedError('you are not authorized to do this action');
   }
-
   async doAddMany(schools: ISchool[]) {
     return this.schoolsRepo.addMany(schools, false);
   }

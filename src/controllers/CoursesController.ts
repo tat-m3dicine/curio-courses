@@ -42,6 +42,15 @@ export class CoursesController {
     ctx.type = 'json';
   }
 
+  async getById(ctx: Context, next: () => void) {
+    const { schoolId, courseId } = ctx.params;
+    const result = await this.coursesService.getById(schoolId, courseId, ctx.user);
+    if (!result) throw new NotFoundError(`Couldn't find course '${courseId}'`);
+    ctx.status = 200;
+    ctx.body = { ok: true, result };
+    ctx.type = 'json';
+  }
+
   async update(ctx: Context, next: () => void) {
     const { schoolId, sectionId, courseId } = ctx.params;
     const result = await this.coursesService.update(schoolId, sectionId, courseId, ctx.request.body, ctx.user);

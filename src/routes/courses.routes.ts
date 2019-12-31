@@ -11,6 +11,10 @@ export default (commandsProccessor: CommandsProcessor, updatesProcessor: Updates
   const coursesRoutes = new KoaRoute();
 
   coursesRoutes
+    .get('/:schoolId/courses/:courseId', (ctx: Koa.Context, next: () => void) => {
+      const controller = new CoursesController(new CoursesService(ctx.uow, commandsProccessor, updatesProcessor));
+      return controller.getById(ctx, next);
+    })
     .post('/:schoolId/sections/:sectionId/courses', (ctx: Koa.Context, next: () => void) => {
       const controller = new CoursesController(new CoursesService(ctx.uow, commandsProccessor, updatesProcessor));
       return controller.create(ctx, next);

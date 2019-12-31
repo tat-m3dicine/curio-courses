@@ -103,6 +103,11 @@ export class CoursesService {
     return this.coursesRepo.findManyPage({ schoolId, sectionId }, paging);
   }
 
+  async getById(schoolId: string, courseId: string, byUser: IUserToken) {
+    this.authorize(byUser, schoolId);
+    return this.coursesRepo.findOne({ _id: courseId, schoolId });
+  }
+
   async get(schoolId: string, sectionId: string, courseId: string, byUser: IUserToken) {
     this.authorize(byUser);
     return this.coursesRepo.findOne({ _id: courseId, sectionId, schoolId });
@@ -342,9 +347,13 @@ export class CoursesService {
     validateAllObjectsExist(usersObjs, userIds, schoolId, role);
   }
 
-  protected authorize(byUser: IUserToken) {
+  protected authorize(byUser: IUserToken, schoolId?: string) {
     if (!byUser) throw new ForbiddenError('access token is required!');
-    const isAuthorized = byUser.role.split(',').includes(config.authorizedRole);
-    if (!isAuthorized) throw new UnauthorizedError('you are not authorized!');
+    if (schoolId && byUser.schooluuid === schoolId && byUser.role.includes(Role.teacher)) {
+      return true;
+    } else if (byUser.role.includes(config.authorizedRole)) {
+      return true;
+    }
+    throw new UnauthorizedError('you are not authorized to do this action');
   }
 }
