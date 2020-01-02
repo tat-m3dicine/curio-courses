@@ -1,14 +1,16 @@
-import { Collection } from 'mongodb';
-import { IProvider, IAcademicTermRequest } from '../models/entities/IProvider';
+import { Collection, ClientSession } from 'mongodb';
+import { IProvider } from '../models/entities/IProvider';
 import { AduitableRepository } from './AduitableRepository';
 import { IAcademicTerm } from '../models/entities/Common';
+import { IUpdateAcademicTermRequest } from '../models/requests/ISchoolRequests';
+import { Repo } from './RepoNames';
 
 export class ProvidersRepository extends AduitableRepository<IProvider> {
-  constructor(collection: Collection) {
-    super('Providers', collection);
+  constructor(collection: Collection, session?: ClientSession) {
+    super(Repo.providers, collection, session);
   }
 
-  updateAcademicTerm(providerId: string, updateObj: IAcademicTermRequest, academicTerm: IAcademicTerm) {
+  updateAcademicTerm(providerId: string, updateObj: IUpdateAcademicTermRequest, academicTerm: IAcademicTerm) {
     const { startDate, endDate } = updateObj;
     return this.update({
       _id: providerId,

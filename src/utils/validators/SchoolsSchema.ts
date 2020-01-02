@@ -5,7 +5,10 @@ import { IAcademicTerm } from '../../models/entities/Common';
 import { localesSchema } from './LocalesSchema';
 
 const createSchoolsSchema = {
-  _id: 'string',
+  _id: {
+    type: 'string',
+    optional: true
+  },
   locales: localesSchema('en'),
   location: {
     type: 'string'
@@ -76,12 +79,23 @@ const deleteUsersSchema = {
   $$strict: true
 };
 
+const registerUserSchema = {
+  users: {
+    type: 'array',
+    min: 1,
+    items: {
+      type: 'string'
+    }
+  }
+};
+
 const validator = new Validator();
 const validateCreate = validator.compile(createSchoolsSchema);
 const validateUpdate = validator.compile(updateSchoolsSchema);
 const validateUpdateAcademicTerm = validator.compile(updateAcademicTermSchema);
 const validateUpdateUsers = validator.compile(updateUsersSchema);
 const validateDeleteUsers = validator.compile(deleteUsersSchema);
+const _validateUserRegisteration = validator.compile(registerUserSchema);
 
 export const validateCreateSchool = (request: ICreateSchoolRequest) => {
   const isValidationPassed = validateCreate(request);
@@ -121,6 +135,15 @@ export const validateUpdateSchoolUsers = (request: { users: IUpdateUserRequest[]
 
 export const validateDeleteSchoolUsers = (request: { users: string[] }) => {
   const isValidationPassed = validateDeleteUsers(request);
+  if (typeof isValidationPassed === 'boolean') {
+    return isValidationPassed;
+  } else {
+    throw new ValidationError(isValidationPassed);
+  }
+};
+
+export const validateUserRegisteration = (request: { users: string[] }) => {
+  const isValidationPassed = _validateUserRegisteration(request);
   if (typeof isValidationPassed === 'boolean') {
     return isValidationPassed;
   } else {

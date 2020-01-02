@@ -1,9 +1,15 @@
-import { Role } from '../Role';
+import { Status } from '../entities/IUser';
 
 export interface IUserUpdatedEvent {
+  isState?: boolean;
+  event: string;
+  data: IUserUpdatedData;
+}
+
+export interface IUserUpdatedData {
   _id: string;
-  role: Role;
-  schoolId: string;
+  status: Status;
+  schoolId: string | null;
   courses: IUserCourseUpdates[];
 }
 
@@ -13,6 +19,4 @@ export interface IUserCourseUpdates {
   grade: string;
   subject: string;
   curriculum: string;
-  joinDate: Date;
-  finishDate?: Date;
 }

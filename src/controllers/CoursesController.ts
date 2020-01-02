@@ -7,6 +7,7 @@ import { NotFoundError } from '../exceptions/NotFoundError';
 import { InvalidRequestError } from '../exceptions/InvalidRequestError';
 import { IUserRequest } from '../models/requests/IUserRequest';
 import validators from '../utils/validators';
+import { Role } from '../models/Role';
 
 const logger = loggerFactory.getLogger('CoursesController');
 
@@ -36,6 +37,15 @@ export class CoursesController {
     const { schoolId, sectionId, courseId } = ctx.params;
     const result = await this.coursesService.get(schoolId, sectionId, courseId, ctx.user);
     if (!result) throw new NotFoundError(`Couldn't find course '${courseId}' in section '${sectionId}'`);
+    ctx.status = 200;
+    ctx.body = { ok: true, result };
+    ctx.type = 'json';
+  }
+
+  async getById(ctx: Context, next: () => void) {
+    const { schoolId, courseId } = ctx.params;
+    const result = await this.coursesService.getById(schoolId, courseId, ctx.user);
+    if (!result) throw new NotFoundError(`Couldn't find course '${courseId}'`);
     ctx.status = 200;
     ctx.body = { ok: true, result };
     ctx.type = 'json';
@@ -221,6 +231,14 @@ export class CoursesController {
     ctx.type = 'json';
   }
 
+  async getActiveCourses(ctx: Context, next: () => void) {
+    const { sub, role } = ctx.user;
+    const result = await this.coursesService.getActiveCourses(sub, this.getUserType(role));
+    ctx.status = 200;
+    ctx.body = result;
+    ctx.type = 'json';
+  }
+
   protected transformUsersToCourses(query: { _id: string, courses: string[] }[]): { [courseId: string]: string[] } {
     const courses = {};
     for (const student of query) {
@@ -233,6 +251,17 @@ export class CoursesController {
       }
     }
     return courses;
+  }
+
+  protected getUserType(role: string | string[] | undefined) {
+    let userType: Role | undefined;
+    if (!role) return undefined;
+    if (role.includes('teacher')) {
+      userType = Role.teacher;
+    } else if (role.includes('student')) {
+      userType = Role.student;
+    }
+    return userType;
   }
 
   protected getParamsArray(query: any, schoolId: string, sectionId: string): IUserRequest[] {

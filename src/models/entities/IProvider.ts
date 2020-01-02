@@ -1,9 +1,11 @@
-import {  IAcademicTerm, IAuditable } from './Common';
+import { IAcademicTerm, IAuditable } from './Common';
+import { ILicense } from './ISchool';
 
 export interface IProvider extends IAuditable {
   _id: string;
   config: IConfig;
-  package: IPackage;
+  location: string;
+  license: ILicense;
   academicTerms?: IAcademicTerm[];
 }
 
@@ -11,22 +13,6 @@ export interface IConfig {
   autoCreateSchool: boolean;
   autoCreateSection: boolean;
   autoCreateCourse: boolean;
-}
-
-export interface IPackage {
-  grades: {
-    [grade: string]: {
-      [subject: string]: string[] // curriculums
-    }
-  };
-  features: string[];
-  signupMethods: SignupMethods[];
-}
-
-export enum SignupMethods {
-  invite_codes = 'invite_codes',
-  manual = 'manual',
-  auto = 'auto'
 }
 
 export interface IAcademicTermRequest {
@@ -39,6 +25,7 @@ export interface IAcademicTermRequest {
 }
 
 export interface IDeleteProviderAcademicTermRequest {
-  _id: string;
+  providerId: string;
   academicTermId: string;
 }
+

@@ -1,12 +1,11 @@
 
 import config from '../config';
 import validators from '../utils/validators';
-import generate from 'nanoid/non-secure/generate';
 import { CommandsProcessor } from './CommandsProcessor';
 import { IUnitOfWork, IPaging } from '@saal-oryx/unit-of-work';
 // models
 import { Role } from '../models/Role';
-import { IUser } from '../models/entities/IUser';
+import { IUser, Status } from '../models/entities/IUser';
 import { IUserToken } from '../models/IUserToken';
 import { ISchool } from '../models/entities/ISchool';
 import { IAcademicTerm } from '../models/entities/Common';
@@ -24,31 +23,33 @@ import { CoursesRepository } from '../repositories/CoursesRepository';
 import { SchoolsRepository } from '../repositories/SchoolsRepository';
 import { SectionsRepository } from '../repositories/SectionsRepository';
 import { validateAllObjectsExist } from '../utils/validators/AllObjectsExist';
-import { KafkaService } from './KafkaService';
 import { IUserUpdatedEvent, IUserCourseUpdates } from '../models/events/IUserUpdatedEvent';
 import { AppError } from '../exceptions/AppError';
+import { UpdatesProcessor } from './UpdatesProcessor';
+import { newCourseId } from '../utils/IdGenerator';
+import { Repo } from '../repositories/RepoNames';
 
 export class CoursesService {
   constructor(
     protected _uow: IUnitOfWork,
     protected _commandsProcessor: CommandsProcessor,
-    protected _kafkaService: KafkaService
+    protected _updatesProcessor: UpdatesProcessor
   ) { }
 
   protected get schoolsRepo() {
-    return this._uow.getRepository('Schools') as SchoolsRepository;
+    return this._uow.getRepository(Repo.schools) as SchoolsRepository;
   }
 
   protected get sectionsRepo() {
-    return this._uow.getRepository('Sections') as SectionsRepository;
+    return this._uow.getRepository(Repo.sections) as SectionsRepository;
   }
 
   protected get usersRepo() {
-    return this._uow.getRepository('Users') as UsersRepository;
+    return this._uow.getRepository(Repo.users) as UsersRepository;
   }
 
   protected get coursesRepo() {
-    return this._uow.getRepository('Courses') as CoursesRepository;
+    return this._uow.getRepository(Repo.courses) as CoursesRepository;
   }
 
   async create(course: ICreateCourseRequest, byUser: IUserToken) {
@@ -62,7 +63,7 @@ export class CoursesService {
     const studentsObjs: IUserCourseInfo[] = [], teachersObjs: IUserCourseInfo[] = [];
     if (usersIds.length > 0) {
       const now = new Date();
-      const users: IUser[] = await this.usersRepo.findMany({ '_id': { $in: usersIds }, 'registration.schoolId': schoolId });
+      const users: IUser[] = await this.usersRepo.findMany({ '_id': { $in: usersIds }, 'school._id': schoolId });
       const usersMap: { [_id: string]: IUser } = users.reduce((map, user) => ({ ...map, [user._id]: user }), {});
 
       students.forEach(_id => {
@@ -83,7 +84,7 @@ export class CoursesService {
     }
 
     return this._commandsProcessor.sendCommand('courses', this.doCreate, <ICourse>{
-      _id: this.newCourseId(sectionId, subject, academicTerm.year),
+      _id: newCourseId(sectionId, subject, academicTerm.year),
       schoolId, sectionId, curriculum, grade, subject, academicTerm,
       defaultLocale: course.defaultLocale || Object.keys(course.locales)[0] || 'en',
       isEnabled: course.isEnabled === undefined ? true : course.isEnabled,
@@ -100,6 +101,11 @@ export class CoursesService {
   async list(schoolId: string, sectionId: string, paging: IPaging, byUser: IUserToken) {
     this.authorize(byUser);
     return this.coursesRepo.findManyPage({ schoolId, sectionId }, paging);
+  }
+
+  async getById(schoolId: string, courseId: string, byUser: IUserToken) {
+    this.authorize(byUser, schoolId);
+    return this.coursesRepo.findOne({ _id: courseId, schoolId });
   }
 
   async get(schoolId: string, sectionId: string, courseId: string, byUser: IUserToken) {
@@ -128,10 +134,6 @@ export class CoursesService {
     return this.coursesRepo.delete({ _id: courseId });
   }
 
-  async getAllUsers() {
-    const usersObjs: IUser[] = await this.usersRepo.findMany({});
-    return usersObjs;
-  }
   async enableStudent(requestParam: IUserRequest, byUser: IUserToken) {
     return this.toggleUsers(requestParam, Role.student, true, byUser);
   }
@@ -182,6 +184,42 @@ export class CoursesService {
     return this.dropUsers(requestParams, Role.teacher, byUser);
   }
 
+  async getActiveCourses(userId: string, role?: Role) {
+    if (!role) return [];
+    const courses = await this.coursesRepo.getActiveCoursesForUsers(role, [userId]);
+    if (role === Role.student) {
+      return {
+        courses: courses.map(c => ({ ...c, students: undefined, teachers: undefined }))
+      };
+    }
+    const userIds = courses.map(c =>
+      c.students.filter(s => s.isEnabled && !s.finishDate).map(s => s._id)
+        .concat(c.teachers.filter(t => t.isEnabled && !t.finishDate).map(s => s._id))
+    );
+    const users = await this.usersRepo.findMany({ _id: { $in: ([] as string[]).concat(...userIds) } });
+
+    return {
+      courses: courses.map(c => ({ ...c, students: c.students.map(s => s._id), teachers: c.teachers.map(t => t._id) })),
+      students: users.filter(x => x.role.includes(Role.student)).map(x => ({ _id: x._id, profile: x.profile })),
+      teachers: users.filter(x => x.role.includes(Role.teacher)).map(x => ({ _id: x._id, profile: x.profile }))
+    };
+  }
+
+  public async notifyForUserEnrollment(role: Role, userIds: string[]) {
+    const users: IUser[] = await this.usersRepo.findMany({ _id: { $in: userIds } });
+    const courses: ICourse[] = await this.coursesRepo.getActiveCoursesForUsers(role, userIds);
+    const coursesUpdates = this.transformCoursesToUpdates(courses, role);
+    const events = users.map(user => ({
+      _id: user._id,
+      // tslint:disable-next-line: no-null-keyword
+      schoolId: user.school ? user.school._id : null,
+      status: user.registration ? user.registration.status : (user.school ? Status.active : Status.inactive),
+      courses: coursesUpdates[user._id]
+    }));
+    this._updatesProcessor.sendEnrollmentUpdates(events);
+  }
+
+
   private async enrollUsers(requestParams: IUserRequest[], role: Role, byUser: IUserToken, sameSection = true) {
     this.authorize(byUser);
     const joinDate = new Date();
@@ -190,7 +228,7 @@ export class CoursesService {
   }
 
   private async doEnrollUsers(requests: IUserRequest[], role: Role, joinDate: Date) {
-    const coursesUpdates: any[] = [], sectionsUpdates: any[] = [], allUsersIds: string[] = [];
+    const coursesUpdates: any[] = [], sectionsUpdates: any[] = [];
     for (const request of requests) {
       const { schoolId, sectionId, courseId, usersIds } = request;
       coursesUpdates.push({
@@ -198,17 +236,16 @@ export class CoursesService {
         usersObjs: usersIds.map(_id => <IUserCourseInfo>{ _id, joinDate, isEnabled: true })
       });
       sectionsUpdates.push({ filter: { _id: sectionId, schoolId }, usersIds });
-      allUsersIds.push(...usersIds);
     }
 
-    const coursesRepoWithTransactions = this._uow.getRepository('Courses', true) as CoursesRepository;
-    const sectionsRepoWithTransactions = this._uow.getRepository('Sections', true) as SectionsRepository;
+    const coursesRepoWithTransactions = this._uow.getRepository(Repo.courses, true) as CoursesRepository;
+    const sectionsRepoWithTransactions = this._uow.getRepository(Repo.sections, true) as SectionsRepository;
 
     const result = await coursesRepoWithTransactions.addUsersToCourses(coursesUpdates, role);
     if (role === Role.student) await sectionsRepoWithTransactions.addStudentsToSections(sectionsUpdates);
 
     await this._uow.commit();
-    await this.sendUsersChangesUpdates('enroll', role, allUsersIds);
+    if (result.modifiedCount !== 0) await this.sendUsersChangesUpdates('enroll', role, requests);
     return result;
   }
 
@@ -220,37 +257,36 @@ export class CoursesService {
   }
 
   private async doDropUsers(requests: IUserRequest[], role: Role, finishDate: Date) {
-    const coursesUpdates: any[] = [], allUsersIds: string[] = [];
+    const coursesUpdates: any[] = [];
     for (const request of requests) {
       const { schoolId, sectionId, courseId, usersIds } = request;
       coursesUpdates.push({ filter: { _id: courseId, schoolId, sectionId }, usersIds });
-      allUsersIds.push(...usersIds);
     }
     const result = await this.coursesRepo.finishUsersInCourses(coursesUpdates, role, finishDate);
-    if (result.modifiedCount !== 0) await this.sendUsersChangesUpdates('drop', role, allUsersIds);
+    if (result.modifiedCount !== 0) await this.sendUsersChangesUpdates('drop', role, requests);
     return result;
   }
 
-  private async sendUsersChangesUpdates(action: string, role: Role, usersIds: string[]) {
-    usersIds = Array.from(new Set(usersIds));
+
+
+  private async sendUsersChangesUpdates(action: string, role: Role, requests: IUserRequest[]) {
+    const usersIds = Array.from(new Set(requests.reduce((list, request) => [...list, ...request.usersIds], <string[]>[])));
     const users: IUser[] = await this.usersRepo.findMany({ _id: { $in: usersIds } });
-    const courses: ICourse[] = await this.coursesRepo.getActiveCoursesForStudents(role, usersIds);
-    if (courses.length === 0) throw new AppError('No active course found', `No active course found!`);
+    const courses: ICourse[] = await this.coursesRepo.getActiveCoursesForUsers(role, usersIds);
+    if (courses.length === 0) throw new AppError('no_course_found', `No active course found!`);
     const coursesUpdates = this.transformCoursesToUpdates(courses, role);
-    const now = Date.now();
-    const events = users.map(user => ({
-      event: `${action}_user`,
-      timestamp: now,
-      data: <IUserUpdatedEvent>{
-        _id: user._id, role,
-        schoolId: user.registration.schoolId,
-        status: user.registration.status,
+    const coursesIds = requests.map(request => request.courseId);
+    const events = users.map(user => <IUserUpdatedEvent>{
+      event: action,
+      data: {
+        _id: user._id,
+        // tslint:disable-next-line: no-null-keyword
+        schoolId: user.school ? user.school._id : null,
+        status: user.registration ? user.registration.status : (user.school ? Status.active : Status.inactive),
         courses: coursesUpdates[user._id]
-      },
-      v: '1.0.0',
-      key: user._id
-    }));
-    await this._kafkaService.sendMany(config.kafkaUpdatesTopic, events);
+      }
+    });
+    this._updatesProcessor.sendEnrollmentUpdatesWithActions(events, coursesIds);
   }
 
   private transformCoursesToUpdates(courses: ICourse[], role: Role): { [_id: string]: IUserCourseUpdates[] } {
@@ -262,10 +298,8 @@ export class CoursesService {
           sectionId: course.sectionId,
           grade: course.grade,
           subject: course.subject,
-          curriculum: course.curriculum,
-          joinDate: user.joinDate
+          curriculum: course.curriculum
         };
-        if (user.finishDate) courseUpdates.finishDate = user.finishDate;
         if (user._id in userCoursesUpdates) {
           userCoursesUpdates[user._id].push(courseUpdates);
         } else {
@@ -309,17 +343,17 @@ export class CoursesService {
     const coursesObjs: ICourse[] = await this.coursesRepo.findMany({ _id: { $in: courseIds }, schoolId, ...(sameSection ? { sectionId } : {}) });
     validateAllObjectsExist(coursesObjs, courseIds, schoolId, 'course');
     const userIds: string[] = Array.from(new Set<string>(requestParams.reduce((list, params) => [...list, ...params.usersIds], <any>[])));
-    const usersObjs: IUser[] = await this.usersRepo.findMany({ '_id': { $in: userIds }, 'registration.schoolId': schoolId, role });
+    const usersObjs: IUser[] = await this.usersRepo.findMany({ '_id': { $in: userIds }, 'school._id': schoolId, role });
     validateAllObjectsExist(usersObjs, userIds, schoolId, role);
   }
 
-  protected authorize(byUser: IUserToken) {
+  protected authorize(byUser: IUserToken, schoolId?: string) {
     if (!byUser) throw new ForbiddenError('access token is required!');
-    const isAuthorized = byUser.role.split(',').includes(config.authorizedRole);
-    if (!isAuthorized) throw new UnauthorizedError('you are not authorized!');
-  }
-
-  protected newCourseId(sectionId: string, subject: string, year: string) {
-    return `${sectionId}_${subject}_${year}_${generate('0123456789abcdef', 3)}`.toLocaleLowerCase().replace(/\s/g, '');
+    if (schoolId && byUser.schooluuid === schoolId && byUser.role.includes(Role.teacher)) {
+      return true;
+    } else if (byUser.role.includes(config.authorizedRole)) {
+      return true;
+    }
+    throw new UnauthorizedError('you are not authorized to do this action');
   }
 }

@@ -1,11 +1,13 @@
 import { IConfig } from '../entities/IProvider';
-import { IPackage, IAcademicTermRequest } from '../entities/ISchool';
+import { ILicense } from '../entities/ISchool';
+import { IUpdateAcademicTermRequest } from './ISchoolRequests';
 
 export interface ICreateProviderRequest {
   _id: string;
   config: IConfig;
-  package: IPackage;
-  academicTerm?: IAcademicTermRequest;
+  license: ILicense;
+  location: string;
+  academicTerm?: IUpdateAcademicTermRequest;
 }
 
 export interface IUpdateProviderRequest {

@@ -2,15 +2,11 @@
   "name": "courses",
   "version": "2.0.0",
   "scripts": {
-    "prodstart": "export NODE_ENV=production && npm run start",
-    "stagingstart": "export NODE_ENV=staging && npm run start",
-    "teststart": "export NODE_ENV=test && npm run start",
     "dev": "./node_modules/.bin/nodemon -L -e .ts -w src --exec \"./node_modules/ts-node/dist/bin.js src\"",
     "build": "./node_modules/.bin/tsc --p tsconfig.json",
     "start": "node dist",
-    "prestart": "npm install",
     "pretest": "npm install --registry https://npr.saal.ai",
-    "test": "./node_modules/.bin/nyc ./node_modules/.bin/mocha 'test/**/*.spec.ts'",
+    "test": "NODE_ENV=test ./node_modules/.bin/nyc ./node_modules/.bin/mocha 'test/**/*.spec.ts'",
     "lint": "./node_modules/.bin/tslint src/*/*.ts --format codeframe --project ./tsconfig.json",
     "fix-lint": "./node_modules/.bin/tslint src/*/*.ts --fix",
     "type-check": "./node_modules/.bin/tsc --noEmit"
@@ -18,7 +14,7 @@
   "dependencies": {
     "@saal-oryx/distributed-cache": "^1.0.0",
     "@saal-oryx/message-bus": "^0.0.4",
-    "@saal-oryx/unit-of-work": "^0.5.1",
+    "@saal-oryx/unit-of-work": "^0.5.3",
     "bson": "^4.0.1",
     "continuation-local-storage": "^3.2.1",
     "fastest-validator": "^0.6.17",
@@ -33,8 +29,8 @@
     "nanoid": "^2.0.3",
     "node-gyp": "^6.0.0",
     "node-rdkafka": "^2.7.1-2",
-    "request": "^2.88.0",
     "rebuild": "^0.1.2",
+    "request": "^2.88.0",
     "semver": "^6.3.0"
   },
   "devDependencies": {

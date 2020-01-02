@@ -20,7 +20,7 @@ export class ProvidersController {
 
   async updateAcademics(ctx: Context, next: () => void) {
     const result = await this.providersService.updateAcademicTerm(ctx.request.body, ctx.params.providerId, ctx.user);
-    if (!result)  ctx.status = 400;
+    if (!result) ctx.status = 400;
     ctx.status = 200;
     ctx.body = { result, ok: true };
     ctx.type = 'json';

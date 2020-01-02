@@ -4,7 +4,7 @@ import generate from 'nanoid/non-secure/generate';
 import { IProvider, IAcademicTermRequest, IDeleteProviderAcademicTermRequest } from '../models/entities/IProvider';
 import { ICreateProviderRequest } from '../models/requests/IProviderRequest';
 import { CommandsProcessor } from './CommandsProcessor';
-import { IUnitOfWork, defaultPaging } from '@saal-oryx/unit-of-work';
+import { IUnitOfWork } from '@saal-oryx/unit-of-work';
 import { ProvidersRepository } from '../repositories/ProvidersRepository';
 import { ForbiddenError } from '../exceptions/ForbiddenError';
 import { UnauthorizedError } from '../exceptions/UnauthorizedError';
@@ -12,6 +12,9 @@ import { InvalidRequestError } from '../exceptions/InvalidRequestError';
 import { IAcademicTerm } from '../models/entities/Common';
 import { IUserToken } from '../models/IUserToken';
 import { ConditionalBadRequest } from '../exceptions/ConditionalBadRequest';
+import { IUpdateAcademicTermRequest } from '../models/requests/ISchoolRequests';
+import { newProviderId, newAcademicTermId } from '../utils/IdGenerator';
+import { Repo } from '../repositories/RepoNames';
 
 export class ProvidersService {
 
@@ -19,7 +22,7 @@ export class ProvidersService {
   }
 
   protected get providersRepo() {
-    return this._uow.getRepository('Providers') as ProvidersRepository;
+    return this._uow.getRepository(Repo.providers) as ProvidersRepository;
   }
 
   async add(createObj: ICreateProviderRequest) {
@@ -27,7 +30,7 @@ export class ProvidersService {
     const academicTerms: IAcademicTerm[] = [];
     if (createObj.academicTerm) {
       academicTerms.push({
-        _id: generate('0123456789abcdef', 10),
+        _id: newProviderId(),
         ...createObj.academicTerm
       });
     }
@@ -35,7 +38,8 @@ export class ProvidersService {
     const provider: IProvider = {
       _id: createObj._id,
       config: createObj.config,
-      package: createObj.package,
+      license: createObj.license,
+      location: createObj.location,
       academicTerms
     };
     return this._commandsProcessor.sendCommand('providers', this.doAdd, provider);
@@ -45,10 +49,10 @@ export class ProvidersService {
     return this.providersRepo.add(provider);
   }
 
-  async updateAcademicTerm(updateObj: IAcademicTermRequest, providerId: string, byUser: IUserToken) {
+  async updateAcademicTerm(updateObj: IUpdateAcademicTermRequest, providerId: string, byUser: IUserToken) {
     this.authorize(byUser);
     const academicTerm: IAcademicTerm = {
-      _id: generate('0123456789abcdef', 10),
+      _id: newAcademicTermId(),
       year: updateObj.year,
       term: updateObj.term,
       startDate: new Date(updateObj.startDate),
@@ -68,7 +72,7 @@ export class ProvidersService {
 
   async deleteAcademicTermProvider(requestParams: IDeleteProviderAcademicTermRequest, byUser: IUserToken) {
     this.authorize(byUser);
-    const { _id: providerId, academicTermId } = { ...requestParams };
+    const {  providerId, academicTermId } = { ...requestParams };
     const activeCourses = await this.providersRepo.findMany({ 'academicTerm._id': academicTermId });
     if (activeCourses.length !== 0) {
       const coursesIds = activeCourses.map(course => course._id).join("', '");
@@ -81,9 +85,9 @@ export class ProvidersService {
     return this.providersRepo.deleteAcademicTermProvider(_id, academicTermId);
   }
 
-  private authorize(byUser: IUserToken) {
+  protected authorize(byUser: IUserToken) {
     if (!byUser) throw new ForbiddenError('access token is required!');
-    const isAuthorized = byUser.role.split(',').includes(config.authorizedRole);
-    if (!isAuthorized) throw new UnauthorizedError('you are not authorized!');
+    if (byUser.role.includes(config.authorizedRole)) return true;
+    throw new UnauthorizedError('you are not authorized to do this action');
   }
 }

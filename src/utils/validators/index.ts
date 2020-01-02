@@ -3,12 +3,13 @@ import {
   validateUpdateSchool,
   validateUpdateSchoolAcademicTerm,
   validateUpdateSchoolUsers,
-  validateDeleteSchoolUsers
+  validateDeleteSchoolUsers,
+  validateUserRegisteration
 } from './SchoolsSchema';
 import { validateCreateSection } from './SectionsSchema';
 import { validateCreateCourse, validateUpdateCourse } from './CoursesSchema';
 import { validateCreateLicense } from './LicenseSchema';
-import { validateCreateUser } from './UserSchema';
+import { validateMigrateUser, validateRegisterUser, validateUpdateUser } from './UserSchema';
 import { validateCreateInviteCode } from './InviteCodeSchema';
 import { validateCreateProvider, validateUpdateProviderAcademicTerm } from './ProvidersSchema';
 import {
@@ -25,7 +26,9 @@ const validators = {
   validateCreateLicense,
   validateCreateSection,
   validateCreateCourse,
-  validateCreateUser,
+  validateRegisterUser,
+  validateMigrateUser,
+  validateUpdateUser,
   validateUpdateCourse,
   validateUpdateSchoolAcademicTerm,
   validateUpdateSchoolUsers,
@@ -37,6 +40,7 @@ const validators = {
   validateTeachersObjects,
   validateTeachersSwitch,
   validateCreateInviteCode,
+  validateUserRegisteration,
   validateCreateProvider,
   validateUpdateProviderAcademicTerm
 };

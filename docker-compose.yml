@@ -6,8 +6,8 @@ services:
       PORT: 80
       # NODE_ENV: production # to test production builds enable this.
       KAFKA_TOPIC: rewards
-      MONGO_DB_URL: mongodb://courses-mongodb:27017/saale-courses
-      IRP_URL: http://internal-dev3-saale.saal.ai:30307
+      # IRP_URL: http://internal-dev3-saale.saal.ai:30307
+      MONGO_DB_URL: mongodb://courses-mongodb:27017/saale-courses?replicaSet=rs0
       KAFKA_BROKERS: kafka:9092
       REDIS_PORT: 6379
       REDIS_HOST: courses-redis
@@ -21,9 +21,10 @@ services:
     depends_on:
       - courses-mongodb
       - kafka
+      - courses-redis
 
   courses-mongodb:
-    image: mongo:4.2-rc
+    image: mongo:4.2
     environment:
       MONGO_DATA_DIR: /data/db
       MONGO_LOG_DIR: /dev/null
@@ -31,11 +32,20 @@ services:
       - courses-mongodb-volume:/data/db
     ports:
       - 21017:27017
-    command:
-      - mongod
+    command: ["--replSet", "rs0"]
+    #
+    # Use this command to initalize db
+    #
+    # rs.initiate({
+    #   _id: "rs0",
+    #   protocolVersion: 1,
+    #   members: [
+    #      { _id: 0, host : "courses-mongodb:27017" }
+    #   ]
+    # })
 
   zoo-keeper:
-    image: wurstmeister/zookeeper
+    image: scr.saal.ai/zookeeper:3.4.9
     ports:
       - "2181:2181"
     environment:
@@ -47,14 +57,14 @@ services:
       - zoo-keeper-datalog-volume:/datalog
 
   kafka:
-    image: wurstmeister/kafka
+    image: scr.saal.ai/kafka:1.1.0
     ports:
       - "9092:9092"
       - "9094:9094"
     environment:
       HOSTNAME_COMMAND: "docker info | grep ^Name: | cut -d' ' -f 2"
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
-      KAFKA_ADVERTISED_LISTENERS: INSIDE://:9092,OUTSIDE://192.168.140.129:9094
+      KAFKA_ADVERTISED_LISTENERS: INSIDE://:9092,OUTSIDE://localhost:9094
       KAFKA_LISTENERS: INSIDE://:9092,OUTSIDE://:9094
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INSIDE:PLAINTEXT,OUTSIDE:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: INSIDE

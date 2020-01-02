@@ -7,7 +7,7 @@ import { getDbClient } from '../../utils/getDbClient';
 import { UnitOfWork } from '@saal-oryx/unit-of-work';
 import { getFactory } from '../../repositories/RepositoryFactory';
 import { IAppEvent } from '../../models/events/IAppEvent';
-import { CommandsProcessor } from '../CommandsProcessor';
+import { KafkaService } from '../KafkaService';
 
 const logger = loggerFactory.getLogger('IRPStream');
 
@@ -16,9 +16,9 @@ export class IRPStream {
   protected _stream: KStream;
   protected _failuresStream: KStream;
 
-  protected _services = new Map<string, UsersService>();
+  protected _usersService?: UsersService;
 
-  constructor(protected _kafkaStreams: KafkaStreams, protected _commandsProcessor: CommandsProcessor) {
+  constructor(protected _kafkaStreams: KafkaStreams, protected _kafkaService: KafkaService) {
     logger.debug('Init ...');
     this._stream = _kafkaStreams.getKStream(config.kafkaIRPTopic);
     this._failuresStream = _kafkaStreams.getKStream(`${config.kafkaIRPTopic}_irp_db_failed`);
@@ -27,7 +27,7 @@ export class IRPStream {
   async start() {
     const client = await getDbClient();
     const uow = new UnitOfWork(client, getFactory(), { useTransactions: false });
-    this._services.set('users', new UsersService(uow, this._commandsProcessor));
+    this._usersService = new UsersService(uow, this._kafkaService);
     return Promise.all([this.rawStart(), this.failuresStart()]);
   }
 
@@ -82,11 +82,16 @@ export class IRPStream {
     try {
       const appEvent: IAppEvent = message.value;
       if (!appEvent || !appEvent.data) return;
+      if (!this._usersService) return;
 
-      const [functionName, serviceName] = appEvent.event.split('_');
-      const service = this._services.get(serviceName);
-      if (!service || !service[functionName]) return;
-      await service[functionName](appEvent.data);
+      switch (appEvent.event) {
+        case 'user_created':
+          await this._usersService.signup(appEvent.data);
+          break;
+        case 'user_updated':
+          await this._usersService.update(appEvent.data);
+          break;
+      }
       return;
     } catch (err) {
       logger.error('Processing Error', JSON.stringify(err), err);

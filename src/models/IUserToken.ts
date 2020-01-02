@@ -9,7 +9,7 @@ export interface IUserToken {
   key: string;
   aud: string;
   avatar: string;
-  role: string;
+  role: string[];
   curriculum: string;
   grade: string;
   schooluuid: string;
@@ -17,6 +17,8 @@ export interface IUserToken {
   sectionuuid: string;
   sectionname: string;
   fullname: string;
+  status: string;
+  courses: any[];
 }
 
 export interface IUserProfile {

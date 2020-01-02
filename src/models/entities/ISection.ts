@@ -5,4 +5,5 @@ export interface ISection extends IAuditable {
   schoolId: string;
   grade: string;
   students: string[];
+  providerLinks: string[];
 }

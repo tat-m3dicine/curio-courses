@@ -6,6 +6,10 @@ export interface ISchool extends IAuditable {
   license?: ILicense;
   academicTerms: IAcademicTerm[];
   users: ISchoolUserPermissions[];
+  provider?: {
+    _id: string;
+    links: string[];
+  };
 }
 
 export interface ISchoolUserPermissions {
@@ -40,16 +44,8 @@ export interface IPackage {
 }
 
 export enum SignupMethods {
-  invite_codes = 'invite_codes',
+  inviteCodes = 'invite_codes',
+  provider = 'provider',
   manual = 'manual',
   auto = 'auto'
-}
-
-export interface IAcademicTermRequest {
-  year: string;
-  term: string;
-  startDate: Date;
-  endDate: Date;
-  gracePeriod: number;
-  isEnabled: boolean;
 }
