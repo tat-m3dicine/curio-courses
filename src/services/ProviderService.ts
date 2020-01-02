@@ -89,11 +89,11 @@ export class ProvidersService {
 
   async deleteProvider(providerId: string, byUser: IUserToken) {
     this.authorize(byUser);
-    const providerObj = await this.get(providerId, byUser);
+    const providerObj = await this.findProvider(providerId);
     if (!providerObj) throw new NotFoundError('Unable to Find the provider');
-    const academicTermIds = providerObj.academicTerms ? providerObj.academicTerms.filter(academicTerm => academicTerm._id).map(s => s._id) : undefined;
+    const academicTermIds = providerObj.academicTerms ? providerObj.academicTerms.map(academicTerm => academicTerm._id) : undefined;
     if (academicTermIds) {
-    const activeCourses = await this.coursesRepo.findMany({ 'academicTerm._id': { $in: ([] as string[]).concat(...academicTermIds)} });
+    const activeCourses = await this.coursesRepo.findMany({ 'academicTerm._id': { $in: academicTermIds} });
     if (activeCourses.length !== 0) {
       const coursesIds = activeCourses.map(course => course._id).join("', '");
       throw new ConditionalBadRequest(`Unable to delete the Academic Term because ['${coursesIds}'] are active within.`);
@@ -111,9 +111,12 @@ export class ProvidersService {
 
   async get(providerId: string, byUser: IUserToken) {
     this.authorize(byUser);
-    return this.providersRepo.findById(providerId);
+    return this.findProvider(providerId);
   }
 
+  async findProvider(providerId: string) {
+    return this.providersRepo.findById(providerId);
+  }
   protected authorize(byUser: IUserToken) {
     if (!byUser) throw new ForbiddenError('access token is required!');
     if (byUser.role.includes(config.authorizedRole)) return true;
