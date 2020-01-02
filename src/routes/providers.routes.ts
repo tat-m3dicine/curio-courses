@@ -19,6 +19,10 @@ export default (commandsProccessor: CommandsProcessor) => {
       const controller = new ProvidersController(new ProvidersService(ctx.uow, commandsProccessor));
       return controller.deleteAcademicProviders(ctx, next);
     })
+    .delete('/:providerId', (ctx: Koa.Context, next: () => void) => {
+      const controller = new ProvidersController(new ProvidersService(ctx.uow, commandsProccessor));
+      return controller.deleteProvider(ctx, next);
+    })
     .get('/:providerId', (ctx: Koa.Context, next: () => void) => {
       const controller = new ProvidersController(new ProvidersService(ctx.uow, commandsProccessor));
       return controller.get(ctx, next);

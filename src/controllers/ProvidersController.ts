@@ -33,6 +33,13 @@ export class ProvidersController {
     ctx.type = 'json';
   }
 
+  async deleteProvider(ctx: Context, next: () => void) {
+    const result = await this.providersService.deleteProvider(ctx.params.providerId, ctx.user);
+    ctx.status = result.done ? 201 : 202;
+    ctx.body = { result, ok: true };
+    ctx.type = 'json';
+  }
+
   async get(ctx: Context, next: () => void) {
     const result = await this.providersService.get(ctx.params.providerId, ctx.user);
     ctx.status = 200;
