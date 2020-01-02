@@ -29,7 +29,7 @@ export class CoursesController {
     const { schoolId, sectionId } = ctx.params;
     const result = await this.coursesService.list(schoolId, sectionId, this.extractPaging(ctx.query), ctx.user);
     ctx.status = 200;
-    ctx.body = { ok: true, result };
+    ctx.body = result;
     ctx.type = 'json';
   }
 
@@ -38,7 +38,7 @@ export class CoursesController {
     const result = await this.coursesService.get(schoolId, sectionId, courseId, ctx.user);
     if (!result) throw new NotFoundError(`Couldn't find course '${courseId}' in section '${sectionId}'`);
     ctx.status = 200;
-    ctx.body = { ok: true, result };
+    ctx.body = result;
     ctx.type = 'json';
   }
 
@@ -47,7 +47,7 @@ export class CoursesController {
     const result = await this.coursesService.getById(schoolId, courseId, ctx.user);
     if (!result) throw new NotFoundError(`Couldn't find course '${courseId}'`);
     ctx.status = 200;
-    ctx.body = { ok: true, result };
+    ctx.body = result;
     ctx.type = 'json';
   }
 
