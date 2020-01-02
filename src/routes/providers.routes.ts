@@ -12,12 +12,16 @@ export default (commandsProccessor: CommandsProcessor) => {
       return controller.create(ctx, next);
     })
     .post('/:providerId/academics', (ctx: Koa.Context, next: () => void) => {
-        const controller = new ProvidersController(new ProvidersService(ctx.uow, commandsProccessor));
-        return controller.updateAcademics(ctx, next);
-      })
-      .delete('/:providerId/academics/:academicTermId', (ctx: Koa.Context, next: () => void) => {
-        const controller = new ProvidersController(new ProvidersService(ctx.uow, commandsProccessor));
-        return controller.deleteAcademicProviders(ctx, next);
-      });
+      const controller = new ProvidersController(new ProvidersService(ctx.uow, commandsProccessor));
+      return controller.updateAcademics(ctx, next);
+    })
+    .delete('/:providerId/academics/:academicTermId', (ctx: Koa.Context, next: () => void) => {
+      const controller = new ProvidersController(new ProvidersService(ctx.uow, commandsProccessor));
+      return controller.deleteAcademicProviders(ctx, next);
+    })
+    .get('/:providerId', (ctx: Koa.Context, next: () => void) => {
+      const controller = new ProvidersController(new ProvidersService(ctx.uow, commandsProccessor));
+      return controller.get(ctx, next);
+    });
   return providerRoutes;
 };

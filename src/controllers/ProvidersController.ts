@@ -33,6 +33,13 @@ export class ProvidersController {
     ctx.type = 'json';
   }
 
+  async get(ctx: Context, next: () => void) {
+    const result = await this.providersService.get(ctx.params.providerId, ctx.user);
+    ctx.status = 200;
+    ctx.body = result;
+    ctx.type = 'json';
+  }
+
   extractPaging(object: any) {
     const { index, size } = object;
     let parsedIndex = parseInt(index);

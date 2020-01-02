@@ -85,6 +85,11 @@ export class ProvidersService {
     return this.providersRepo.deleteAcademicTermProvider(_id, academicTermId);
   }
 
+  async get(providerId: string, byUser: IUserToken) {
+    this.authorize(byUser);
+    return this.providersRepo.findById(providerId);
+  }
+
   protected authorize(byUser: IUserToken) {
     if (!byUser) throw new ForbiddenError('access token is required!');
     if (byUser.role.includes(config.authorizedRole)) return true;
