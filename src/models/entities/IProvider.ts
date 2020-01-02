@@ -14,3 +14,18 @@ export interface IConfig {
   autoCreateSection: boolean;
   autoCreateCourse: boolean;
 }
+
+export interface IAcademicTermRequest {
+  year: string;
+  term: string;
+  startDate: Date;
+  endDate: Date;
+  gracePeriod: number;
+  isEnabled: boolean;
+}
+
+export interface IDeleteProviderAcademicTermRequest {
+  providerId: string;
+  academicTermId: string;
+}
+

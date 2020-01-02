@@ -10,6 +10,7 @@ import { CommandsProcessor } from '../CommandsProcessor';
 import { SchoolsService } from '../SchoolsService';
 import { SectionsService } from '../SectionsService';
 import { CoursesService } from '../CoursesService';
+import { ProvidersService } from '../ProviderService';
 import { ServerError } from '../../exceptions/ServerError';
 import { AppError } from '../../exceptions/AppError';
 import { InvalidRequestError } from '../../exceptions/InvalidRequestError';
@@ -42,6 +43,7 @@ export class CommandsStream {
     services.set('sections', new SectionsService(uow, this._commandsProcessor));
     services.set('courses', new CoursesService(uow, this._commandsProcessor, this._updatesProcessor));
     services.set('inviteCodes', new InviteCodesService(uow, this._commandsProcessor));
+    services.set('providers', new ProvidersService(uow, this._commandsProcessor));
     return { services, uow };
   }
 
