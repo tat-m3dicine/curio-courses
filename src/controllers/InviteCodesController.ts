@@ -31,7 +31,7 @@ export class InviteCodesController {
   async list(ctx: Context, next: () => void) {
     const result = await this.inviteCodesService.list(ctx.params.schoolId, this.extractPaging(ctx.query), ctx.user);
     ctx.status = 200;
-    ctx.body = { ok: true, result };
+    ctx.body = result;
     ctx.type = 'json';
   }
 
@@ -40,7 +40,7 @@ export class InviteCodesController {
     const result = await this.inviteCodesService.get(schoolId, codeId, ctx.user);
     if (!result) throw new NotFoundError(`Couldn't find invite code '${codeId}' in school '${schoolId}'`);
     ctx.status = 200;
-    ctx.body = { ok: true, result };
+    ctx.body = result;
     ctx.type = 'json';
   }
 

@@ -26,7 +26,7 @@ export class SectionsController {
   async list(ctx: Context, next: () => void) {
     const result = await this.sectionsService.list(ctx.params.schoolId, this.extractPaging(ctx.query), ctx.user);
     ctx.status = 200;
-    ctx.body = { ok: true, result };
+    ctx.body = result;
     ctx.type = 'json';
   }
 
@@ -35,7 +35,7 @@ export class SectionsController {
     const result = await this.sectionsService.get(schoolId, sectionId, ctx.user);
     if (!result) throw new NotFoundError(`Couldn't find section '${sectionId}' in school '${schoolId}'`);
     ctx.status = 200;
-    ctx.body = { ok: true, result };
+    ctx.body = result;
     ctx.type = 'json';
   }
 
@@ -52,7 +52,7 @@ export class SectionsController {
     const result = await this.sectionsService.getStudents(schoolId, sectionId, ctx.user);
     if (!result) throw new NotFoundError(`Couldn't find section '${sectionId}' of '${schoolId}' school`);
     ctx.status = 200;
-    ctx.body = { ok: true, result };
+    ctx.body = result;
     ctx.type = 'json';
   }
 
