@@ -134,12 +134,9 @@ export class MigrationScripts {
     const client = await getDbClient();
     const uow = new UnitOfWork(client, getFactory(), { useTransactions: false });
 
-    requests = requests.filter(request => {
-      return validators.validateMigrateUser(request);
-    });
     const users: IUser[] = requests.map(user => ({
       _id: user._id,
-      role: [user.role.toLowerCase()],
+      role: [Role.student],
       profile: {
         name: user.name,
         avatar: user.avatar
