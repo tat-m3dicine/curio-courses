@@ -31,17 +31,10 @@ let server: import('http').Server;
 
   // Singletons ...
   const kafkaService = new KafkaService();
-  try {
-    await kafkaService.createTopics();
-  } catch (err) {
-    logger.warn('createTopics', err);
-  }
-
   // Stream
   const updatesProcessor = new UpdatesProcessor(kafkaService);
   const commandsProcessor = new CommandsProcessor(kafkaService);
   const streamsProcessor = new StreamsProcessor(updatesProcessor, commandsProcessor, kafkaService);
-  await streamsProcessor.start();
 
   app.proxy = true;
   app.use(loggerHandler);
@@ -52,22 +45,6 @@ let server: import('http').Server;
 
   // Unit of work
   app.use(getUnitOfWorkHandler());
-
-  // Migration
-  if (config.irpUrl) {
-    try {
-      const migateUsers = new MigrationScripts(updatesProcessor, commandsProcessor);
-      await migateUsers.migrateIRPSchools();
-      await migateUsers.migrateIRPUsersAndSections();
-      await migateUsers.migrateTeachers();
-    } catch (err) {
-      logger.error('Migration errors', err);
-    }
-  }
-
-  server = app.listen(config.port, () => {
-    logger.info(`application is listening on port ${config.port} ...`);
-  });
 
   // Token Parser ...
   app.use(tokenHandler);
@@ -86,6 +63,29 @@ let server: import('http').Server;
   app.on('error', err => {
     logger.error('app_error', err);
   });
+
+  server = app.listen(config.port, () => {
+    logger.info(`application is listening on port ${config.port} ...`);
+  });
+
+  try {
+
+    await kafkaService.createTopics();
+
+    // Migration
+    if (config.irpUrl) {
+      const migateUsers = new MigrationScripts(updatesProcessor, commandsProcessor);
+      await migateUsers.migrateIRPSchools();
+      await migateUsers.migrateIRPUsersAndSections();
+      await migateUsers.migrateTeachers();
+    }
+
+    // Stream starting ...
+    await streamsProcessor.start();
+
+  } catch (err) {
+    logger.error('Background Proccesses Error', err);
+  }
 
 })().catch((err) => {
   if (server && server.listening) server.close();

@@ -46,7 +46,12 @@ export class IRPStream {
       })
       .filter(v => v)
       .to(`${config.kafkaIRPTopic}_irp_db_failed`);
-    return this._stream.start();
+    return this._stream.start(
+      () => {
+        logger.info('Raw Stream Ready ...');
+      }, (error) => {
+        logger.error('Raw Stream Error', error);
+      });;
   }
 
   protected async failuresStart() {
@@ -75,7 +80,12 @@ export class IRPStream {
         return fromPromise(result);
       })
       .to(`${config.kafkaIRPTopic}_irp_db_failed`);
-    return this._failuresStream.start();
+    return this._failuresStream.start(
+      () => {
+        logger.info('Failure Stream Ready ...');
+      }, (error) => {
+        logger.error('Failure Stream Error', error);
+      });
   }
 
   protected async process(message: { value: any, partition: number, offset: number, topic: string }) {
