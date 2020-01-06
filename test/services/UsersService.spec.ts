@@ -9,7 +9,7 @@ import { UsersService } from '../../src/services/UsersService';
 import { KafkaService } from '../../src/services/KafkaService';
 import { Repo } from '../../src/repositories/RepoNames';
 import { Status } from '../../src/models/entities/IUser';
-import { getTestData, Test } from '../getTestData';
+import { getTestData, Test } from '../mockdata/getTestData';
 import { SignupMethods } from '../../src/models/entities/ISchool';
 import { IInviteCode } from '../../src/models/entities/IInviteCode';
 import { ISignupRequest } from '../../src/models/entities/IIRP';
