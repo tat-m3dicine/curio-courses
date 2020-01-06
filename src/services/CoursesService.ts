@@ -185,7 +185,7 @@ export class CoursesService {
   }
 
   async getActiveCourses(userId: string, role?: Role) {
-    if (!role) return [];
+    if (!role) return { courses: [], sections: [] };
     const courses = await this.coursesRepo.getActiveCoursesForUsers(role, [userId]);
     if (role === Role.student) {
       return {
@@ -197,11 +197,13 @@ export class CoursesService {
         .concat(c.teachers.filter(t => t.isEnabled && !t.finishDate).map(s => s._id))
     );
     const users = await this.usersRepo.findMany({ _id: { $in: ([] as string[]).concat(...userIds) } });
+    const sections = await this.sectionsRepo.findMany({ _id: { $in: courses.map(c => c.sectionId) } });
 
     return {
-      courses: courses.map(c => ({ ...c, students: c.students.map(s => s._id), teachers: c.teachers.map(t => t._id) })),
+      courses: courses.map(course => ({ ...course, students: course.students.map(s => s._id), teachers: course.teachers.map(teacher => teacher._id) })),
       students: users.filter(x => x.role.includes(Role.student)).map(x => ({ _id: x._id, profile: x.profile })),
-      teachers: users.filter(x => x.role.includes(Role.teacher)).map(x => ({ _id: x._id, profile: x.profile }))
+      teachers: users.filter(x => x.role.includes(Role.teacher)).map(x => ({ _id: x._id, profile: x.profile })),
+      sections: sections.map(section => ({ _id: section._id, locales: section.locales }))
     };
   }
 

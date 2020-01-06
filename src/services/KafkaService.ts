@@ -1,7 +1,8 @@
-import { Kafka, Producer } from 'kafkajs';
+import { Kafka, Producer, logLevel } from 'kafkajs';
 import nanoid from 'nanoid';
 import config from '../config';
 import { IAppEvent } from '../models/events/IAppEvent';
+import loggerFactory from '../utils/logging';
 
 export class KafkaService {
   protected _kafka: Kafka;
@@ -12,7 +13,21 @@ export class KafkaService {
       brokers: config.kafkaBrokers,
       clientId: config.kafkaClientId,
       retry: {
-        retries: 10
+        retries: 6,
+      },
+      logCreator: (level) => {
+        const maxLogLevel: logLevel = parseInt(level);
+        const logger = loggerFactory.getLogger('KafkaService');
+        return (entry) => {
+          if (entry.level > maxLogLevel) return;
+          switch (entry.level) {
+            case logLevel.ERROR: return logger.error(entry.label, entry.log);
+            case logLevel.INFO: return logger.info(entry.label, entry.log);
+            case logLevel.WARN: return logger.warn(entry.label, entry.log);
+            case logLevel.DEBUG: return logger.debug(entry.label, entry.log);
+            default: return logger.info(entry.label, entry.log);
+          }
+        };
       }
     });
     this._producer = this._kafka.producer({
