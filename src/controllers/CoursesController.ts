@@ -25,6 +25,14 @@ export class CoursesController {
     ctx.type = 'json';
   }
 
+  async listWithSections(ctx: Context, next: () => void) {
+    const { schoolId } = ctx.params;
+    const result = await this.coursesService.listWithSections(schoolId, ctx.user);
+    ctx.status = 200;
+    ctx.body = result;
+    ctx.type = 'json';
+  }
+
   async list(ctx: Context, next: () => void) {
     const { schoolId, sectionId } = ctx.params;
     const result = await this.coursesService.list(schoolId, sectionId, this.extractPaging(ctx.query), ctx.user);

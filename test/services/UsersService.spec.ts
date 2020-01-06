@@ -16,6 +16,8 @@ import { ISignupRequest } from '../../src/models/entities/IIRP';
 import { IProvider } from '../../src/models/entities/IProvider';
 import { IUserUpdatedData } from '../../src/models/events/IUserUpdatedEvent';
 import { Role } from '../../src/models/Role';
+import { NotFoundError } from '../../src/exceptions/NotFoundError';
+import { InvalidRequestError } from '../../src/exceptions/InvalidRequestError';
 
 const unitOfWorkStub = sinon.spy(() => sinon.createStubInstance(UnitOfWork));
 const kafkaServiceStub = sinon.spy(() => sinon.createStubInstance(KafkaService));
@@ -225,7 +227,7 @@ describe('Users Service', () => {
       try {
         await usersService.signup(request);
       } catch (error) {
-        expect(error.type).equals('resource_not_found');
+        expect(error).instanceOf(NotFoundError);
       }
     });
 
@@ -236,7 +238,7 @@ describe('Users Service', () => {
       try {
         await usersService.signup(request);
       } catch (error) {
-        expect(error.type).equals('invalid_request');
+        expect(error).instanceOf(InvalidRequestError);
       }
     });
   });

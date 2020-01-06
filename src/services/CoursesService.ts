@@ -98,6 +98,13 @@ export class CoursesService {
     return this.coursesRepo.add(course);
   }
 
+  async listWithSections(schoolId: string, byUser: IUserToken) {
+    this.authorize(byUser);
+    const sections = await this.sectionsRepo.findMany({ schoolId }, { students: 0 });
+    const courses = await this.coursesRepo.getActiveCoursesForSchool(schoolId, { students: 0, teachers: 0 });
+    return { sections, courses };
+  }
+
   async list(schoolId: string, sectionId: string, paging: IPaging, byUser: IUserToken) {
     this.authorize(byUser);
     return this.coursesRepo.findManyPage({ schoolId, sectionId }, paging);
