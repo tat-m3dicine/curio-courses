@@ -201,8 +201,8 @@ export class CoursesService {
 
     return {
       courses: courses.map(course => ({ ...course, students: course.students.map(s => s._id), teachers: course.teachers.map(teacher => teacher._id) })),
-      students: users.filter(x => x.role.includes(Role.student)).map(x => ({ _id: x._id, profile: x.profile })),
-      teachers: users.filter(x => x.role.includes(Role.teacher)).map(x => ({ _id: x._id, profile: x.profile })),
+      students: users.filter(student => student.role.includes(Role.student)).map(student => ({ _id: student._id, profile: student.profile })),
+      teachers: users.filter(teacher => teacher.role.includes(Role.teacher)).map(teacher => ({ _id: teacher._id, profile: teacher.profile })),
       sections: sections.map(section => ({ _id: section._id, locales: section.locales }))
     };
   }
