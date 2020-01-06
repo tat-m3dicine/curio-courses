@@ -1,6 +1,5 @@
 import config from '../config';
 import validators from '../utils/validators';
-import generate from 'nanoid/non-secure/generate';
 import { IProvider, IAcademicTermRequest, IDeleteProviderAcademicTermRequest } from '../models/entities/IProvider';
 import { ICreateProviderRequest } from '../models/requests/IProviderRequest';
 import { CommandsProcessor } from './CommandsProcessor';
@@ -52,7 +51,7 @@ export class ProvidersService {
   }
 
   private async doAdd(provider: IProvider) {
-    return this.providersRepo.add(provider);
+   return this.providersRepo.add(provider);
   }
 
   async updateAcademicTerm(updateObj: IUpdateAcademicTermRequest, providerId: string, byUser: IUserToken) {
