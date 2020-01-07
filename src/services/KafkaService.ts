@@ -52,7 +52,7 @@ export class KafkaService {
   }
 
   async send(topic: string, event: IAppEvent) {
-    this.sendMany(topic, [event]);
+    return this.sendMany(topic, [event]);
   }
 
   async sendMany(topic: string, events: IAppEvent[]) {
