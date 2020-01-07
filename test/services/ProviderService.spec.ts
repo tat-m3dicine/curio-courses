@@ -16,7 +16,7 @@ import { UpdatesProcessor } from '../../src/services/UpdatesProcessor';
 import { CommandsProcessor } from '../../src/services/CommandsProcessor';
 import { IUserToken } from '../../src/models/IUserToken';
 import { ICreateProviderRequest } from '../../src/models/requests/IProviderRequest';
-import { getTestData, Test } from '../getTestData';
+import { getTestData, Test } from '../mockData/getTestData';
 import { IAcademicTerm } from '../../src/models/entities/Common';
 import { IUpdateAcademicTermRequest } from '../../src/models/requests/ISchoolRequests';
 import { IDeleteProviderAcademicTermRequest, IProvider } from '../../src/models/entities/IProvider';

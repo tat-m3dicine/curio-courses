@@ -40,7 +40,7 @@ export class SectionsService {
   async create(section: ICreateSectionRequest, byUser: IUserToken) {
     this.authorize(byUser);
     const { schoolId, locales, grade, students } = section;
-    if (students) {
+    if (students) { 
       await this.validateStudentsInSchool(students, schoolId);
     }
     await this.validateWithSchoolLicense(grade, schoolId);

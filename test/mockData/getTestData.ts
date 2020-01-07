@@ -1,5 +1,5 @@
-import { SignupMethods } from '../src/models/entities/ISchool';
-import { ICreateSchoolRequest } from '../src/models/requests/ISchoolRequests';
+import { SignupMethods } from '../../src/models/entities/ISchool';
+import { ICreateSchoolRequest } from '../../src/models/requests/ISchoolRequests';
 
 export const getTestData = (type: Test, override = {}, inviteCode = true) => {
   let data = <any>{ ...dataMap[type], ...override };

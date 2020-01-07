@@ -11,7 +11,7 @@ import { Repo } from '../../src/repositories/RepoNames';
 import { CommandsProcessor } from '../../src/services/CommandsProcessor';
 import { IUserToken } from '../../src/models/IUserToken';
 import config from '../../src/config';
-import { schoolRequest } from '../getTestData';
+import { schoolRequest } from '../mockData/getTestData';
 
 const unitOfWorkStub = sinon.spy(() => sinon.createStubInstance(UnitOfWork));
 const kafkaServiceStub = sinon.spy(() => sinon.createStubInstance(KafkaService));
