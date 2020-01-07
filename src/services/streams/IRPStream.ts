@@ -51,7 +51,7 @@ export class IRPStream {
         logger.info('Raw Stream Ready ...');
       }, (error) => {
         logger.error('Raw Stream Error', error);
-      });;
+      });
   }
 
   protected async failuresStart() {
