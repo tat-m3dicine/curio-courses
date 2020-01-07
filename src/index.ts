@@ -6,6 +6,7 @@ import {
   tokenHandler,
   errorHandler,
   healthCheckHandler,
+  corsHandler
 } from './utils/middlewares';
 import { loggerHandler } from './utils/middlewares/loggerHandler';
 import { getUnitOfWorkHandler } from './utils/middlewares/unitOfWorkHandler';
@@ -39,6 +40,7 @@ let server: import('http').Server;
   app.proxy = true;
   app.use(loggerHandler);
   app.use(healthCheckHandler);
+  app.use(corsHandler);
 
   // Error Handler!
   app.use(errorHandler);
