@@ -21,6 +21,8 @@ import { CommandsProcessor } from './services/CommandsProcessor';
 import { StreamsProcessor } from './services/streams/StreamsProcessor';
 import { UpdatesProcessor } from './services/UpdatesProcessor';
 import meRoutes from './routes/me.routes';
+import { createRedisBus } from '@saal-oryx/message-bus';
+import nanoid from 'nanoid';
 
 const logger = loggerFactory.getLogger('Index');
 
@@ -32,9 +34,13 @@ let server: import('http').Server;
 
   // Singletons ...
   const kafkaService = new KafkaService();
+  const commandsBus = createRedisBus(nanoid(10), {
+    host: config.redisHost,
+    port: config.redisPort
+  });
   // Stream
   const updatesProcessor = new UpdatesProcessor(kafkaService);
-  const commandsProcessor = new CommandsProcessor(kafkaService);
+  const commandsProcessor = new CommandsProcessor(kafkaService, commandsBus);
   const streamsProcessor = new StreamsProcessor(updatesProcessor, commandsProcessor, kafkaService);
 
   app.proxy = true;
