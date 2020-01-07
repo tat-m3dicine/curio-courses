@@ -1,9 +1,9 @@
 import 'mocha';
 import sinon from 'sinon';
-import chai from 'chai';
+import chai, { expect } from 'chai';
 chai.use(require('sinon-chai'));
-const expect = chai.expect;
 
+import { tryAndExpect } from '../tryAndExpect';
 import { UnitOfWork, IPaging } from '@saal-oryx/unit-of-work';
 import { CoursesService } from '../../src/services/CoursesService';
 import { Repo } from '../../src/repositories/RepoNames';
@@ -47,14 +47,6 @@ const request: ICreateCourseRequest = {
   grade: '4',
   students: [],
   teachers: []
-};
-
-const tryAndExpect = async (testFunction: () => Promise<any>, errorType: any) => {
-  try {
-    await testFunction();
-  } catch (error) {
-    expect(error).instanceOf(errorType);
-  }
 };
 
 // tslint:disable-next-line: no-big-function
@@ -174,7 +166,14 @@ describe('Courses Service', () => {
   });
 
   describe('Course Retrieval and Updates', () => {
-    it('should succeed to list available courses in specified school and section', async () => {
+    it('should succeed to list active courses and sections in specified school', async () => {
+      repositoryReturns(Repo.sections, { findMany: () => true });
+      repositoryReturns(Repo.courses, { getActiveCoursesForSchool: () => true });
+      const result = await _coursesService.listWithSections(course.schoolId, token);
+      expect(result).to.deep.equal({ courses: true, sections: true });
+    });
+
+    it('should succeed to list available courses in specified school', async () => {
       repositoryReturns(Repo.courses, { findManyPage: ({ schoolId, sectionId }) => [{ _id: course._id, schoolId, sectionId }] });
       const result = await _coursesService.list(course.schoolId, course.sectionId, <IPaging>{}, token);
       expect(result).to.deep.equal([course]);
@@ -235,13 +234,23 @@ describe('Courses Service', () => {
     });
 
     it('should succeed to get active courses for specified teacher', async () => {
-      repositoryReturns(Repo.courses, { getActiveCoursesForUsers: () => [{ ...course, students: [], teachers: [] }] });
+      const user = { _id: 'user1', isEnabled: true };
+      repositoryReturns(Repo.courses, { getActiveCoursesForUsers: () => [{ ...course, students: [user], teachers: [user] }] });
       repositoryReturns(Repo.sections, { findMany: () => [{}] });
       repositoryReturns(Repo.users, { findMany: () => [{ role: Role.student }, { role: Role.teacher }] });
       const result = await _coursesService.getActiveCourses('teacher1', Role.teacher);
       expect(result.courses).to.have.lengthOf(1);
       expect(result.students).to.have.lengthOf(1);
       expect(result.teachers).to.have.lengthOf(1);
+    });
+
+    it('should succeed to notify about user enrollment in kafka', async () => {
+      let done = false;
+      repositoryReturns(Repo.courses, { getActiveCoursesForUsers: () => [{ ...course, students: [] }] });
+      repositoryReturns(Repo.users, { findMany: () => [{ school: {} }, { registration: {} }] });
+      _updatesProcessorStub.sendEnrollmentUpdates = () => done = true;
+      await _coursesService.notifyForUserEnrollment(Role.student, ['user1']);
+      expect(done).equal(true);
     });
   });
 
@@ -294,10 +303,9 @@ describe('Courses Service', () => {
     });
 
     it('should succeed to drop multiple student from multiple courses', async () => {
-      const courseWithStudents = { ...course, students: userRequest.usersIds };
       repositoryReturns(Repo.courses, {
         findMany: () => [course, course], finishUsersInCourses: updates => updates,
-        getActiveCoursesForUsers: () => [courseWithStudents, courseWithStudents]
+        getActiveCoursesForUsers: () => []
       });
       repositoryReturns(Repo.users, { findMany: () => userRequest.usersIds });
       const result = await _coursesService.dropStudentsInCourses([userRequest, userRequest], token);

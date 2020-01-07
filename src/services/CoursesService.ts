@@ -99,7 +99,7 @@ export class CoursesService {
   }
 
   async listWithSections(schoolId: string, byUser: IUserToken) {
-    this.authorize(byUser);
+    this.authorize(byUser, schoolId);
     const sections = await this.sectionsRepo.findMany({ schoolId }, { students: 0 });
     const courses = await this.coursesRepo.getActiveCoursesForSchool(schoolId, { students: 0, teachers: 0 });
     return { sections, courses };
@@ -199,11 +199,10 @@ export class CoursesService {
         courses: courses.map(c => ({ ...c, students: undefined, teachers: undefined }))
       };
     }
-    const userIds = courses.map(c =>
-      c.students.filter(s => s.isEnabled && !s.finishDate).map(s => s._id)
-        .concat(c.teachers.filter(t => t.isEnabled && !t.finishDate).map(s => s._id))
+    const userIds = courses.reduce((list, c) =>
+      list.concat([...c.students, ...c.teachers].filter(u => u.isEnabled && !u.finishDate).map(u => u._id)), <string[]>[]
     );
-    const users = await this.usersRepo.findMany({ _id: { $in: ([] as string[]).concat(...userIds) } });
+    const users = await this.usersRepo.findMany({ _id: { $in: Array.from(new Set(userIds)) } });
     const sections = await this.sectionsRepo.findMany({ _id: { $in: courses.map(c => c.sectionId) } });
 
     return {
@@ -227,7 +226,6 @@ export class CoursesService {
     }));
     this._updatesProcessor.sendEnrollmentUpdates(events);
   }
-
 
   private async enrollUsers(requestParams: IUserRequest[], role: Role, byUser: IUserToken, sameSection = true) {
     this.authorize(byUser);
@@ -276,13 +274,11 @@ export class CoursesService {
     return result;
   }
 
-
-
-  private async sendUsersChangesUpdates(action: string, role: Role, requests: IUserRequest[]) {
+  private async sendUsersChangesUpdates(action: 'enroll' | 'drop', role: Role, requests: IUserRequest[]) {
     const usersIds = Array.from(new Set(requests.reduce((list, request) => [...list, ...request.usersIds], <string[]>[])));
     const users: IUser[] = await this.usersRepo.findMany({ _id: { $in: usersIds } });
     const courses: ICourse[] = await this.coursesRepo.getActiveCoursesForUsers(role, usersIds);
-    if (courses.length === 0) throw new AppError('no_course_found', `No active course found!`);
+    if (courses.length === 0) return;
     const coursesUpdates = this.transformCoursesToUpdates(courses, role);
     const coursesIds = requests.map(request => request.courseId);
     const events = users.map(user => <IUserUpdatedEvent>{

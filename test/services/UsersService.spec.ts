@@ -1,16 +1,16 @@
 import 'mocha';
 import sinon from 'sinon';
-import chai from 'chai';
+import chai, { expect } from 'chai';
 chai.use(require('sinon-chai'));
-const expect = chai.expect;
 
+import { tryAndExpect } from '../tryAndExpect';
 import { UnitOfWork } from '@saal-oryx/unit-of-work';
 import { UsersService } from '../../src/services/UsersService';
 import { KafkaService } from '../../src/services/KafkaService';
 import { Repo } from '../../src/repositories/RepoNames';
 import { Status } from '../../src/models/entities/IUser';
 import { getTestData, Test } from '../mockdata/getTestData';
-import { SignupMethods } from '../../src/models/entities/ISchool';
+import { SignupMethods, ISchool } from '../../src/models/entities/ISchool';
 import { IInviteCode } from '../../src/models/entities/IInviteCode';
 import { ISignupRequest } from '../../src/models/entities/IIRP';
 import { IProvider } from '../../src/models/entities/IProvider';
@@ -18,6 +18,7 @@ import { IUserUpdatedData } from '../../src/models/events/IUserUpdatedEvent';
 import { Role } from '../../src/models/Role';
 import { NotFoundError } from '../../src/exceptions/NotFoundError';
 import { InvalidRequestError } from '../../src/exceptions/InvalidRequestError';
+import { AppError } from '../../src/exceptions/AppError';
 
 const unitOfWorkStub = sinon.spy(() => sinon.createStubInstance(UnitOfWork));
 const kafkaServiceStub = sinon.spy(() => sinon.createStubInstance(KafkaService));
@@ -224,22 +225,26 @@ describe('Users Service', () => {
       const request: ISignupRequest = getTestData(Test.signupRequest, { provider: 'Alef' }, false);
       repositoryReturns(Repo.providers, { findById: () => undefined });
       repositoryReturns(Repo.schools, { findOne: () => undefined });
-      try {
-        await usersService.signup(request);
-      } catch (error) {
-        expect(error).instanceOf(NotFoundError);
-      }
+      await tryAndExpect(() => usersService.signup(request), NotFoundError);
+    });
+
+    it('should fail registration (No Active Term in Provider School)', async () => {
+      const provider: IProvider = getTestData(Test.provider, { _id: 'Alef' });
+      const request: ISignupRequest = getTestData(Test.signupRequest, { provider: 'Alef' }, false);
+      const school: ISchool = getTestData(Test.school, {
+        academicTerms: [], provider: { _id: 'Alef' },
+        license: provider.license
+      });
+      repositoryReturns(Repo.providers, { findById: () => provider });
+      repositoryReturns(Repo.schools, { findOne: () => school, add: () => undefined });
+      await tryAndExpect(() => usersService.signup(request), InvalidRequestError);
     });
 
     it('should fail registration (No Provider School Auto Creation)', async () => {
       const request: ISignupRequest = getTestData(Test.signupRequest, { provider: 'Alef' }, false);
       repositoryReturns(Repo.providers, { findById: () => ({ config: { autoCreateSchool: false } }) });
       repositoryReturns(Repo.schools, { findOne: () => undefined });
-      try {
-        await usersService.signup(request);
-      } catch (error) {
-        expect(error).instanceOf(InvalidRequestError);
-      }
+      await tryAndExpect(() => usersService.signup(request), InvalidRequestError);
     });
   });
 
