@@ -45,7 +45,7 @@ describe('Commands Processor', () => {
 
   it('should succeed to send a command and force resolve due to timeout', async () => {
     commandsProcessor = new CommandsProcessor(kafkaServiceStub, messageBusStub, { commandsTimeout: 5 });
-    setTimeout(() => commandsProcessor.resolveCommand(eventKey, undefined), 10);
+    setTimeout(() => commandsProcessor.resolveCommand(eventKey, undefined), 15).unref();
     const result = await commandsProcessor.sendCommand('service', () => Promise.resolve(), testData);
     expect(result.done).equal(false);
     expect(result.data[0]).equal(testData);

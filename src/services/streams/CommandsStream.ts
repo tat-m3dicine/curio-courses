@@ -1,10 +1,7 @@
 import config from '../../config';
 import { KafkaStreams, KStream } from 'kafka-streams';
 import loggerFactory from '../../utils/logging';
-import { getDbClient } from '../../utils/getDbClient';
-import { fromPromise, await } from 'most';
-import { UnitOfWork } from '@saal-oryx/unit-of-work';
-import { getFactory } from '../../repositories/RepositoryFactory';
+import { fromPromise } from 'most';
 import { IAppEvent } from '../../models/events/IAppEvent';
 import { CommandsProcessor } from '../CommandsProcessor';
 import { SchoolsService } from '../SchoolsService';
@@ -16,6 +13,7 @@ import { AppError } from '../../exceptions/AppError';
 import { InvalidRequestError } from '../../exceptions/InvalidRequestError';
 import { InviteCodesService } from '../InviteCodesService';
 import { UpdatesProcessor } from '../UpdatesProcessor';
+import { UnitOfWork } from '@saal-oryx/unit-of-work';
 
 const logger = loggerFactory.getLogger('CommandsStream');
 
@@ -28,7 +26,9 @@ export class CommandsStream {
   constructor(
     protected _kafkaStreams: KafkaStreams,
     protected _updatesProcessor: UpdatesProcessor,
-    protected _commandsProcessor: CommandsProcessor
+    protected _commandsProcessor: CommandsProcessor,
+    protected _unitOfWorkFactory: (options: any) => Promise<UnitOfWork>,
+    protected _config = { writeToFailedDelay: 1000 }
   ) {
     logger.debug('Init ...');
     this._stream = _kafkaStreams.getKStream(config.kafkaCommandsTopic);
@@ -36,9 +36,8 @@ export class CommandsStream {
   }
 
   async getServices() {
-    const client = await getDbClient();
-    const uow = new UnitOfWork(client, getFactory(), { useTransactions: true });
     const services = new Map<string, object>();
+    const uow = await this._unitOfWorkFactory({ useTransactions: true });
     services.set('schools', new SchoolsService(uow, this._commandsProcessor, this._commandsProcessor.kafkaService));
     services.set('sections', new SectionsService(uow, this._commandsProcessor));
     services.set('courses', new CoursesService(uow, this._commandsProcessor, this._updatesProcessor));
@@ -95,7 +94,7 @@ export class CommandsStream {
           setTimeout(() => {
             logger.warn('writing_to_db_failed', JSON.stringify(message));
             return resolve(message);
-          }, 1000);
+          }, this._config.writeToFailedDelay);
         });
         return fromPromise(result);
       })

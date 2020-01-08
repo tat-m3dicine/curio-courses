@@ -3,7 +3,7 @@ import { IUnitOfWork } from '@saal-oryx/unit-of-work';
 import { UsersRepository } from '../repositories/UsersRepository';
 import { IUser, Status, IUserWithRegistration } from '../models/entities/IUser';
 import { IProfile } from '../models/entities/Common';
-import { ISignupRequest } from '../models/entities/IIRP';
+import { ISignupRequest, IUserData } from '../models/entities/IIRP';
 import loggerFactory from '../utils/logging';
 import { InviteCodesRepository } from '../repositories/InviteCodesRepository';
 import { IInviteCode, EnrollmentType } from '../models/entities/IInviteCode';
@@ -217,8 +217,7 @@ export class UsersService {
     }
   }
 
-  async update(request: ISignupRequest) {
-    validators.validateUpdateUser(request);
+  async update(request: { user_id: string, new_user_data: Partial<IUserData> }) {
     const user = request.new_user_data;
     const userObj: Partial<IUser> = {};
     if (user.role) userObj.role = user.role;
@@ -227,8 +226,10 @@ export class UsersService {
       if (user.name) userObj.profile.name = user.name;
       if (user.avatar) userObj.profile.avatar = user.avatar;
     }
-    await this.usersRepo.patch({ _id: request.user_id }, userObj);
-    return this._uow.commit();
+    if (Object.keys(userObj).length > 0) {
+      await this.usersRepo.patch({ _id: request.user_id }, userObj);
+      return this._uow.commit();
+    }
   }
 
   private transformToUser(request: ISignupRequest): IUserWithRegistration {
