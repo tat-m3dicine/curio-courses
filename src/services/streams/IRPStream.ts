@@ -35,7 +35,7 @@ export class IRPStream {
     this._stream
       .map(mapToProperJSON)
       .concatMap(message => {
-        logger.debug('raw-db-sink', message.offset, message.value.key);
+        logger.debug('raw-db-sink', message.offset, message.value && message.value.key);
         const result = this.process(message).then(async result => {
           // tslint:disable-next-line: no-string-literal
           const client = this._stream['kafka']['consumer'];
@@ -58,7 +58,7 @@ export class IRPStream {
     this._failuresStream
       .map(mapToProperJSON)
       .concatMap(message => {
-        logger.debug('failed-db-sink', message.offset, message.value.key);
+        logger.debug('failed-db-sink', message.offset, message.value && message.value.key);
         const result = this.process(message)
           .then(async processingResults => {
             // tslint:disable-next-line: no-string-literal
@@ -115,9 +115,13 @@ export class IRPStream {
 
 
 function mapToProperJSON(message: any) {
-  const newValue = JSON.parse(message.value, reviver);
-  const newMessage = { ...message, value: newValue };
-  return newMessage;
+  try {
+    const newValue = JSON.parse(message.value, reviver);
+    const newMessage = { ...message, value: newValue };
+    return newMessage;
+  } catch (err) {
+    return {};
+  }
 }
 
 const dateFormat = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{3}Z$/;
