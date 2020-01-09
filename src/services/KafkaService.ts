@@ -8,8 +8,8 @@ export class KafkaService {
   protected _kafka: Kafka;
   protected _producer: Producer;
 
-  constructor(allowAutoTopicCreation = false) {
-    this._kafka = new Kafka({
+  constructor(getKafka: (config) => Kafka, allowAutoTopicCreation = false) {
+    this._kafka = getKafka({
       brokers: config.kafkaBrokers,
       clientId: config.kafkaClientId,
       retry: {

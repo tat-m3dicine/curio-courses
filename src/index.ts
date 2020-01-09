@@ -23,6 +23,7 @@ import { UpdatesProcessor } from './services/UpdatesProcessor';
 import meRoutes from './routes/me.routes';
 import { createRedisBus } from '@saal-oryx/message-bus';
 import nanoid from 'nanoid';
+import { Kafka } from 'kafkajs';
 
 const logger = loggerFactory.getLogger('Index');
 
@@ -33,7 +34,7 @@ let server: import('http').Server;
 (async () => {
 
   // Singletons ...
-  const kafkaService = new KafkaService();
+  const kafkaService = new KafkaService(config => new Kafka(config));
   const commandsBus = createRedisBus(nanoid(10), {
     host: config.redisHost,
     port: config.redisPort
