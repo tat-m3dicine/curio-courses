@@ -1,5 +1,6 @@
 import Koa from 'koa';
 import config from './config';
+import { getNativeConfig } from './config/native';
 import koaBody from 'koa-body';
 import loggerFactory from './utils/logging';
 import {
@@ -9,7 +10,7 @@ import {
   corsHandler
 } from './utils/middlewares';
 import { loggerHandler } from './utils/middlewares/loggerHandler';
-import { getUnitOfWorkHandler } from './utils/middlewares/unitOfWorkHandler';
+import { getUnitOfWorkHandler, unitOfWorkFactory } from './utils/middlewares/unitOfWorkHandler';
 import schoolRoutes from './routes/schools.routes';
 import coursesRoutes from './routes/courses.routes';
 import sectionsRoutes from './routes/sections.routes';
@@ -23,6 +24,8 @@ import { UpdatesProcessor } from './services/UpdatesProcessor';
 import meRoutes from './routes/me.routes';
 import { createRedisBus } from '@saal-oryx/message-bus';
 import nanoid from 'nanoid';
+import { Kafka } from 'kafkajs';
+import { KafkaStreams } from 'kafka-streams';
 
 const logger = loggerFactory.getLogger('Index');
 
@@ -33,7 +36,8 @@ let server: import('http').Server;
 (async () => {
 
   // Singletons ...
-  const kafkaService = new KafkaService();
+  const kafkaService = new KafkaService(config => new Kafka(config));
+  const kafkaStreams = new KafkaStreams(<any>getNativeConfig('CoursesCommandsStreams', 'CoursesCommandsStreams'));
   const commandsBus = createRedisBus(nanoid(10), {
     host: config.redisHost,
     port: config.redisPort
@@ -41,7 +45,7 @@ let server: import('http').Server;
   // Stream
   const updatesProcessor = new UpdatesProcessor(kafkaService);
   const commandsProcessor = new CommandsProcessor(kafkaService, commandsBus);
-  const streamsProcessor = new StreamsProcessor(updatesProcessor, commandsProcessor, kafkaService);
+  const streamsProcessor = new StreamsProcessor(updatesProcessor, commandsProcessor, kafkaService, kafkaStreams, unitOfWorkFactory);
 
   app.proxy = true;
   app.use(loggerHandler);

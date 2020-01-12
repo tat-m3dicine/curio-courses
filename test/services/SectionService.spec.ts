@@ -18,6 +18,7 @@ import { NotFoundError } from '../../src/exceptions/NotFoundError';
 import { ISchool } from '../../src/models/entities/ISchool';
 import { IUser } from '../../src/models/entities/IUser';
 import { ISection } from '../../src/models/entities/ISection';
+import { tryAndExpect } from '../tryAndExpect';
 
 
 const token = <IUserToken>{ role: [config.authorizedRole] };
@@ -45,22 +46,14 @@ describe('Sections Service', () => {
     });
 
     it('should fail to create section as there is no students', async () => {
-        try {
-            repositoryReturns(Repo.schools, { findById: () => { } });
-            await _sectionsService.create(createSectionWithNoStudents, token);
-        } catch (error) {
-            expect(error).instanceOf(InvalidLicenseError);
-        }
+        repositoryReturns(Repo.schools, { findById: () => undefined });
+        await tryAndExpect(() => _sectionsService.create(createSectionWithNoStudents, token), InvalidLicenseError);
     });
 
     it('should fail to create section with students', async () => {
-        try {
-            repositoryReturns(Repo.schools, { findById: () => { } });
-            repositoryReturns(Repo.users, { findMany: () => [{ _id: 1 }] });
-            await _sectionsService.create(createSectionWithStudents, token);
-        } catch (error) {
-            expect(error).instanceOf(NotFoundError);
-        }
+        repositoryReturns(Repo.schools, { findById: () => undefined });
+        repositoryReturns(Repo.users, { findMany: () => [{ _id: 1 }] });
+        await tryAndExpect(() => _sectionsService.create(createSectionWithStudents, token), NotFoundError);
     });
 
     it('should create section with success response', async () => {

@@ -1,5 +1,5 @@
-import loggerFactory from '../utils/logging';
-const logger = loggerFactory.getLogger('Config');
+
+
 const config: {
   port: number;
   production: boolean;
@@ -35,6 +35,13 @@ if (process.env.KAFKA_PRODUCERS_GROUP) config.kafkaProducersGroup = process.env.
 if (process.env.KAFKA_CLIENT_ID) config.kafkaClientId = process.env.KAFKA_CLIENT_ID;
 if (process.env.AUTHORIZED_ROLE) config.authorizedRole = process.env.AUTHORIZED_ROLE;
 if (process.env.COMMANDS_TIMEOUT) config.commandsTimeout = parseInt(process.env.COMMANDS_TIMEOUT);
+
+if (process.env.NODE_ENV === 'test') {
+  process.env.LOGGER_CONFIG = '{"disableClustering":true,"appenders":{"out":{"type":"stdout","layout":{"type":"pattern","pattern":"%[ [%d] [%p] %] %c - %x{correlationId} - %m"}}},"categories":{"default":{"appenders":["out"],"level":"fatal"}}}';
+}
+
+import loggerFactory from '../utils/logging';
+const logger = loggerFactory.getLogger('Config');
 
 if (process.env.REDIS_PORT) config.redisPort = parseInt(process.env.REDIS_PORT);
 else if (process.env.NODE_ENV !== 'test') {

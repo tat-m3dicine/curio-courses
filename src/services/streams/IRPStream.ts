@@ -3,9 +3,7 @@ import { fromPromise } from 'most';
 import { KafkaStreams, KStream } from 'kafka-streams';
 import { UsersService } from '../UsersService';
 import loggerFactory from '../../utils/logging';
-import { getDbClient } from '../../utils/getDbClient';
 import { UnitOfWork } from '@saal-oryx/unit-of-work';
-import { getFactory } from '../../repositories/RepositoryFactory';
 import { IAppEvent } from '../../models/events/IAppEvent';
 import { KafkaService } from '../KafkaService';
 
@@ -18,16 +16,21 @@ export class IRPStream {
 
   protected _usersService?: UsersService;
 
-  constructor(protected _kafkaStreams: KafkaStreams, protected _kafkaService: KafkaService) {
+  constructor(
+    protected _kafkaStreams: KafkaStreams,
+    protected _kafkaService: KafkaService,
+    protected _unitOfWorkFactory: (options: any) => Promise<UnitOfWork>,
+    protected _getUsersService: (uow: UnitOfWork, kafka: KafkaService) => UsersService,
+    protected _config = { writeToFailedDelay: 1000 }
+  ) {
     logger.debug('Init ...');
     this._stream = _kafkaStreams.getKStream(config.kafkaIRPTopic);
     this._failuresStream = _kafkaStreams.getKStream(`${config.kafkaIRPTopic}_irp_db_failed`);
   }
 
   async start() {
-    const client = await getDbClient();
-    const uow = new UnitOfWork(client, getFactory(), { useTransactions: false });
-    this._usersService = new UsersService(uow, this._kafkaService);
+    const uow = await this._unitOfWorkFactory({ useTransactions: true });
+    this._usersService = this._getUsersService(uow, this._kafkaService);
     return Promise.all([this.rawStart(), this.failuresStart()]);
   }
 
@@ -75,7 +78,7 @@ export class IRPStream {
           setTimeout(() => {
             logger.warn('writing_to_db_failed', JSON.stringify(message));
             return resolve(message);
-          }, 1000);
+          }, this._config.writeToFailedDelay);
         });
         return fromPromise(result);
       })

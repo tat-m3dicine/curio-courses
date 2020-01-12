@@ -18,7 +18,6 @@ import { IUserUpdatedData } from '../../src/models/events/IUserUpdatedEvent';
 import { Role } from '../../src/models/Role';
 import { NotFoundError } from '../../src/exceptions/NotFoundError';
 import { InvalidRequestError } from '../../src/exceptions/InvalidRequestError';
-import { AppError } from '../../src/exceptions/AppError';
 
 const unitOfWorkStub = sinon.spy(() => sinon.createStubInstance(UnitOfWork));
 const kafkaServiceStub = sinon.spy(() => sinon.createStubInstance(KafkaService));
@@ -112,6 +111,22 @@ describe('Users Service', () => {
       validateOutput(data => expect(data.status).equals(Status.active));
       await usersService.signup(request);
     });
+
+    it('should succeed to update user role and profile using patch', async () => {
+      let updateObj: any;
+      const request: ISignupRequest = getTestData(Test.signupRequest, {}, false);
+      repositoryReturns(Repo.users, { patch: (_, updates) => updateObj = updates });
+      await usersService.update(request);
+      expect(updateObj.role).to.have.lengthOf(1);
+      expect(updateObj.profile).to.have.property('name');
+    });
+
+    it('should not update user role and profile if they\'re not sent', async () => {
+      let updateObj: any;
+      repositoryReturns(Repo.users, { patch: (_, updates) => updateObj = updates });
+      await usersService.update({ user_id: 'user1', new_user_data: {} });
+      expect(updateObj).equal(undefined);
+    });
   });
 
   describe('Provider Registration', () => {
@@ -166,9 +181,8 @@ describe('Users Service', () => {
     });
 
     it('should accept student in provider school (No Auto Creation)', async () => {
-      const sections = ['section1', 'section2'];
       const request: ISignupRequest = getTestData(Test.signupRequest, { provider: 'Alef' }, false);
-      request.new_user_data.section = sections.map(section => ({ uuid: section, name: section }));
+      request.new_user_data.section = undefined;
       const school = getTestData(Test.school, {
         provider: { _id: 'Alef' },
         license: {
@@ -182,16 +196,10 @@ describe('Users Service', () => {
       repositoryReturns(Repo.users, { assignSchool: () => undefined });
       repositoryReturns(Repo.courses, {
         addUsersToCourses: () => undefined,
-        getActiveCoursesForUsers: () => []
+        getActiveCoursesForUsers: () => [{}]
       });
-      repositoryReturns(Repo.sections, {
-        findMany: () => sections.map(section => ({ _id: section })),
-        addStudents: () => undefined
-      });
-      repositoryReturns(Repo.schools, {
-        findOne: () => school,
-        consumeLicense: () => undefined
-      });
+      repositoryReturns(Repo.sections, { findMany: () => [], addStudents: () => undefined });
+      repositoryReturns(Repo.schools, { findOne: () => school, consumeLicense: () => undefined });
       validateOutput(data => expect(data.status).equals(Status.active));
       await usersService.signup(request);
     });

@@ -28,24 +28,26 @@ export interface IIRPUserMigrationRequest {
 
 export interface ISignupRequest {
   user_id: string;
-  provider: string;
-  new_user_data: {
+  provider?: string;
+  new_user_data: IUserData;
+}
+
+export interface IUserData {
+  name: string;
+  avatar: string;
+  preferences?: any[];
+  role: string[];
+  curriculum: string;
+  grade: string;
+  inviteCode?: string;
+  school?: {
     name: string;
-    avatar: string;
-    preferences?: any[];
-    role: string[];
-    curriculum: string;
-    grade: string;
-    inviteCode?: string;
-    school?: {
-      name: string;
-      uuid: string;
-    };
-    section?: {
-      uuid: string;
-      name: string;
-    }[],
+    uuid: string;
   };
+  section?: {
+    uuid: string;
+    name: string;
+  }[];
 }
 
 export interface IIRPSchool extends IAuditable {

@@ -5,7 +5,6 @@ import { getFactory } from '../repositories/RepositoryFactory';
 import { getDbClient } from '../utils/getDbClient';
 import { ISchool } from '../models/entities/ISchool';
 import { IIRPUserMigrationRequest, IIRPSchool } from '../models/entities/IIRP';
-import validators from '../utils/validators';
 import { IUser } from '../models/entities/IUser';
 import { UsersRepository } from '../repositories/UsersRepository';
 import { SchoolsRepository } from '../repositories/SchoolsRepository';
