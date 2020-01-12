@@ -152,9 +152,13 @@ export class CommandsStream {
 
 
 function mapToProperJSON(message: any) {
-  const newValue = JSON.parse(message.value, reviver);
-  const newMessage = { ...message, value: newValue };
-  return newMessage;
+  try {
+    const newValue = JSON.parse(message.value, reviver);
+    const newMessage = { ...message, value: newValue };
+    return newMessage;
+  } catch (err) {
+    return {};
+  }
 }
 
 const dateFormat = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{3}Z$/;
