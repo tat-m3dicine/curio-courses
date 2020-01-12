@@ -5,7 +5,8 @@ import { UsersService } from '../UsersService';
 import loggerFactory from '../../utils/logging';
 import { UnitOfWork } from '@saal-oryx/unit-of-work';
 import { IAppEvent } from '../../models/events/IAppEvent';
-import { KafkaService } from '../KafkaService';
+import { KafkaService } from '../processors/KafkaService';
+import { mapToProperJSON } from '../../utils/mapToProperJSON';
 
 const logger = loggerFactory.getLogger('IRPStream');
 
@@ -114,24 +115,4 @@ export class IRPStream {
       };
     }
   }
-}
-
-
-function mapToProperJSON(message: any) {
-  try {
-    const newValue = JSON.parse(message.value, reviver);
-    const newMessage = { ...message, value: newValue };
-    return newMessage;
-  } catch (err) {
-    return {};
-  }
-}
-
-const dateFormat = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{3}Z$/;
-
-function reviver(key: string, value: any) {
-  if (typeof value === 'string' && dateFormat.test(value)) {
-    return new Date(value);
-  }
-  return value;
 }

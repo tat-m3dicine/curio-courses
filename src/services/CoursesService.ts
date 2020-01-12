@@ -1,7 +1,6 @@
 
 import config from '../config';
 import validators from '../utils/validators';
-import { CommandsProcessor } from './CommandsProcessor';
 import { IUnitOfWork, IPaging } from '@saal-oryx/unit-of-work';
 // models
 import { Role } from '../models/Role';
@@ -22,12 +21,13 @@ import { UsersRepository } from '../repositories/UsersRepository';
 import { CoursesRepository } from '../repositories/CoursesRepository';
 import { SchoolsRepository } from '../repositories/SchoolsRepository';
 import { SectionsRepository } from '../repositories/SectionsRepository';
+// Utils
 import { validateAllObjectsExist } from '../utils/validators/AllObjectsExist';
 import { IUserUpdatedEvent, IUserCourseUpdates } from '../models/events/IUserUpdatedEvent';
-import { AppError } from '../exceptions/AppError';
-import { UpdatesProcessor } from './UpdatesProcessor';
 import { newCourseId } from '../utils/IdGenerator';
 import { Repo } from '../repositories/RepoNames';
+import { CommandsProcessor } from './processors/CommandsProcessor';
+import { UpdatesProcessor } from './processors/UpdatesProcessor';
 
 export class CoursesService {
   constructor(

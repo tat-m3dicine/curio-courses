@@ -1,7 +1,7 @@
-import { KafkaService } from './KafkaService';
-import config from '../config';
 import { Func } from 'continuation-local-storage';
 import { RedisMesageBus } from '@saal-oryx/message-bus';
+import config from '../../config';
+import { KafkaService } from './KafkaService';
 
 const commandsProcessorDefaultConfig = {
   commandsTimeout: config.commandsTimeout

@@ -10,7 +10,6 @@ import { SchoolsRepository } from '../repositories/SchoolsRepository';
 import { ISchool, SignupMethods } from '../models/entities/ISchool';
 import { InvalidLicenseError } from '../exceptions/InvalidLicenseError';
 import { ForbiddenError } from '../exceptions/ForbiddenError';
-import { CommandsProcessor } from './CommandsProcessor';
 import { validateAllObjectsExist } from '../utils/validators/AllObjectsExist';
 import { ICreateInviteCodeRequest } from '../models/requests/IInviteCodeRequests';
 import { IInviteCode, EnrollmentType } from '../models/entities/IInviteCode';
@@ -19,6 +18,7 @@ import { ICourse } from '../models/entities/ICourse';
 import { InvalidRequestError } from '../exceptions/InvalidRequestError';
 import { newInviteCodeId } from '../utils/IdGenerator';
 import { Repo } from '../repositories/RepoNames';
+import { CommandsProcessor } from './processors/CommandsProcessor';
 
 export class InviteCodesService {
 

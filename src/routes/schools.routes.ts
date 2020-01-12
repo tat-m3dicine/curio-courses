@@ -2,9 +2,9 @@ import KoaRoute from 'koa-tree-router';
 import Koa from 'koa';
 import { SchoolsController } from '../controllers/SchoolsController';
 import { SchoolsService } from '../services/SchoolsService';
-import { CommandsProcessor } from '../services/CommandsProcessor';
 import { Role } from '../models/Role';
-import { KafkaService } from '../services/KafkaService';
+import { CommandsProcessor } from '../services/processors/CommandsProcessor';
+import { KafkaService } from '../services/processors/KafkaService';
 
 export default (commandsProccessor: CommandsProcessor, kafkaService: KafkaService) => {
   const schoolRoutes = new KoaRoute();

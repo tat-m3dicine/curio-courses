@@ -1,5 +1,4 @@
 import loggerFactory from '../utils/logging';
-import { IRPService } from './IRPService';
 import { UnitOfWork, IUnitOfWork } from '@saal-oryx/unit-of-work';
 import { getFactory } from '../repositories/RepositoryFactory';
 import { getDbClient } from '../utils/getDbClient';
@@ -11,9 +10,6 @@ import { SchoolsRepository } from '../repositories/SchoolsRepository';
 import nanoid = require('nanoid');
 import { ICreateSectionRequest } from '../models/requests/ISectionRequests';
 import { ISection } from '../models/entities/ISection';
-import { CoursesService } from './CoursesService';
-import { UpdatesProcessor } from './UpdatesProcessor';
-import { CommandsProcessor } from './CommandsProcessor';
 import { ICreateCourseRequest } from '../models/requests/ICourseRequests';
 import { CoursesRepository } from '../repositories/CoursesRepository';
 import { ICourse } from '../models/entities/ICourse';
@@ -21,6 +17,10 @@ import config from '../config';
 import { IUserToken } from '../models/IUserToken';
 import { Role } from '../models/Role';
 import { Repo } from '../repositories/RepoNames';
+import { CoursesService } from '../services/CoursesService';
+import { IRPRequests } from './IRPRequests';
+import { UpdatesProcessor } from '../services/processors/UpdatesProcessor';
+import { CommandsProcessor } from '../services/processors/CommandsProcessor';
 
 const logger = loggerFactory.getLogger('MigrationScripts');
 
@@ -32,12 +32,12 @@ export class MigrationScripts {
   async migrateIRPSchools() {
     const client = await getDbClient();
     const uow = new UnitOfWork(client, getFactory(), { useTransactions: false });
-    const irpService = new IRPService();
+    const irpRequests = new IRPRequests();
     const usersRepo: UsersRepository = uow.getRepository(Repo.users);
     const schoolsRepo: SchoolsRepository = uow.getRepository(Repo.schools);
 
     const listOfUsers = await usersRepo.findMany({});
-    const allSchools = await irpService.getAllSchools();
+    const allSchools = await irpRequests.getAllSchools();
     let schoolList: ISchool[] = [];
     await Promise.all(allSchools.map(async school => {
       const results = await this.mapIRPSchoolsToDbSchools(school, listOfUsers);
@@ -50,11 +50,11 @@ export class MigrationScripts {
   async migrateIRPUsersAndSections() {
     logger.info('migrateIRPUsers invoked');
 
-    const irpService = new IRPService();
-    const allSections = await irpService.getAllSections();
+    const irpRequests = new IRPRequests();
+    const allSections = await irpRequests.getAllSections();
     let usersList: IIRPUserMigrationRequest[] = [];
     await Promise.all(allSections.map(async section => {
-      const results = await irpService.getAllUsersBySection(section.uuid);
+      const results = await irpRequests.getAllUsersBySection(section.uuid);
       usersList = usersList.concat(results);
     }));
     const [users, sections] = await Promise.all([this.migrate(usersList), this.migrateSections(usersList)]);
@@ -72,14 +72,14 @@ export class MigrationScripts {
   async migrateTeachers() {
     const client = await getDbClient();
     const uow = new UnitOfWork(client, getFactory(), { useTransactions: false });
-    const irpService = new IRPService();
+    const irpRequests = new IRPRequests();
     const schoolsRepo: SchoolsRepository = uow.getRepository('Schools');
     const coursesRepo: CoursesRepository = uow.getRepository('Courses');
 
     const userIds: string[] = [];
     const schools = await schoolsRepo.findMany({});
     await Promise.all(schools.map(async school => {
-      const irpTeachers = await irpService.getTeachersByPrefrences(school._id);
+      const irpTeachers = await irpRequests.getTeachersByPrefrences(school._id);
       irpTeachers.forEach(t => userIds.push(t._id));
       await this.registerTeachers(school._id, irpTeachers.map(t => ({ _id: t._id, name: t.name, avatar: t.avatar })));
       for (const teacher of irpTeachers) {

@@ -2,7 +2,7 @@ import KoaRoute from 'koa-tree-router';
 import Koa from 'koa';
 import { InviteCodesService } from '../services/InviteCodesService';
 import { InviteCodesController } from '../controllers/InviteCodesController';
-import { CommandsProcessor } from '../services/CommandsProcessor';
+import { CommandsProcessor } from '../services/processors/CommandsProcessor';
 
 
 export default (commandsProccessor: CommandsProcessor) => {

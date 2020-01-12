@@ -19,12 +19,12 @@ import { ISchool } from '../models/entities/ISchool';
 import { newSchoolId, newSectionId } from '../utils/IdGenerator';
 import { getNotMatchingObjects } from '../utils/validators/AllObjectsExist';
 import { ISection } from '../models/entities/ISection';
-import { KafkaService } from './KafkaService';
 import config from '../config';
-import { Events } from './UpdatesProcessor';
 import { Repo } from '../repositories/RepoNames';
 import { IUserUpdatedData } from '../models/events/IUserUpdatedEvent';
 import { NotFoundError } from '../exceptions/NotFoundError';
+import { KafkaService } from './processors/KafkaService';
+import { Events } from './processors/UpdatesProcessor';
 const logger = loggerFactory.getLogger('UserSchema');
 
 export class UsersService {

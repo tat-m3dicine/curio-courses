@@ -12,13 +12,13 @@ import { SchoolsRepository } from '../repositories/SchoolsRepository';
 import { ISchool } from '../models/entities/ISchool';
 import { InvalidLicenseError } from '../exceptions/InvalidLicenseError';
 import { ForbiddenError } from '../exceptions/ForbiddenError';
-import { CommandsProcessor } from './CommandsProcessor';
 import { InvalidRequestError } from '../exceptions/InvalidRequestError';
 import { Role } from '../models/Role';
 import { IUser } from '../models/entities/IUser';
 import { validateAllObjectsExist } from '../utils/validators/AllObjectsExist';
 import { newSectionId } from '../utils/IdGenerator';
 import { Repo } from '../repositories/RepoNames';
+import { CommandsProcessor } from './processors/CommandsProcessor';
 
 export class SectionsService {
 
@@ -40,7 +40,7 @@ export class SectionsService {
   async create(section: ICreateSectionRequest, byUser: IUserToken) {
     this.authorize(byUser);
     const { schoolId, locales, grade, students } = section;
-    if (students) { 
+    if (students) {
       await this.validateStudentsInSchool(students, schoolId);
     }
     await this.validateWithSchoolLicense(grade, schoolId);

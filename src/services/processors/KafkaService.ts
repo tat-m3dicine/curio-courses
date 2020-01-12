@@ -1,8 +1,9 @@
 import { Kafka, Producer, logLevel } from 'kafkajs';
 import nanoid from 'nanoid';
-import config from '../config';
-import { IAppEvent } from '../models/events/IAppEvent';
-import loggerFactory from '../utils/logging';
+import config from '../../config';
+import loggerFactory from '../../utils/logging';
+import { IAppEvent } from '../../models/events/IAppEvent';
+
 
 export class KafkaService {
   protected _kafka: Kafka;

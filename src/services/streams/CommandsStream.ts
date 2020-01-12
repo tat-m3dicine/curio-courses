@@ -3,7 +3,6 @@ import { KafkaStreams, KStream } from 'kafka-streams';
 import loggerFactory from '../../utils/logging';
 import { fromPromise } from 'most';
 import { IAppEvent } from '../../models/events/IAppEvent';
-import { CommandsProcessor } from '../CommandsProcessor';
 import { SchoolsService } from '../SchoolsService';
 import { SectionsService } from '../SectionsService';
 import { CoursesService } from '../CoursesService';
@@ -12,8 +11,10 @@ import { ServerError } from '../../exceptions/ServerError';
 import { AppError } from '../../exceptions/AppError';
 import { InvalidRequestError } from '../../exceptions/InvalidRequestError';
 import { InviteCodesService } from '../InviteCodesService';
-import { UpdatesProcessor } from '../UpdatesProcessor';
 import { UnitOfWork } from '@saal-oryx/unit-of-work';
+import { UpdatesProcessor } from '../processors/UpdatesProcessor';
+import { CommandsProcessor } from '../processors/CommandsProcessor';
+import { mapToProperJSON } from '../../utils/mapToProperJSON';
 
 const logger = loggerFactory.getLogger('CommandsStream');
 
@@ -147,24 +148,4 @@ export class CommandsStream {
       value: JSON.stringify({ ...appEvent, error: JSON.stringify(error) })
     };
   }
-}
-
-
-function mapToProperJSON(message: any) {
-  try {
-    const newValue = JSON.parse(message.value, reviver);
-    const newMessage = { ...message, value: newValue };
-    return newMessage;
-  } catch (err) {
-    return {};
-  }
-}
-
-const dateFormat = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{3}Z$/;
-
-function reviver(key: string, value: any) {
-  if (typeof value === 'string' && dateFormat.test(value)) {
-    return new Date(value);
-  }
-  return value;
 }

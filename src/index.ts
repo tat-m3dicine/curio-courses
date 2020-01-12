@@ -16,16 +16,16 @@ import coursesRoutes from './routes/courses.routes';
 import sectionsRoutes from './routes/sections.routes';
 import providerRoutes from './routes/providers.routes';
 import inviteCodesRoutes from './routes/invite_codes.routes';
-import { KafkaService } from './services/KafkaService';
-import { MigrationScripts } from './services/MigrationScripts';
-import { CommandsProcessor } from './services/CommandsProcessor';
 import { StreamsProcessor } from './services/streams/StreamsProcessor';
-import { UpdatesProcessor } from './services/UpdatesProcessor';
 import meRoutes from './routes/me.routes';
 import { createRedisBus } from '@saal-oryx/message-bus';
 import nanoid from 'nanoid';
 import { Kafka } from 'kafkajs';
 import { KafkaStreams } from 'kafka-streams';
+import { MigrationScripts } from './migration/MigrationScripts';
+import { KafkaService } from './services/processors/KafkaService';
+import { UpdatesProcessor } from './services/processors/UpdatesProcessor';
+import { CommandsProcessor } from './services/processors/CommandsProcessor';
 
 const logger = loggerFactory.getLogger('Index');
 

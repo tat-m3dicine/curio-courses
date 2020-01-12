@@ -12,15 +12,14 @@ import { ProvidersService } from '../../src/services/ProviderService';
 import { ValidationError } from '../../src/exceptions/ValidationError';
 import { InvalidRequestError } from '../../src/exceptions/InvalidRequestError';
 import { ConditionalBadRequest } from '../../src/exceptions/ConditionalBadRequest';
-import { UpdatesProcessor } from '../../src/services/UpdatesProcessor';
-import { CommandsProcessor } from '../../src/services/CommandsProcessor';
 import { IUserToken } from '../../src/models/IUserToken';
 import { ICreateProviderRequest } from '../../src/models/requests/IProviderRequest';
 import { getTestData, Test } from '../mockData/getTestData';
-import { IAcademicTerm } from '../../src/models/entities/Common';
 import { IUpdateAcademicTermRequest } from '../../src/models/requests/ISchoolRequests';
 import { IDeleteProviderAcademicTermRequest, IProvider } from '../../src/models/entities/IProvider';
 import { ICourse } from '../../src/models/entities/ICourse';
+import { UpdatesProcessor } from '../../src/services/processors/UpdatesProcessor';
+import { CommandsProcessor } from '../../src/services/processors/CommandsProcessor';
 
 
 const unitOfWorkStub = sinon.spy(() => sinon.createStubInstance(UnitOfWork));
@@ -51,8 +50,8 @@ describe('Providers Service', () => {
   });
 
   it('should fail to create provider due to validation errors', async () => {
-   try {
-       await _providersService.add(<ICreateProviderRequest>{});
+    try {
+      await _providersService.add(<ICreateProviderRequest>{});
     } catch (error) {
       expect(error).instanceOf(ValidationError);
     }
@@ -83,20 +82,20 @@ describe('Providers Service', () => {
   it('should update academicterm provider with success response', async () => {
     repositoryReturns(Repo.providers, { updateAcademicTerm: () => updateProviderResponse });
     const result = await _providersService.updateAcademicTerm(updateProviderRequest, '123', token);
-     expect(result).equal(updateProviderResponse);
+    expect(result).equal(updateProviderResponse);
   });
 
   it('should fail to delete academicterm provider with success response', async () => {
 
-      repositoryReturns(Repo.courses, { findMany: () => [] });
-      repositoryReturns(Repo.providers, { deleteAcademicTermProvider: () => deleteAcademicProviderResponse});
-     const result =  await _providersService.deleteAcademicTermProvider(deleteAcademicTermProviderRequest, token);
-     expect(result).equal(deleteAcademicProviderResponse);
+    repositoryReturns(Repo.courses, { findMany: () => [] });
+    repositoryReturns(Repo.providers, { deleteAcademicTermProvider: () => deleteAcademicProviderResponse });
+    const result = await _providersService.deleteAcademicTermProvider(deleteAcademicTermProviderRequest, token);
+    expect(result).equal(deleteAcademicProviderResponse);
   });
 
   it('should fail to delete academicterm provider due to dependency of academicTerm errors', async () => {
     try {
-        repositoryReturns(Repo.courses, { findMany: () => [activeCourses] });
+      repositoryReturns(Repo.courses, { findMany: () => [activeCourses] });
       await _providersService.deleteAcademicTermProvider(deleteAcademicTermProviderRequest, token);
     } catch (error) {
       expect(error).instanceOf(ConditionalBadRequest);
@@ -105,17 +104,17 @@ describe('Providers Service', () => {
 
   it('should delete provider with NotFoundError', async () => {
     try {
-    repositoryReturns(Repo.providers, { findById: () => {} });
-    await _providersService.deleteProvider('123', token);
+      repositoryReturns(Repo.providers, { findById: () => { } });
+      await _providersService.deleteProvider('123', token);
     } catch (error) {
-        expect(error).instanceOf(NotFoundError);
+      expect(error).instanceOf(NotFoundError);
     }
   });
 
   it('should delete provider as there is no dependency of academic terms in courses', async () => {
     repositoryReturns(Repo.providers, { findById: () => providerObj, delete: () => deleteAcademicProviderResponse });
     repositoryReturns(Repo.courses, { findMany: () => [] });
-     const result =  await _providersService.deleteProvider('123', token);
+    const result = await _providersService.deleteProvider('123', token);
     expect(result).equal(deleteAcademicProviderResponse);
   });
 

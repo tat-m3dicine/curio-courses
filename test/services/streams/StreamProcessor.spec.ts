@@ -3,13 +3,13 @@ import sinon from 'sinon';
 import chai from 'chai';
 chai.use(require('sinon-chai'));
 
-import { UpdatesProcessor } from '../../../src/services/UpdatesProcessor';
 import { StreamsProcessor } from '../../../src/services/streams/StreamsProcessor';
 import { KafkaStreams } from 'kafka-streams';
 import { UnitOfWork } from '@saal-oryx/unit-of-work';
-import { CommandsProcessor } from '../../../src/services/CommandsProcessor';
-import { KafkaService } from '../../../src/services/KafkaService';
 import { getKStreamMock } from './KStreamMock';
+import { KafkaService } from '../../../src/services/processors/KafkaService';
+import { UpdatesProcessor } from '../../../src/services/processors/UpdatesProcessor';
+import { CommandsProcessor } from '../../../src/services/processors/CommandsProcessor';
 
 const unitOfWorkStub = sinon.spy(() => sinon.createStubInstance(UnitOfWork));
 const kafkaServiceStub = sinon.spy(() => sinon.createStubInstance(KafkaService));
