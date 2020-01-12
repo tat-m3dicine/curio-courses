@@ -3,8 +3,6 @@ import sinon from 'sinon';
 import chai, { expect } from 'chai';
 chai.use(require('sinon-chai'));
 
-import { UpdatesProcessor } from '../../../src/services/UpdatesProcessor';
-import { CommandsProcessor } from '../../../src/services/CommandsProcessor';
 import { CommandsStream } from '../../../src/services/streams/CommandsStream';
 import { KafkaStreams } from 'kafka-streams';
 import { UnitOfWork } from '@saal-oryx/unit-of-work';
@@ -14,6 +12,8 @@ import { Repo } from '../../../src/repositories/RepoNames';
 import { ServerError } from '../../../src/exceptions/ServerError';
 import { InvalidRequestError } from '../../../src/exceptions/InvalidRequestError';
 import { getKStreamMock } from './KStreamMock';
+import { UpdatesProcessor } from '../../../src/services/processors/UpdatesProcessor';
+import { CommandsProcessor } from '../../../src/services/processors/CommandsProcessor';
 
 const testEvent: IAppEvent = { data: [], event: '', timestamp: Date.now(), v: '1.0', key: 'abc' };
 const unitOfWorkStub = sinon.spy(() => sinon.createStubInstance(UnitOfWork));
@@ -68,7 +68,7 @@ describe('Commands Stream', () => {
 
   it('should fail to process event due to function not found in service', async () => {
     let error: any;
-    const event: IAppEvent = { ...testEvent, event: 'doNothing_schools' };
+    const event: IAppEvent = { ...testEvent, event: 'doNothing_schools', data: '{(}' };
     _commandsProcessorStub.rejectCommand = (_, err) => error = err;
     commandsStream = getCommandsStream([event]);
     await commandsStream.start();
@@ -105,7 +105,7 @@ describe('Commands Stream', () => {
 
   it('should succeed to process event and resolve command', async () => {
     let done = false;
-    const event: IAppEvent = { ...testEvent, event: 'doAdd_schools', data: [{ date: '2020-01-08T14:37:51.407Z' }] };
+    const event: IAppEvent = { ...testEvent, event: 'doAdd_schools' };
     repositoryReturns(Repo.schools, { add: () => true });
     _commandsProcessorStub.resolveCommand = (_, result) => done = result;
     commandsStream = getCommandsStream([event]);

@@ -1,11 +1,11 @@
 import { KafkaStreams } from 'kafka-streams';
 import { CommandsStream } from './CommandsStream';
-import { CommandsProcessor } from '../CommandsProcessor';
 import { IRPStream } from './IRPStream';
-import { UpdatesProcessor } from '../UpdatesProcessor';
-import { KafkaService } from '../KafkaService';
+import { KafkaService } from '../processors/KafkaService';
 import { UnitOfWork } from '@saal-oryx/unit-of-work';
 import { UsersService } from '../UsersService';
+import { UpdatesProcessor } from '../processors/UpdatesProcessor';
+import { CommandsProcessor } from '../processors/CommandsProcessor';
 
 export class StreamsProcessor {
 

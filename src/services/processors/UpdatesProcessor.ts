@@ -1,7 +1,8 @@
+import config from '../../config';
+import { IUserUpdatedEvent, IUserUpdatedData } from '../../models/events/IUserUpdatedEvent';
+import { IAppEvent } from '../../models/events/IAppEvent';
 import { KafkaService } from './KafkaService';
-import config from '../config';
-import { IUserUpdatedEvent, IUserUpdatedData } from '../models/events/IUserUpdatedEvent';
-import { IAppEvent } from '../models/events/IAppEvent';
+
 export class UpdatesProcessor {
 
   constructor(protected _kafkaService: KafkaService) { }

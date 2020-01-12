@@ -4,9 +4,9 @@ import chai from 'chai';
 chai.use(require('sinon-chai'));
 const expect = chai.expect;
 
-import { CommandsProcessor } from '../../src/services/CommandsProcessor';
-import { KafkaService } from '../../src/services/KafkaService';
 import { RedisMesageBus } from '@saal-oryx/message-bus';
+import { KafkaService } from '../../../src/services/processors/KafkaService';
+import { CommandsProcessor } from '../../../src/services/processors/CommandsProcessor';
 
 const kafkaServiceStub = sinon.spy(() => sinon.createStubInstance(KafkaService));
 const messageBusStub = sinon.spy(() => sinon.createStubInstance(RedisMesageBus));

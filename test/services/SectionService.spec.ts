@@ -8,8 +8,6 @@ const expect = chai.expect;
 import config from '../../src/config';
 import { Repo } from '../../src/repositories/RepoNames';
 import { SectionsService } from '../../src/services/SectionsService';
-import { UpdatesProcessor } from '../../src/services/UpdatesProcessor';
-import { CommandsProcessor } from '../../src/services/CommandsProcessor';
 import { getTestData, Test } from '../mockData/getSectionsTestData';
 import { IUserToken } from '../../src/models/IUserToken';
 import { ICreateSectionRequest } from '../../src/models/requests/ISectionRequests';
@@ -19,6 +17,8 @@ import { ISchool } from '../../src/models/entities/ISchool';
 import { IUser } from '../../src/models/entities/IUser';
 import { ISection } from '../../src/models/entities/ISection';
 import { tryAndExpect } from '../tryAndExpect';
+import { UpdatesProcessor } from '../../src/services/processors/UpdatesProcessor';
+import { CommandsProcessor } from '../../src/services/processors/CommandsProcessor';
 
 
 const token = <IUserToken>{ role: [config.authorizedRole] };

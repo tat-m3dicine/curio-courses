@@ -1,11 +1,11 @@
 import 'mocha';
 import sinon from 'sinon';
 import chai, { expect } from 'chai';
+import { KafkaService } from '../../../src/services/processors/KafkaService';
+import { UpdatesProcessor } from '../../../src/services/processors/UpdatesProcessor';
+import { IUserUpdatedData } from '../../../src/models/events/IUserUpdatedEvent';
 chai.use(require('sinon-chai'));
 
-import { KafkaService } from '../../src/services/KafkaService';
-import { UpdatesProcessor } from '../../src/services/UpdatesProcessor';
-import { IUserUpdatedData } from '../../src/models/events/IUserUpdatedEvent';
 
 const kafkaServiceStub = sinon.spy(() => sinon.createStubInstance(KafkaService));
 

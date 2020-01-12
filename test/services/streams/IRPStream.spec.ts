@@ -3,13 +3,13 @@ import sinon from 'sinon';
 import chai, { expect } from 'chai';
 chai.use(require('sinon-chai'));
 
-import { UpdatesProcessor } from '../../../src/services/UpdatesProcessor';
 import { IRPStream } from '../../../src/services/streams/IRPStream';
 import { KafkaStreams } from 'kafka-streams';
 import { UnitOfWork } from '@saal-oryx/unit-of-work';
 import { IAppEvent } from '../../../src/models/events/IAppEvent';
 import { UsersService } from '../../../src/services/UsersService';
 import { getKStreamMock } from './KStreamMock';
+import { UpdatesProcessor } from '../../../src/services/processors/UpdatesProcessor';
 
 const testEvent: IAppEvent = { data: [], event: '', timestamp: Date.now(), v: '1.0', key: 'abc' };
 const unitOfWorkStub = sinon.spy(() => sinon.createStubInstance(UnitOfWork));
@@ -82,7 +82,7 @@ describe('IRP Stream', () => {
 
   it('should fail to process event due to service signup() call error', async () => {
     _userServiceStub.signup = () => { throw 500; };
-    const event: IAppEvent = { ...testEvent, event: 'user_created', data: [{ date: '2020-01-08T14:37:51.407Z' }] };
+    const event: IAppEvent = { ...testEvent, event: 'user_created' };
     irpStream = getIRPStream([event]);
     const [stream] = await irpStream.start();
     expect(JSON.parse(stream[0].value).error).equal('500');

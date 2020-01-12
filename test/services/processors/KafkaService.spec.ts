@@ -4,8 +4,8 @@ import chai, { expect } from 'chai';
 chai.use(require('sinon-chai'));
 
 import { Kafka, logLevel } from 'kafkajs';
-import { KafkaService } from '../../src/services/KafkaService';
-import { IAppEvent } from '../../src/models/events/IAppEvent';
+import { IAppEvent } from '../../../src/models/events/IAppEvent';
+import { KafkaService } from '../../../src/services/processors/KafkaService';
 
 const kafkaStub = sinon.spy(() => sinon.createStubInstance(Kafka));
 const testEvent: IAppEvent = { data: [], event: '', timestamp: Date.now(), v: '1.0' };

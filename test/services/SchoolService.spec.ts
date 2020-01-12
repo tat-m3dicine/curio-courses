@@ -6,12 +6,12 @@ const expect = chai.expect;
 
 import { UnitOfWork } from '@saal-oryx/unit-of-work';
 import { SchoolsService } from '../../src/services/SchoolsService';
-import { KafkaService } from '../../src/services/KafkaService';
 import { Repo } from '../../src/repositories/RepoNames';
-import { CommandsProcessor } from '../../src/services/CommandsProcessor';
 import { IUserToken } from '../../src/models/IUserToken';
 import config from '../../src/config';
 import { schoolRequest } from '../mockData/getTestData';
+import { KafkaService } from '../../src/services/processors/KafkaService';
+import { CommandsProcessor } from '../../src/services/processors/CommandsProcessor';
 
 const unitOfWorkStub = sinon.spy(() => sinon.createStubInstance(UnitOfWork));
 const kafkaServiceStub = sinon.spy(() => sinon.createStubInstance(KafkaService));
@@ -34,7 +34,7 @@ describe('Schools Service', () => {
     repositoryReturns(Repo.courses, { getActiveCoursesForUsers: () => [] });
   });
 
-  it('should able to create the school, with valid request', async() => {
+  it('should able to create the school, with valid request', async () => {
     _commandsProcessorStub.sendCommand.resolves({ result: { done: true } });
     await schoolService.add(schoolRequest, <IUserToken>{ role: [config.authorizedRole] });
   });

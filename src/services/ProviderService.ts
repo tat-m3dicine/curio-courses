@@ -2,7 +2,6 @@ import config from '../config';
 import validators from '../utils/validators';
 import { IProvider, IAcademicTermRequest, IDeleteProviderAcademicTermRequest } from '../models/entities/IProvider';
 import { ICreateProviderRequest } from '../models/requests/IProviderRequest';
-import { CommandsProcessor } from './CommandsProcessor';
 import { IUnitOfWork } from '@saal-oryx/unit-of-work';
 import { ProvidersRepository } from '../repositories/ProvidersRepository';
 import { ForbiddenError } from '../exceptions/ForbiddenError';
@@ -16,6 +15,7 @@ import { newProviderId, newAcademicTermId } from '../utils/IdGenerator';
 import { Repo } from '../repositories/RepoNames';
 import { CoursesRepository } from '../repositories/CoursesRepository';
 import { NotFoundError } from '../exceptions/NotFoundError';
+import { CommandsProcessor } from './processors/CommandsProcessor';
 
 export class ProvidersService {
 
@@ -51,7 +51,7 @@ export class ProvidersService {
   }
 
   private async doAdd(provider: IProvider) {
-   return this.providersRepo.add(provider);
+    return this.providersRepo.add(provider);
   }
 
   async updateAcademicTerm(updateObj: IUpdateAcademicTermRequest, providerId: string, byUser: IUserToken) {
@@ -77,7 +77,7 @@ export class ProvidersService {
 
   async deleteAcademicTermProvider(requestParams: IDeleteProviderAcademicTermRequest, byUser: IUserToken) {
     this.authorize(byUser);
-    const {  providerId, academicTermId } = { ...requestParams };
+    const { providerId, academicTermId } = { ...requestParams };
     const activeCourses = await this.coursesRepo.findMany({ 'academicTerm._id': academicTermId });
     if (activeCourses.length !== 0) {
       const coursesIds = activeCourses.map(course => course._id).join("', '");
@@ -92,12 +92,13 @@ export class ProvidersService {
     if (!providerObj) throw new NotFoundError('Unable to Find the provider');
     const academicTermIds = providerObj.academicTerms ? providerObj.academicTerms.map(academicTerm => academicTerm._id) : undefined;
     if (academicTermIds) {
-    const activeCourses = await this.coursesRepo.findMany({ 'academicTerm._id': { $in: academicTermIds} });
-    if (activeCourses.length !== 0) {
-      const coursesIds = activeCourses.map(course => course._id).join("', '");
-      throw new ConditionalBadRequest(`Unable to delete the Academic Term because ['${coursesIds}'] are active within.`);
-    }}
-   return this._commandsProcessor.sendCommand('providers', this.doDelete, providerId);
+      const activeCourses = await this.coursesRepo.findMany({ 'academicTerm._id': { $in: academicTermIds } });
+      if (activeCourses.length !== 0) {
+        const coursesIds = activeCourses.map(course => course._id).join("', '");
+        throw new ConditionalBadRequest(`Unable to delete the Academic Term because ['${coursesIds}'] are active within.`);
+      }
+    }
+    return this._commandsProcessor.sendCommand('providers', this.doDelete, providerId);
   }
 
   private async doDeleteAcademicTermProvider(_id: string, academicTermId: string) {

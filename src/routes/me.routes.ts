@@ -2,9 +2,9 @@ import KoaRoute from 'koa-tree-router';
 import Koa from 'koa';
 import { CoursesService } from '../services/CoursesService';
 import { CoursesController } from '../controllers/CoursesController';
-import { CommandsProcessor } from '../services/CommandsProcessor';
-import { UpdatesProcessor } from '../services/UpdatesProcessor';
 import { UnauthorizedError } from '../exceptions/UnauthorizedError';
+import { CommandsProcessor } from '../services/processors/CommandsProcessor';
+import { UpdatesProcessor } from '../services/processors/UpdatesProcessor';
 
 
 export default (commandsProccessor: CommandsProcessor, updatesProcessor: UpdatesProcessor) => {

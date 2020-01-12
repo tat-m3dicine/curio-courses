@@ -6,7 +6,6 @@ chai.use(require('sinon-chai'));
 import { UnitOfWork, IPaging } from '@saal-oryx/unit-of-work';
 import { InviteCodesService } from '../../src/services/InviteCodesService';
 import { Repo } from '../../src/repositories/RepoNames';
-import { CommandsProcessor } from '../../src/services/CommandsProcessor';
 import { IUserToken } from '../../src/models/IUserToken';
 import config from '../../src/config';
 import { tryAndExpect } from '../tryAndExpect';
@@ -20,6 +19,7 @@ import { InvalidRequestError } from '../../src/exceptions/InvalidRequestError';
 import { getTestData, Test } from '../mockdata/getTestData';
 import { InvalidLicenseError } from '../../src/exceptions/InvalidLicenseError';
 import { SignupMethods } from '../../src/models/entities/ISchool';
+import { CommandsProcessor } from '../../src/services/processors/CommandsProcessor';
 
 const unitOfWorkStub = sinon.spy(() => sinon.createStubInstance(UnitOfWork));
 const commandsProcessorStub = sinon.spy(() => sinon.createStubInstance(CommandsProcessor));

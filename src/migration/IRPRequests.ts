@@ -5,7 +5,7 @@ import { IIRPSection, IIRPUserMigrationRequest, IIRPSchool } from '../models/ent
 import correlationIDHelper from '../utils/correlationIDHelper';
 
 const logger = loggerFactory.getLogger('IRPService');
-export class IRPService {
+export class IRPRequests {
 
   protected irpUrl = config.irpUrl + '/authenticate';
 

@@ -6,7 +6,6 @@ import { IAcademicTerm } from '../models/entities/Common';
 import { ILicenseRequest } from '../models/requests/ILicenseRequest';
 import { ISchool, ISchoolUserPermissions, ILicense } from '../models/entities/ISchool';
 import { ICreateSchoolRequest, IUpdateSchoolRequest, ICreateLicenseRequest, IDeleteAcademicTermRequest, IUpdateUserRequest, IUpdateAcademicTermRequest } from '../models/requests/ISchoolRequests';
-import { CommandsProcessor } from './CommandsProcessor';
 import { IUnitOfWork, defaultPaging, IPaging } from '@saal-oryx/unit-of-work';
 import { SchoolsRepository } from '../repositories/SchoolsRepository';
 import { CoursesRepository } from '../repositories/CoursesRepository';
@@ -20,10 +19,11 @@ import { Role } from '../models/Role';
 import loggerFactory from '../utils/logging';
 import { IRegistrationAction } from '../models/requests/IRegistrationAction';
 import { InvalidLicenseError } from '../exceptions/InvalidLicenseError';
-import { KafkaService } from './KafkaService';
-import { Events } from './UpdatesProcessor';
 import { newSchoolId, newAcademicTermId } from '../utils/IdGenerator';
 import { Repo } from '../repositories/RepoNames';
+import { CommandsProcessor } from './processors/CommandsProcessor';
+import { KafkaService } from './processors/KafkaService';
+import { Events } from './processors/UpdatesProcessor';
 const logger = loggerFactory.getLogger('SchoolsService');
 
 export class SchoolsService {
