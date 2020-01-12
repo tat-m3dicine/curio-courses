@@ -7,7 +7,7 @@ import { Role } from '../models/Role';
 import { Status } from '../models/entities/IUser';
 import { IRegistrationAction } from '../models/requests/IRegistrationAction';
 
-const logger = loggerFactory.getLogger('SkillRatingsController');
+const logger = loggerFactory.getLogger('SchoolsController');
 
 export class SchoolsController {
 
