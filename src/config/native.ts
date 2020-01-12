@@ -1,13 +1,4 @@
-import config from '../../config';
-
-const batchOptions = {
-  batchSize: 1,
-  commitEveryNBatch: 1,
-  concurrency: 1,
-  commitSync: false,
-  noBatchCommits: true
-};
-
+import config from '../config';
 
 export const getNativeConfig = (groupId: string, clientId: string) => {
   return {
@@ -56,6 +47,12 @@ const nativeConfig = {
     'auto.offset.reset': 'earliest',
     'request.required.acks': 1
   },
-  batchOptions,
+  batchOptions: {
+    batchSize: 1,
+    commitEveryNBatch: 1,
+    concurrency: 1,
+    commitSync: false,
+    noBatchCommits: true
+  },
   workerPerPartition: 1,
 };

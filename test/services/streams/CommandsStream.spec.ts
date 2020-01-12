@@ -13,9 +13,9 @@ import { NotFoundError } from '../../../src/exceptions/NotFoundError';
 import { Repo } from '../../../src/repositories/RepoNames';
 import { ServerError } from '../../../src/exceptions/ServerError';
 import { InvalidRequestError } from '../../../src/exceptions/InvalidRequestError';
+import { getKStreamMock } from './KStreamMock';
 
 const testEvent: IAppEvent = { data: [], event: '', timestamp: Date.now(), v: '1.0', key: 'abc' };
-const format = (event: IAppEvent) => ({ value: JSON.stringify(event) });
 const unitOfWorkStub = sinon.spy(() => sinon.createStubInstance(UnitOfWork));
 const kafkaStreamsStub = sinon.spy(() => sinon.createStubInstance(KafkaStreams));
 const updatesProcessorStub = sinon.spy(() => sinon.createStubInstance(UpdatesProcessor));
@@ -27,35 +27,15 @@ describe('Commands Stream', () => {
   let _updatesProcessorStub: any;
   let _commandsProcessorStub: any;
   let commandsStream: CommandsStream;
+
   const repositoryReturns = (repo: Repo, methods: object) => _unitOfWorkStub.getRepository.withArgs(repo).returns(methods);
   const getCommandsStream = (events: IAppEvent[], failedEvents?: IAppEvent[]) => {
-    _kafkaStreamsStub.getKStream = (topic: string) => {
-      let processed: any[] = [];
-      return {
-        kafka: { consumer: { commitLocalOffsetsForTopic: () => undefined } },
-        start: (done, error) => {
-          processed.length > 0 ? done() : error();
-          return Promise.all(processed.map(result => result.source.source.value));
-        },
-        map: map => ({
-          concatMap: concatMap => ({
-            filter: filter => !topic.endsWith('failed') ?
-              {
-                to: to => events && (processed = events.map(format).map(map).map(concatMap).map(filter))
-              } : {
-                concatMap: concatMap2 => ({
-                  to: to => failedEvents && (processed = failedEvents.map(format).map(map).map(concatMap).map(filter).map(concatMap2))
-                })
-              }
-          })
-        })
-      };
-    };
+    _kafkaStreamsStub.getKStream = getKStreamMock(events, failedEvents);
     return new CommandsStream(
       _kafkaStreamsStub,
       _updatesProcessorStub,
       _commandsProcessorStub,
-      async () => _unitOfWorkStub,
+      () => _unitOfWorkStub,
       { writeToFailedDelay: 5 }
     );
   };
@@ -68,7 +48,7 @@ describe('Commands Stream', () => {
   });
 
   it('should succeed to get stream services', async () => {
-    commandsStream = new CommandsStream(_kafkaStreamsStub, _updatesProcessorStub, _commandsProcessorStub, async () => _unitOfWorkStub);
+    commandsStream = new CommandsStream(_kafkaStreamsStub, _updatesProcessorStub, _commandsProcessorStub, () => _unitOfWorkStub);
     const result = await commandsStream.getServices();
     expect(result.services.size).gt(0);
   });
