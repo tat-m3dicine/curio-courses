@@ -10,14 +10,15 @@ import { SchoolsRepository } from '../repositories/SchoolsRepository';
 import { ISchool, SignupMethods } from '../models/entities/ISchool';
 import { InvalidLicenseError } from '../exceptions/InvalidLicenseError';
 import { ForbiddenError } from '../exceptions/ForbiddenError';
-import { CommandsProcessor } from './CommandsProcessor';
 import { validateAllObjectsExist } from '../utils/validators/AllObjectsExist';
 import { ICreateInviteCodeRequest } from '../models/requests/IInviteCodeRequests';
 import { IInviteCode, EnrollmentType } from '../models/entities/IInviteCode';
-import generate from 'nanoid/non-secure/generate';
 import { InviteCodesRepository } from '../repositories/InviteCodesRepository';
 import { ICourse } from '../models/entities/ICourse';
 import { InvalidRequestError } from '../exceptions/InvalidRequestError';
+import { newInviteCodeId } from '../utils/IdGenerator';
+import { Repo } from '../repositories/RepoNames';
+import { CommandsProcessor } from './processors/CommandsProcessor';
 
 export class InviteCodesService {
 
@@ -25,19 +26,19 @@ export class InviteCodesService {
   }
 
   protected get inviteCodesRepo() {
-    return this._uow.getRepository('InviteCodes') as InviteCodesRepository;
+    return this._uow.getRepository(Repo.inviteCodes) as InviteCodesRepository;
   }
 
   protected get schoolsRepo() {
-    return this._uow.getRepository('Schools') as SchoolsRepository;
+    return this._uow.getRepository(Repo.schools) as SchoolsRepository;
   }
 
   protected get sectionsRepo() {
-    return this._uow.getRepository('Sections') as SectionsRepository;
+    return this._uow.getRepository(Repo.sections) as SectionsRepository;
   }
 
   protected get coursesRepo() {
-    return this._uow.getRepository('Courses') as CoursesRepository;
+    return this._uow.getRepository(Repo.courses) as CoursesRepository;
   }
 
   async create(inviteCode: ICreateInviteCodeRequest, byUser: IUserToken) {
@@ -60,7 +61,7 @@ export class InviteCodesService {
       throw new InvalidLicenseError(`Sign up through invite codes isn't included in '${schoolId}' school's license package!`);
     }
     return this._commandsProcessor.sendCommand('inviteCodes', this.doCreate, <IInviteCode>{
-      _id: generate('0123456789abcdef', 8),
+      _id: newInviteCodeId(),
       schoolId, validity, isEnabled: true,
       quota: { max: quota, consumed: 0 },
       enrollment: { sectionId, courses, type }
@@ -94,7 +95,7 @@ export class InviteCodesService {
 
   protected authorize(byUser: IUserToken) {
     if (!byUser) throw new ForbiddenError('access token is required!');
-    const isAuthorized = byUser.role.split(',').includes(config.authorizedRole);
-    if (!isAuthorized) throw new UnauthorizedError('you are not authorized!');
+    if (byUser.role.includes(config.authorizedRole)) return true;
+    throw new UnauthorizedError('you are not authorized to do this action');
   }
 }

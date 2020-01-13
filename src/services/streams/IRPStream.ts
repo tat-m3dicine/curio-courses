@@ -3,11 +3,10 @@ import { fromPromise } from 'most';
 import { KafkaStreams, KStream } from 'kafka-streams';
 import { UsersService } from '../UsersService';
 import loggerFactory from '../../utils/logging';
-import { getDbClient } from '../../utils/getDbClient';
 import { UnitOfWork } from '@saal-oryx/unit-of-work';
-import { getFactory } from '../../repositories/RepositoryFactory';
 import { IAppEvent } from '../../models/events/IAppEvent';
-import { CommandsProcessor } from '../CommandsProcessor';
+import { KafkaService } from '../processors/KafkaService';
+import { mapToProperJSON } from '../../utils/mapToProperJSON';
 
 const logger = loggerFactory.getLogger('IRPStream');
 
@@ -18,16 +17,21 @@ export class IRPStream {
 
   protected _usersService?: UsersService;
 
-  constructor(protected _kafkaStreams: KafkaStreams, protected _commandsProcessor: CommandsProcessor) {
+  constructor(
+    protected _kafkaStreams: KafkaStreams,
+    protected _kafkaService: KafkaService,
+    protected _unitOfWorkFactory: (options: any) => Promise<UnitOfWork>,
+    protected _getUsersService: (uow: UnitOfWork, kafka: KafkaService) => UsersService,
+    protected _config = { writeToFailedDelay: 1000 }
+  ) {
     logger.debug('Init ...');
     this._stream = _kafkaStreams.getKStream(config.kafkaIRPTopic);
     this._failuresStream = _kafkaStreams.getKStream(`${config.kafkaIRPTopic}_irp_db_failed`);
   }
 
   async start() {
-    const client = await getDbClient();
-    const uow = new UnitOfWork(client, getFactory(), { useTransactions: false });
-    this._usersService = new UsersService(uow, this._commandsProcessor);
+    const uow = await this._unitOfWorkFactory({ useTransactions: true });
+    this._usersService = this._getUsersService(uow, this._kafkaService);
     return Promise.all([this.rawStart(), this.failuresStart()]);
   }
 
@@ -35,7 +39,7 @@ export class IRPStream {
     this._stream
       .map(mapToProperJSON)
       .concatMap(message => {
-        logger.debug('raw-db-sink', message.offset, message.value.key);
+        logger.debug('raw-db-sink', message.offset, message.value && message.value.key);
         const result = this.process(message).then(async result => {
           // tslint:disable-next-line: no-string-literal
           const client = this._stream['kafka']['consumer'];
@@ -46,14 +50,19 @@ export class IRPStream {
       })
       .filter(v => v)
       .to(`${config.kafkaIRPTopic}_irp_db_failed`);
-    return this._stream.start();
+    return this._stream.start(
+      () => {
+        logger.info('Raw Stream Ready ...');
+      }, (error) => {
+        logger.error('Raw Stream Error', error);
+      });
   }
 
   protected async failuresStart() {
     this._failuresStream
       .map(mapToProperJSON)
       .concatMap(message => {
-        logger.debug('failed-db-sink', message.offset, message.value.key);
+        logger.debug('failed-db-sink', message.offset, message.value && message.value.key);
         const result = this.process(message)
           .then(async processingResults => {
             // tslint:disable-next-line: no-string-literal
@@ -70,12 +79,17 @@ export class IRPStream {
           setTimeout(() => {
             logger.warn('writing_to_db_failed', JSON.stringify(message));
             return resolve(message);
-          }, 1000);
+          }, this._config.writeToFailedDelay);
         });
         return fromPromise(result);
       })
       .to(`${config.kafkaIRPTopic}_irp_db_failed`);
-    return this._failuresStream.start();
+    return this._failuresStream.start(
+      () => {
+        logger.info('Failure Stream Ready ...');
+      }, (error) => {
+        logger.error('Failure Stream Error', error);
+      });
   }
 
   protected async process(message: { value: any, partition: number, offset: number, topic: string }) {
@@ -101,20 +115,4 @@ export class IRPStream {
       };
     }
   }
-}
-
-
-function mapToProperJSON(message: any) {
-  const newValue = JSON.parse(message.value, reviver);
-  const newMessage = { ...message, value: newValue };
-  return newMessage;
-}
-
-const dateFormat = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{3}Z$/;
-
-function reviver(key: string, value: any) {
-  if (typeof value === 'string' && dateFormat.test(value)) {
-    return new Date(value);
-  }
-  return value;
 }

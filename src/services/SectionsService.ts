@@ -12,12 +12,13 @@ import { SchoolsRepository } from '../repositories/SchoolsRepository';
 import { ISchool } from '../models/entities/ISchool';
 import { InvalidLicenseError } from '../exceptions/InvalidLicenseError';
 import { ForbiddenError } from '../exceptions/ForbiddenError';
-import { CommandsProcessor } from './CommandsProcessor';
 import { InvalidRequestError } from '../exceptions/InvalidRequestError';
 import { Role } from '../models/Role';
 import { IUser } from '../models/entities/IUser';
 import { validateAllObjectsExist } from '../utils/validators/AllObjectsExist';
-import { ILocales } from '../models/entities/Common';
+import { newSectionId } from '../utils/IdGenerator';
+import { Repo } from '../repositories/RepoNames';
+import { CommandsProcessor } from './processors/CommandsProcessor';
 
 export class SectionsService {
 
@@ -25,15 +26,15 @@ export class SectionsService {
   }
 
   protected get schoolsRepo() {
-    return this._uow.getRepository('Schools') as SchoolsRepository;
+    return this._uow.getRepository(Repo.schools) as SchoolsRepository;
   }
 
   protected get sectionsRepo() {
-    return this._uow.getRepository('Sections') as SectionsRepository;
+    return this._uow.getRepository(Repo.sections) as SectionsRepository;
   }
 
   protected get usersRepo() {
-    return this._uow.getRepository('Users') as UsersRepository;
+    return this._uow.getRepository(Repo.users) as UsersRepository;
   }
 
   async create(section: ICreateSectionRequest, byUser: IUserToken) {
@@ -44,7 +45,7 @@ export class SectionsService {
     }
     await this.validateWithSchoolLicense(grade, schoolId);
     return this._commandsProcessor.sendCommand('sections', this.doCreate, <ISection>{
-      _id: section._id || this.newSectionId(schoolId, grade, locales),
+      _id: section._id || newSectionId(schoolId, grade, locales),
       locales, schoolId, grade,
       students: students || []
     });
@@ -105,8 +106,8 @@ export class SectionsService {
   }
 
   private async doRemoveStudents(schoolId: string, sectionId: string, studentIds: string[], finishDate: Date) {
-    const coursesRepoWithTransactions = this._uow.getRepository('Courses', true) as CoursesRepository;
-    const sectionsRepoWithTransactions = this._uow.getRepository('Sections', true) as SectionsRepository;
+    const coursesRepoWithTransactions = this._uow.getRepository(Repo.courses, true) as CoursesRepository;
+    const sectionsRepoWithTransactions = this._uow.getRepository(Repo.sections, true) as SectionsRepository;
 
     const coursesUpdates = [{ filter: { sectionId, schoolId }, usersIds: studentIds }];
     await coursesRepoWithTransactions.finishUsersInCourses(coursesUpdates, Role.student, finishDate);
@@ -117,12 +118,8 @@ export class SectionsService {
 
   protected authorize(byUser: IUserToken) {
     if (!byUser) throw new ForbiddenError('access token is required!');
-    const isAuthorized = byUser.role.split(',').includes(config.authorizedRole);
-    if (!isAuthorized) throw new UnauthorizedError('you are not authorized!');
-  }
-
-  protected newSectionId(schoolId: string, grade: string, locales: ILocales) {
-    return `${schoolId}_${grade}_${locales.en.name}`.toLocaleLowerCase().replace(/\s/g, '');
+    if (byUser.role.includes(config.authorizedRole)) return true;
+    throw new UnauthorizedError('you are not authorized to do this action');
   }
 
   protected async validateStudentsInSchool(studentIds: string[], schoolId: string) {

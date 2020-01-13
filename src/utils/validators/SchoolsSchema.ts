@@ -5,7 +5,10 @@ import { IAcademicTerm } from '../../models/entities/Common';
 import { localesSchema } from './LocalesSchema';
 
 const createSchoolsSchema = {
-  _id: 'string',
+  _id: {
+    type: 'string',
+    optional: true
+  },
   locales: localesSchema('en'),
   location: {
     type: 'string'

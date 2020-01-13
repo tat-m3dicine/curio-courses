@@ -1,7 +1,8 @@
+import config from '../../config';
+import { IUserUpdatedEvent, IUserUpdatedData } from '../../models/events/IUserUpdatedEvent';
+import { IAppEvent } from '../../models/events/IAppEvent';
 import { KafkaService } from './KafkaService';
-import config from '../config';
-import { IUserUpdatedEvent } from '../models/events/IUserUpdatedEvent';
-import { IAppEvent } from '../models/events/IAppEvent';
+
 export class UpdatesProcessor {
 
   constructor(protected _kafkaService: KafkaService) { }
@@ -10,7 +11,7 @@ export class UpdatesProcessor {
     return this._kafkaService;
   }
 
-  async sendEnrollmentUpdates(usersUpdates: IUserUpdatedEvent[], coursesIds: string[]) {
+  async sendEnrollmentUpdatesWithActions(usersUpdates: IUserUpdatedEvent[], coursesIds: string[]) {
     const now = Date.now();
     const events: IAppEvent[] = [];
     for (const userUpdate of usersUpdates) {
@@ -31,6 +32,18 @@ export class UpdatesProcessor {
         v: '1.0.0'
       });
     }
+    await this._kafkaService.sendMany(config.kafkaUpdatesTopic, events);
+  }
+
+  async sendEnrollmentUpdates(usersUpdates: IUserUpdatedData[]) {
+    const now = Date.now();
+    const events: IAppEvent[] = usersUpdates.map(data => ({
+      key: data._id,
+      event: Events.enrollment,
+      data,
+      timestamp: now,
+      v: '1.0.0'
+    }));
     await this._kafkaService.sendMany(config.kafkaUpdatesTopic, events);
   }
 }

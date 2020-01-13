@@ -1,10 +1,11 @@
 import { IAcademicTerm, IAuditable } from './Common';
-import { IPackage } from './ISchool';
+import { ILicense } from './ISchool';
 
 export interface IProvider extends IAuditable {
   _id: string;
   config: IConfig;
-  package: IPackage;
+  location: string;
+  license: ILicense;
   academicTerms?: IAcademicTerm[];
 }
 
@@ -13,3 +14,18 @@ export interface IConfig {
   autoCreateSection: boolean;
   autoCreateCourse: boolean;
 }
+
+export interface IAcademicTermRequest {
+  year: string;
+  term: string;
+  startDate: Date;
+  endDate: Date;
+  gracePeriod: number;
+  isEnabled: boolean;
+}
+
+export interface IDeleteProviderAcademicTermRequest {
+  providerId: string;
+  academicTermId: string;
+}
+

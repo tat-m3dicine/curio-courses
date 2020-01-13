@@ -1,9 +1,7 @@
 import config from '../config';
 import validators from '../utils/validators';
-import generate from 'nanoid/non-secure/generate';
-import { IProvider } from '../models/entities/IProvider';
+import { IProvider, IAcademicTermRequest, IDeleteProviderAcademicTermRequest } from '../models/entities/IProvider';
 import { ICreateProviderRequest } from '../models/requests/IProviderRequest';
-import { CommandsProcessor } from './CommandsProcessor';
 import { IUnitOfWork } from '@saal-oryx/unit-of-work';
 import { ProvidersRepository } from '../repositories/ProvidersRepository';
 import { ForbiddenError } from '../exceptions/ForbiddenError';
@@ -11,7 +9,13 @@ import { UnauthorizedError } from '../exceptions/UnauthorizedError';
 import { InvalidRequestError } from '../exceptions/InvalidRequestError';
 import { IAcademicTerm } from '../models/entities/Common';
 import { IUserToken } from '../models/IUserToken';
+import { ConditionalBadRequest } from '../exceptions/ConditionalBadRequest';
 import { IUpdateAcademicTermRequest } from '../models/requests/ISchoolRequests';
+import { newProviderId, newAcademicTermId } from '../utils/IdGenerator';
+import { Repo } from '../repositories/RepoNames';
+import { CoursesRepository } from '../repositories/CoursesRepository';
+import { NotFoundError } from '../exceptions/NotFoundError';
+import { CommandsProcessor } from './processors/CommandsProcessor';
 
 export class ProvidersService {
 
@@ -19,7 +23,11 @@ export class ProvidersService {
   }
 
   protected get providersRepo() {
-    return this._uow.getRepository('Providers') as ProvidersRepository;
+    return this._uow.getRepository(Repo.providers) as ProvidersRepository;
+  }
+
+  protected get coursesRepo() {
+    return this._uow.getRepository(Repo.courses) as CoursesRepository;
   }
 
   async add(createObj: ICreateProviderRequest) {
@@ -27,7 +35,7 @@ export class ProvidersService {
     const academicTerms: IAcademicTerm[] = [];
     if (createObj.academicTerm) {
       academicTerms.push({
-        _id: generate('0123456789abcdef', 10),
+        _id: newProviderId(),
         ...createObj.academicTerm
       });
     }
@@ -35,16 +43,21 @@ export class ProvidersService {
     const provider: IProvider = {
       _id: createObj._id,
       config: createObj.config,
-      package: createObj.package,
+      license: createObj.license,
+      location: createObj.location,
       academicTerms
     };
+    return this._commandsProcessor.sendCommand('providers', this.doAdd, provider);
+  }
+
+  private async doAdd(provider: IProvider) {
     return this.providersRepo.add(provider);
   }
 
   async updateAcademicTerm(updateObj: IUpdateAcademicTermRequest, providerId: string, byUser: IUserToken) {
     this.authorize(byUser);
     const academicTerm: IAcademicTerm = {
-      _id: generate('0123456789abcdef', 10),
+      _id: newAcademicTermId(),
       year: updateObj.year,
       term: updateObj.term,
       startDate: new Date(updateObj.startDate),
@@ -54,13 +67,59 @@ export class ProvidersService {
     };
     validators.validateUpdateProviderAcademicTerm({ academicTerm });
     if (academicTerm.startDate > academicTerm.endDate) throw new InvalidRequestError('Start Date should be less than End Date');
-    const result = await this.providersRepo.updateAcademicTerm(providerId, updateObj, academicTerm);
-    return result;
+    return this._commandsProcessor.sendCommand('providers', this.doUpdateAcademicTerm, providerId, updateObj, academicTerm);
   }
 
-  private authorize(byUser: IUserToken) {
+  private async doUpdateAcademicTerm(providerId: string, updateObj: IAcademicTermRequest, academicTerm: IAcademicTerm) {
+    return this.providersRepo.updateAcademicTerm(providerId, updateObj, academicTerm);
+  }
+
+
+  async deleteAcademicTermProvider(requestParams: IDeleteProviderAcademicTermRequest, byUser: IUserToken) {
+    this.authorize(byUser);
+    const { providerId, academicTermId } = { ...requestParams };
+    const activeCourses = await this.coursesRepo.findMany({ 'academicTerm._id': academicTermId });
+    if (activeCourses.length !== 0) {
+      const coursesIds = activeCourses.map(course => course._id).join("', '");
+      throw new ConditionalBadRequest(`Unable to delete the Academic Term because ['${coursesIds}'] are active within.`);
+    }
+    return this._commandsProcessor.sendCommand('providers', this.doDeleteAcademicTermProvider, providerId, academicTermId);
+  }
+
+  async deleteProvider(providerId: string, byUser: IUserToken) {
+    this.authorize(byUser);
+    const providerObj = await this.findProvider(providerId);
+    if (!providerObj) throw new NotFoundError('Unable to Find the provider');
+    const academicTermIds = providerObj.academicTerms ? providerObj.academicTerms.map(academicTerm => academicTerm._id) : undefined;
+    if (academicTermIds) {
+      const activeCourses = await this.coursesRepo.findMany({ 'academicTerm._id': { $in: academicTermIds } });
+      if (activeCourses.length !== 0) {
+        const coursesIds = activeCourses.map(course => course._id).join("', '");
+        throw new ConditionalBadRequest(`Unable to delete the Academic Term because ['${coursesIds}'] are active within.`);
+      }
+    }
+    return this._commandsProcessor.sendCommand('providers', this.doDelete, providerId);
+  }
+
+  private async doDeleteAcademicTermProvider(_id: string, academicTermId: string) {
+    return this.providersRepo.deleteAcademicTermProvider(_id, academicTermId);
+  }
+
+  private async doDelete(providerId: string) {
+    return this.providersRepo.delete({ _id: providerId });
+  }
+
+  async get(providerId: string, byUser: IUserToken) {
+    this.authorize(byUser);
+    return this.findProvider(providerId);
+  }
+
+  async findProvider(providerId: string) {
+    return this.providersRepo.findById(providerId);
+  }
+  protected authorize(byUser: IUserToken) {
     if (!byUser) throw new ForbiddenError('access token is required!');
-    const isAuthorized = byUser.role.split(',').includes(config.authorizedRole);
-    if (!isAuthorized) throw new UnauthorizedError('you are not authorized!');
+    if (byUser.role.includes(config.authorizedRole)) return true;
+    throw new UnauthorizedError('you are not authorized to do this action');
   }
 }

@@ -10,7 +10,7 @@ RUN mkdir /app
 WORKDIR /app
 
 COPY ["./package.json", "tsconfig.json", "./"]
-RUN npm install --registry http://scr.saal.ai:4873
+RUN npm install --registry https://npr.saal.ai
 
 COPY src ./src
 RUN npm run build

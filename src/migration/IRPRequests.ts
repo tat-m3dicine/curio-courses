@@ -1,13 +1,11 @@
 import request from 'request';
 import config from '../config';
-import nanoid = require('nanoid');
 import loggerFactory from '../utils/logging';
 import { IIRPSection, IIRPUserMigrationRequest, IIRPSchool } from '../models/entities/IIRP';
 import correlationIDHelper from '../utils/correlationIDHelper';
-import { IUserWithRegistration } from '../models/entities/IUser';
 
 const logger = loggerFactory.getLogger('IRPService');
-export class IRPService {
+export class IRPRequests {
 
   protected irpUrl = config.irpUrl + '/authenticate';
 
@@ -26,6 +24,12 @@ export class IRPService {
   public getAllUsersBySection(sectionId: string) {
     const usersIRPUrl = `${this.irpUrl}/users/group/${sectionId}`;
     logger.info('getAllUsersBySection invoked', usersIRPUrl);
+    return new Promise<IIRPUserMigrationRequest[]>(this.requestURL(usersIRPUrl));
+  }
+
+  public getTeachersByPrefrences(schoolId: string) {
+    const usersIRPUrl = `${config.irpUrl}/internal/schools/${schoolId}/teachers?size=10000`;
+    logger.info('getTeachersByPrefrences invoked', usersIRPUrl);
     return new Promise<IIRPUserMigrationRequest[]>(this.requestURL(usersIRPUrl));
   }
 

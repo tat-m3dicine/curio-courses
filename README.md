@@ -60,8 +60,30 @@ Node.js Koa backend with MongoDb clsuter and Kafka.
 2. Kafka
 3. Redis
 
+### MongoDB Replica set configs
+#### Step 1 - Initiate
+```sh
+rs.initiate({
+  _id: "rs0",
+  protocolVersion: 1,
+  members: [
+    { _id: 0, host : "courses-mongodb:27017" }
+  ]
+})
+```
+#### Step 2 - Config
+```sh
+rs.reconfig({
+  _id: "rs0",
+  protocolVersion: 1,
+  members: [
+    { _id: 0, host : "courses-mongodb:27017" }
+  ]
+}, {force: true})
+```
+
 ## Ports Used:
 * **80**
 
 ## API
-[Postman API Docs](https://documenter.getpostman.com/view/4891391/SWLYAWPm)
+[Postman API Docs](https://documenter.getpostman.com/view/4856492/SWEDyttY)

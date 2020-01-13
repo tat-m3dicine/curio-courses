@@ -1,18 +1,34 @@
-import { Kafka, Producer } from 'kafkajs';
+import { Kafka, Producer, logLevel } from 'kafkajs';
 import nanoid from 'nanoid';
-import config from '../config';
-import { IAppEvent } from '../models/events/IAppEvent';
+import config from '../../config';
+import loggerFactory from '../../utils/logging';
+import { IAppEvent } from '../../models/events/IAppEvent';
+
 
 export class KafkaService {
   protected _kafka: Kafka;
   protected _producer: Producer;
 
-  constructor(allowAutoTopicCreation = false) {
-    this._kafka = new Kafka({
+  constructor(getKafka: (config) => Kafka, allowAutoTopicCreation = false) {
+    this._kafka = getKafka({
       brokers: config.kafkaBrokers,
       clientId: config.kafkaClientId,
       retry: {
-        retries: 10
+        retries: 6,
+      },
+      logCreator: (level) => {
+        const maxLogLevel: logLevel = parseInt(level);
+        const logger = loggerFactory.getLogger('KafkaService');
+        return (entry) => {
+          if (entry.level > maxLogLevel) return;
+          switch (entry.level) {
+            case logLevel.ERROR: return logger.error(entry.label, entry.log);
+            case logLevel.INFO: return logger.info(entry.label, entry.log);
+            case logLevel.WARN: return logger.warn(entry.label, entry.log);
+            case logLevel.DEBUG: return logger.debug(entry.label, entry.log);
+            default: return logger.info(entry.label, entry.log);
+          }
+        };
       }
     });
     this._producer = this._kafka.producer({
@@ -37,7 +53,7 @@ export class KafkaService {
   }
 
   async send(topic: string, event: IAppEvent) {
-    this.sendMany(topic, [event]);
+    return this.sendMany(topic, [event]);
   }
 
   async sendMany(topic: string, events: IAppEvent[]) {

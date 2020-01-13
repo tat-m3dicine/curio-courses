@@ -1,8 +1,6 @@
 
 import config from '../config';
 import validators from '../utils/validators';
-import generate from 'nanoid/non-secure/generate';
-import { CommandsProcessor } from './CommandsProcessor';
 import { IUnitOfWork, IPaging } from '@saal-oryx/unit-of-work';
 // models
 import { Role } from '../models/Role';
@@ -23,10 +21,13 @@ import { UsersRepository } from '../repositories/UsersRepository';
 import { CoursesRepository } from '../repositories/CoursesRepository';
 import { SchoolsRepository } from '../repositories/SchoolsRepository';
 import { SectionsRepository } from '../repositories/SectionsRepository';
+// Utils
 import { validateAllObjectsExist } from '../utils/validators/AllObjectsExist';
 import { IUserUpdatedEvent, IUserCourseUpdates } from '../models/events/IUserUpdatedEvent';
-import { AppError } from '../exceptions/AppError';
-import { UpdatesProcessor } from './UpdatesProcessor';
+import { newCourseId } from '../utils/IdGenerator';
+import { Repo } from '../repositories/RepoNames';
+import { CommandsProcessor } from './processors/CommandsProcessor';
+import { UpdatesProcessor } from './processors/UpdatesProcessor';
 
 export class CoursesService {
   constructor(
@@ -36,19 +37,19 @@ export class CoursesService {
   ) { }
 
   protected get schoolsRepo() {
-    return this._uow.getRepository('Schools') as SchoolsRepository;
+    return this._uow.getRepository(Repo.schools) as SchoolsRepository;
   }
 
   protected get sectionsRepo() {
-    return this._uow.getRepository('Sections') as SectionsRepository;
+    return this._uow.getRepository(Repo.sections) as SectionsRepository;
   }
 
   protected get usersRepo() {
-    return this._uow.getRepository('Users') as UsersRepository;
+    return this._uow.getRepository(Repo.users) as UsersRepository;
   }
 
   protected get coursesRepo() {
-    return this._uow.getRepository('Courses') as CoursesRepository;
+    return this._uow.getRepository(Repo.courses) as CoursesRepository;
   }
 
   async create(course: ICreateCourseRequest, byUser: IUserToken) {
@@ -83,7 +84,7 @@ export class CoursesService {
     }
 
     return this._commandsProcessor.sendCommand('courses', this.doCreate, <ICourse>{
-      _id: this.newCourseId(sectionId, subject, academicTerm.year),
+      _id: newCourseId(sectionId, subject, academicTerm.year),
       schoolId, sectionId, curriculum, grade, subject, academicTerm,
       defaultLocale: course.defaultLocale || Object.keys(course.locales)[0] || 'en',
       isEnabled: course.isEnabled === undefined ? true : course.isEnabled,
@@ -97,9 +98,21 @@ export class CoursesService {
     return this.coursesRepo.add(course);
   }
 
+  async listWithSections(schoolId: string, byUser: IUserToken) {
+    this.authorize(byUser, schoolId);
+    const sections = await this.sectionsRepo.findMany({ schoolId }, { students: 0 });
+    const courses = await this.coursesRepo.getActiveCoursesForSchool(schoolId, { students: 0, teachers: 0 });
+    return { sections, courses };
+  }
+
   async list(schoolId: string, sectionId: string, paging: IPaging, byUser: IUserToken) {
     this.authorize(byUser);
     return this.coursesRepo.findManyPage({ schoolId, sectionId }, paging);
+  }
+
+  async getById(schoolId: string, courseId: string, byUser: IUserToken) {
+    this.authorize(byUser, schoolId);
+    return this.coursesRepo.findOne({ _id: courseId, schoolId });
   }
 
   async get(schoolId: string, sectionId: string, courseId: string, byUser: IUserToken) {
@@ -178,6 +191,42 @@ export class CoursesService {
     return this.dropUsers(requestParams, Role.teacher, byUser);
   }
 
+  async getActiveCourses(userId: string, role?: Role) {
+    if (!role) return { courses: [], sections: [] };
+    const courses = await this.coursesRepo.getActiveCoursesForUsers(role, [userId]);
+    if (role === Role.student) {
+      return {
+        courses: courses.map(c => ({ ...c, students: undefined, teachers: undefined }))
+      };
+    }
+    const userIds = courses.reduce((list, c) =>
+      list.concat([...c.students, ...c.teachers].filter(u => u.isEnabled && !u.finishDate).map(u => u._id)), <string[]>[]
+    );
+    const users = await this.usersRepo.findMany({ _id: { $in: Array.from(new Set(userIds)) } });
+    const sections = await this.sectionsRepo.findMany({ _id: { $in: courses.map(c => c.sectionId) } });
+
+    return {
+      courses: courses.map(course => ({ ...course, students: course.students.map(s => s._id), teachers: course.teachers.map(teacher => teacher._id) })),
+      students: users.filter(student => student.role.includes(Role.student)).map(student => ({ _id: student._id, profile: student.profile })),
+      teachers: users.filter(teacher => teacher.role.includes(Role.teacher)).map(teacher => ({ _id: teacher._id, profile: teacher.profile })),
+      sections: sections.map(section => ({ _id: section._id, locales: section.locales }))
+    };
+  }
+
+  public async notifyForUserEnrollment(role: Role, userIds: string[]) {
+    const users: IUser[] = await this.usersRepo.findMany({ _id: { $in: userIds } });
+    const courses: ICourse[] = await this.coursesRepo.getActiveCoursesForUsers(role, userIds);
+    const coursesUpdates = this.transformCoursesToUpdates(courses, role);
+    const events = users.map(user => ({
+      _id: user._id,
+      // tslint:disable-next-line: no-null-keyword
+      schoolId: user.school ? user.school._id : null,
+      status: user.registration ? user.registration.status : (user.school ? Status.active : Status.inactive),
+      courses: coursesUpdates[user._id]
+    }));
+    this._updatesProcessor.sendEnrollmentUpdates(events);
+  }
+
   private async enrollUsers(requestParams: IUserRequest[], role: Role, byUser: IUserToken, sameSection = true) {
     this.authorize(byUser);
     const joinDate = new Date();
@@ -196,8 +245,8 @@ export class CoursesService {
       sectionsUpdates.push({ filter: { _id: sectionId, schoolId }, usersIds });
     }
 
-    const coursesRepoWithTransactions = this._uow.getRepository('Courses', true) as CoursesRepository;
-    const sectionsRepoWithTransactions = this._uow.getRepository('Sections', true) as SectionsRepository;
+    const coursesRepoWithTransactions = this._uow.getRepository(Repo.courses, true) as CoursesRepository;
+    const sectionsRepoWithTransactions = this._uow.getRepository(Repo.sections, true) as SectionsRepository;
 
     const result = await coursesRepoWithTransactions.addUsersToCourses(coursesUpdates, role);
     if (role === Role.student) await sectionsRepoWithTransactions.addStudentsToSections(sectionsUpdates);
@@ -225,11 +274,11 @@ export class CoursesService {
     return result;
   }
 
-  private async sendUsersChangesUpdates(action: string, role: Role, requests: IUserRequest[]) {
+  private async sendUsersChangesUpdates(action: 'enroll' | 'drop', role: Role, requests: IUserRequest[]) {
     const usersIds = Array.from(new Set(requests.reduce((list, request) => [...list, ...request.usersIds], <string[]>[])));
     const users: IUser[] = await this.usersRepo.findMany({ _id: { $in: usersIds } });
     const courses: ICourse[] = await this.coursesRepo.getActiveCoursesForUsers(role, usersIds);
-    if (courses.length === 0) throw new AppError('no_course_found', `No active course found!`);
+    if (courses.length === 0) return;
     const coursesUpdates = this.transformCoursesToUpdates(courses, role);
     const coursesIds = requests.map(request => request.courseId);
     const events = users.map(user => <IUserUpdatedEvent>{
@@ -242,7 +291,7 @@ export class CoursesService {
         courses: coursesUpdates[user._id]
       }
     });
-    this._updatesProcessor.sendEnrollmentUpdates(events, coursesIds);
+    this._updatesProcessor.sendEnrollmentUpdatesWithActions(events, coursesIds);
   }
 
   private transformCoursesToUpdates(courses: ICourse[], role: Role): { [_id: string]: IUserCourseUpdates[] } {
@@ -303,13 +352,13 @@ export class CoursesService {
     validateAllObjectsExist(usersObjs, userIds, schoolId, role);
   }
 
-  protected authorize(byUser: IUserToken) {
+  protected authorize(byUser: IUserToken, schoolId?: string) {
     if (!byUser) throw new ForbiddenError('access token is required!');
-    const isAuthorized = byUser.role.split(',').includes(config.authorizedRole);
-    if (!isAuthorized) throw new UnauthorizedError('you are not authorized!');
-  }
-
-  protected newCourseId(sectionId: string, subject: string, year: string) {
-    return `${sectionId}_${subject}_${year}_${generate('0123456789abcdef', 3)}`.toLocaleLowerCase().replace(/\s/g, '');
+    if (schoolId && byUser.schooluuid === schoolId && byUser.role.includes(Role.teacher)) {
+      return true;
+    } else if (byUser.role.includes(config.authorizedRole)) {
+      return true;
+    }
+    throw new UnauthorizedError('you are not authorized to do this action');
   }
 }

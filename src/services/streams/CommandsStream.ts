@@ -1,21 +1,20 @@
 import config from '../../config';
 import { KafkaStreams, KStream } from 'kafka-streams';
 import loggerFactory from '../../utils/logging';
-import { getDbClient } from '../../utils/getDbClient';
 import { fromPromise } from 'most';
-import { UnitOfWork } from '@saal-oryx/unit-of-work';
-import { getFactory } from '../../repositories/RepositoryFactory';
 import { IAppEvent } from '../../models/events/IAppEvent';
-import { CommandsProcessor } from '../CommandsProcessor';
 import { SchoolsService } from '../SchoolsService';
 import { SectionsService } from '../SectionsService';
 import { CoursesService } from '../CoursesService';
+import { ProvidersService } from '../ProviderService';
 import { ServerError } from '../../exceptions/ServerError';
 import { AppError } from '../../exceptions/AppError';
 import { InvalidRequestError } from '../../exceptions/InvalidRequestError';
 import { InviteCodesService } from '../InviteCodesService';
-import { UpdatesProcessor } from '../UpdatesProcessor';
-import { KafkaService } from '../KafkaService';
+import { UnitOfWork } from '@saal-oryx/unit-of-work';
+import { UpdatesProcessor } from '../processors/UpdatesProcessor';
+import { CommandsProcessor } from '../processors/CommandsProcessor';
+import { mapToProperJSON } from '../../utils/mapToProperJSON';
 
 const logger = loggerFactory.getLogger('CommandsStream');
 
@@ -28,7 +27,9 @@ export class CommandsStream {
   constructor(
     protected _kafkaStreams: KafkaStreams,
     protected _updatesProcessor: UpdatesProcessor,
-    protected _commandsProcessor: CommandsProcessor
+    protected _commandsProcessor: CommandsProcessor,
+    protected _unitOfWorkFactory: (options: any) => Promise<UnitOfWork>,
+    protected _config = { writeToFailedDelay: 1000 }
   ) {
     logger.debug('Init ...');
     this._stream = _kafkaStreams.getKStream(config.kafkaCommandsTopic);
@@ -36,13 +37,13 @@ export class CommandsStream {
   }
 
   async getServices() {
-    const client = await getDbClient();
-    const uow = new UnitOfWork(client, getFactory(), { useTransactions: true });
     const services = new Map<string, object>();
+    const uow = await this._unitOfWorkFactory({ useTransactions: true });
     services.set('schools', new SchoolsService(uow, this._commandsProcessor, this._commandsProcessor.kafkaService));
     services.set('sections', new SectionsService(uow, this._commandsProcessor));
     services.set('courses', new CoursesService(uow, this._commandsProcessor, this._updatesProcessor));
     services.set('inviteCodes', new InviteCodesService(uow, this._commandsProcessor));
+    services.set('providers', new ProvidersService(uow, this._commandsProcessor));
     return { services, uow };
   }
 
@@ -65,7 +66,12 @@ export class CommandsStream {
       })
       .filter(v => v)
       .to(`${config.kafkaCommandsTopic}_commands_db_failed`);
-    return this._stream.start();
+    return this._stream.start(
+      () => {
+        logger.info('Raw Stream Ready ...');
+      }, (error) => {
+        logger.error('Raw Stream Error', error);
+      });
   }
 
   protected async failuresStart() {
@@ -89,12 +95,17 @@ export class CommandsStream {
           setTimeout(() => {
             logger.warn('writing_to_db_failed', JSON.stringify(message));
             return resolve(message);
-          }, 1000);
+          }, this._config.writeToFailedDelay);
         });
         return fromPromise(result);
       })
       .to(`${config.kafkaCommandsTopic}_commands_db_failed`);
-    return this._failuresStream.start();
+    return this._failuresStream.start(
+      () => {
+        logger.info('Failure Stream Ready ...');
+      }, (error) => {
+        logger.error('Failure Stream Error', error);
+      });
   }
 
   protected async process(message: { value: any, partition: number, offset: number, topic: string }) {
@@ -109,6 +120,8 @@ export class CommandsStream {
         return;
       }
       const result = await service[functionName](...appEvent.data);
+      // tslint:disable-next-line: no-string-literal
+      await uow.commit();
       if (appEvent.key) this._commandsProcessor.resolveCommand(appEvent.key, result);
       return;
     } catch (error) {
@@ -135,20 +148,4 @@ export class CommandsStream {
       value: JSON.stringify({ ...appEvent, error: JSON.stringify(error) })
     };
   }
-}
-
-
-function mapToProperJSON(message: any) {
-  const newValue = JSON.parse(message.value, reviver);
-  const newMessage = { ...message, value: newValue };
-  return newMessage;
-}
-
-const dateFormat = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{3}Z$/;
-
-function reviver(key: string, value: any) {
-  if (typeof value === 'string' && dateFormat.test(value)) {
-    return new Date(value);
-  }
-  return value;
 }

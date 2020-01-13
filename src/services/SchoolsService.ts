@@ -1,13 +1,11 @@
 import config from '../config';
 import validators from '../utils/validators';
-import generate from 'nanoid/non-secure/generate';
 import { IUser, Status } from '../models/entities/IUser';
 import { IUserToken } from '../models/IUserToken';
 import { IAcademicTerm } from '../models/entities/Common';
 import { ILicenseRequest } from '../models/requests/ILicenseRequest';
 import { ISchool, ISchoolUserPermissions, ILicense } from '../models/entities/ISchool';
 import { ICreateSchoolRequest, IUpdateSchoolRequest, ICreateLicenseRequest, IDeleteAcademicTermRequest, IUpdateUserRequest, IUpdateAcademicTermRequest } from '../models/requests/ISchoolRequests';
-import { CommandsProcessor } from './CommandsProcessor';
 import { IUnitOfWork, defaultPaging, IPaging } from '@saal-oryx/unit-of-work';
 import { SchoolsRepository } from '../repositories/SchoolsRepository';
 import { CoursesRepository } from '../repositories/CoursesRepository';
@@ -21,8 +19,11 @@ import { Role } from '../models/Role';
 import loggerFactory from '../utils/logging';
 import { IRegistrationAction } from '../models/requests/IRegistrationAction';
 import { InvalidLicenseError } from '../exceptions/InvalidLicenseError';
-import { KafkaService } from './KafkaService';
-import { Events } from './UpdatesProcessor';
+import { newSchoolId, newAcademicTermId } from '../utils/IdGenerator';
+import { Repo } from '../repositories/RepoNames';
+import { CommandsProcessor } from './processors/CommandsProcessor';
+import { KafkaService } from './processors/KafkaService';
+import { Events } from './processors/UpdatesProcessor';
 const logger = loggerFactory.getLogger('SchoolsService');
 
 export class SchoolsService {
@@ -31,15 +32,15 @@ export class SchoolsService {
   }
 
   protected get schoolsRepo() {
-    return this._uow.getRepository('Schools') as SchoolsRepository;
+    return this._uow.getRepository(Repo.schools) as SchoolsRepository;
   }
 
   protected get coursesRepo() {
-    return this._uow.getRepository('Courses') as CoursesRepository;
+    return this._uow.getRepository(Repo.courses) as CoursesRepository;
   }
 
   protected get usersRepo() {
-    return this._uow.getRepository('Users') as UsersRepository;
+    return this._uow.getRepository(Repo.users) as UsersRepository;
   }
 
   async get(schoolId: string, byUser: IUserToken) {
@@ -66,7 +67,7 @@ export class SchoolsService {
     validators.validateCreateSchool(createObj);
     const defaultLocale = createObj.locales.en || Object.values(createObj.locales)[0];
     const school: ISchool = {
-      _id: createObj._id || this.newSchoolId(defaultLocale.name),
+      _id: createObj._id || newSchoolId(defaultLocale.name),
       locales: createObj.locales,
       location: createObj.location,
       academicTerms: [],
@@ -171,13 +172,9 @@ export class SchoolsService {
   }
 
   private async doApprove(request: IRegistrationAction) {
-    const schoolRepo = this._uow.getRepository('Schools', true) as SchoolsRepository;
-    const userRepo = this._uow.getRepository('Users', true) as UsersRepository;
+    await this.schoolsRepo.consumeLicense(request.schoolId, request.role, request.users.length);
 
-    await schoolRepo.consumeLicense(request.schoolId, request.role, request.users.length);
-
-    await userRepo.approveRegistrations(request.schoolId, request.users);
-
+    await this.usersRepo.approveRegistrations(request.schoolId, request.users);
     await this._kafkaService.sendMany(config.kafkaUpdatesTopic, request.users.map(userId => ({
       event: Events.enrollment,
       data: {
@@ -189,18 +186,17 @@ export class SchoolsService {
       timestamp: Date.now(),
       v: '1.0.0'
     })));
-
-    await this._uow.commit();
   }
 
-  private doReject(request: IRegistrationAction) {
+  private async doReject(request: IRegistrationAction) {
     // Step 2: remove user registeration
-    return this.usersRepo.reject(request.schoolId, request.users);
+    await this.usersRepo.reject(request.schoolId, request.users);
+    return { ok: 1 };
   }
 
   private async doWithdraw(request: IRegistrationAction) {
-    const schoolRepo = this._uow.getRepository('Schools', true) as SchoolsRepository;
-    const userRepo = this._uow.getRepository('Users', true) as UsersRepository;
+    const schoolRepo = this._uow.getRepository(Repo.schools, true) as SchoolsRepository;
+    const userRepo = this._uow.getRepository(Repo.users, true) as UsersRepository;
 
     await schoolRepo.releaseLicense(request.schoolId, request.role, request.users.length);
 
@@ -238,7 +234,7 @@ export class SchoolsService {
   async updateAcademicTerm(updateObj: IUpdateAcademicTermRequest, scoolId: string, byUser: IUserToken) {
     this.authorize(byUser);
     const academicTerm: IAcademicTerm = {
-      _id: generate('0123456789abcdef', 10),
+      _id: newAcademicTermId(),
       year: updateObj.year,
       term: updateObj.term,
       startDate: new Date(updateObj.startDate),
@@ -306,16 +302,11 @@ export class SchoolsService {
     return this.schoolsRepo.patch({ _id: schoolId }, { license: updateObj });
   }
 
-  private authorize(byUser: IUserToken) {
+  protected authorize(byUser: IUserToken) {
     if (!byUser) throw new ForbiddenError('access token is required!');
-    const isAuthorized = byUser.role.split(',').includes(config.authorizedRole);
-    if (!isAuthorized) throw new UnauthorizedError('you are not authorized!');
+    if (byUser.role.includes(config.authorizedRole)) return true;
+    throw new UnauthorizedError('you are not authorized to do this action');
   }
-
-  private newSchoolId(name: string) {
-    return `${name.toLocaleLowerCase().replace(/\s/g, '')}_${generate('0123456789abcdef', 5)}`;
-  }
-
   async doAddMany(schools: ISchool[]) {
     return this.schoolsRepo.addMany(schools, false);
   }

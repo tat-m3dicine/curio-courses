@@ -1,18 +1,17 @@
-import { KafkaService } from './KafkaService';
-import config from '../config';
 import { Func } from 'continuation-local-storage';
-import { createRedisBus } from '@saal-oryx/message-bus';
-import nanoid = require('nanoid');
+import { RedisMesageBus } from '@saal-oryx/message-bus';
+import config from '../../config';
+import { KafkaService } from './KafkaService';
+
+const commandsProcessorDefaultConfig = {
+  commandsTimeout: config.commandsTimeout
+};
+
 export class CommandsProcessor {
 
-
   protected _commandsMap = new Map<string, (err?: Error, result?: any) => void>();
-  protected _messageBus = createRedisBus(nanoid(10), {
-    host: config.redisHost,
-    port: config.redisPort
-  });
 
-  constructor(protected _kafkaService: KafkaService) {
+  constructor(protected _kafkaService: KafkaService, protected _messageBus: RedisMesageBus, protected _config = commandsProcessorDefaultConfig) {
     this._messageBus.on<ICommandResult>('resolveCommand', async (event, _) => {
       const callback = this._commandsMap.get(event.data.eventKey);
       if (!callback) return;
@@ -31,7 +30,6 @@ export class CommandsProcessor {
 
   async resolveCommand<R>(eventKey: string, result: R) {
     this._messageBus.publish(<any>{ name: 'resolveCommand', data: { eventKey, result } });
-
   }
 
   async rejectCommand(eventKey: string, error: Error) {
@@ -41,11 +39,13 @@ export class CommandsProcessor {
   async sendCommand(serviceName: string, proccessingFunction: Func<Promise<any>>, ...args: any[]): Promise<{ done: boolean, data: any }> {
     const event = await this.sendCommandAsync(serviceName, proccessingFunction, ...args);
     return new Promise((resolve, reject) => {
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         this._commandsMap.delete(event.key);
         return resolve({ done: false, data: args });
-      }, config.commandsTimeout);
+      }, this._config.commandsTimeout);
+      timer.unref();
       this._commandsMap.set(event.key, (err, result) => {
+        clearTimeout(timer);
         this._commandsMap.delete(event.key);
         if (err) return reject(err);
         return resolve({ done: true, data: result });
