@@ -228,7 +228,7 @@ export class CoursesService {
   }
 
   private async enrollUsers(requestParams: IUserRequest[], role: Role, byUser: IUserToken, sameSection = true) {
-    this.authorize(byUser);
+    this.authorize(byUser, role === Role.teacher ? requestParams[0].schoolId : undefined);
     const joinDate = new Date();
     await this.validateCoursesAndUsers(requestParams, role, sameSection);
     return this._commandsProcessor.sendCommand('courses', this.doEnrollUsers, requestParams, role, joinDate);
@@ -257,7 +257,7 @@ export class CoursesService {
   }
 
   private async dropUsers(requestParams: IUserRequest[], role: Role, byUser: IUserToken) {
-    this.authorize(byUser);
+    this.authorize(byUser, role === Role.teacher ? requestParams[0].schoolId : undefined);
     const finishDate = new Date();
     await this.validateCoursesAndUsers(requestParams, role);
     return this._commandsProcessor.sendCommand('courses', this.doDropUsers, requestParams, role, finishDate);
