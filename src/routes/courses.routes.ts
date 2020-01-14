@@ -5,7 +5,6 @@ import { CoursesController } from '../controllers/CoursesController';
 import { CommandsProcessor } from '../services/processors/CommandsProcessor';
 import { UpdatesProcessor } from '../services/processors/UpdatesProcessor';
 
-
 export default (commandsProccessor: CommandsProcessor, updatesProcessor: UpdatesProcessor) => {
 
   const coursesRoutes = new KoaRoute();
@@ -102,6 +101,6 @@ export default (commandsProccessor: CommandsProcessor, updatesProcessor: Updates
     .post('/:schoolId/sections/:sectionId/teachers/switch/courses', (ctx: Koa.Context, next: () => void) => {
       const controller = new CoursesController(new CoursesService(ctx.uow, commandsProccessor, updatesProcessor));
       return controller.switchTeachersCourses(ctx, next);
-    });
+    })
   return coursesRoutes;
 };

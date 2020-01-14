@@ -214,7 +214,7 @@ export class CoursesService {
   }
 
   public async notifyForUserEnrollment(role: Role, userIds: string[]) {
-    const users: IUser[] = await this.usersRepo.findMany({ _id: { $in: userIds } });
+    const users: IUser[] = await this.usersRepo.findMany({ _id: { $in: userIds }, role });
     const courses: ICourse[] = await this.coursesRepo.getActiveCoursesForUsers(role, userIds);
     const coursesUpdates = this.transformCoursesToUpdates(courses, role);
     const events = users.map(user => ({
@@ -225,6 +225,11 @@ export class CoursesService {
       courses: coursesUpdates[user._id]
     }));
     this._updatesProcessor.sendEnrollmentUpdates(events);
+  }
+
+  async repairUsers(role: Role, userIds: string[], byUser: IUserToken) {
+    this.authorize(byUser);
+    return this.notifyForUserEnrollment(role, userIds);
   }
 
   private async enrollUsers(requestParams: IUserRequest[], role: Role, byUser: IUserToken, sameSection = true) {
