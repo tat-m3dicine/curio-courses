@@ -193,14 +193,14 @@ export class CoursesService {
 
   async getActiveCourses(userId: string, role?: Role) {
     if (!role) return { courses: [], sections: [] };
-    const courses = await this.coursesRepo.getActiveCoursesForUsers(role, [userId]);
+    const courses = await this.coursesRepo.getActiveCoursesForUser(role, userId);
     if (role === Role.student) {
       return {
         courses: courses.map(c => ({ ...c, students: undefined, teachers: undefined }))
       };
     }
     const userIds = courses.reduce((list, c) =>
-      list.concat([...c.students, ...c.teachers].filter(u => u.isEnabled && !u.finishDate).map(u => u._id)), <string[]>[]
+      list.concat([...c.students, ...c.teachers].map(u => u._id)), <string[]>[]
     );
     const users = await this.usersRepo.findMany({ _id: { $in: Array.from(new Set(userIds)) } });
     const sections = await this.sectionsRepo.findMany({ _id: { $in: courses.map(c => c.sectionId) } });
