@@ -228,28 +228,29 @@ export class CoursesService {
   }
 
   private async enrollUsers(requestParams: IUserRequest[], role: Role, byUser: IUserToken, sameSection = true) {
-    this.authorize(byUser, role === Role.teacher ? requestParams[0].schoolId : undefined);
+    if (role !== Role.teacher) this.authorize(byUser);
+    else this.authorizeTeacherRequest(byUser, requestParams);
     const joinDate = new Date();
     await this.validateCoursesAndUsers(requestParams, role, sameSection);
     return this._commandsProcessor.sendCommand('courses', this.doEnrollUsers, requestParams, role, joinDate);
   }
 
   private async doEnrollUsers(requests: IUserRequest[], role: Role, joinDate: Date) {
-    const coursesUpdates: any[] = [], sectionsUpdates: any[] = [];
-    for (const request of requests) {
-      const { schoolId, sectionId, courseId, usersIds } = request;
-      coursesUpdates.push({
-        filter: { _id: courseId, schoolId, sectionId },
-        usersObjs: usersIds.map(_id => <IUserCourseInfo>{ _id, joinDate, isEnabled: true })
-      });
-      sectionsUpdates.push({ filter: { _id: sectionId, schoolId }, usersIds });
-    }
+    const coursesUpdates = requests.map(({ schoolId, sectionId, courseId, usersIds }) => ({
+      filter: { _id: courseId, schoolId, ...(role === Role.student ? { sectionId } : {}) },
+      usersObjs: usersIds.map(_id => <IUserCourseInfo>{ _id, joinDate, isEnabled: true })
+    }));
 
     const coursesRepoWithTransactions = this._uow.getRepository(Repo.courses, true) as CoursesRepository;
     const sectionsRepoWithTransactions = this._uow.getRepository(Repo.sections, true) as SectionsRepository;
 
     const result = await coursesRepoWithTransactions.addUsersToCourses(coursesUpdates, role);
-    if (role === Role.student) await sectionsRepoWithTransactions.addStudentsToSections(sectionsUpdates);
+    if (role === Role.student) {
+      const sectionsUpdates = requests.map(({ sectionId, schoolId, usersIds }) => ({
+        filter: { _id: sectionId, schoolId }, usersIds
+      }));
+      await sectionsRepoWithTransactions.addStudentsToSections(sectionsUpdates);
+    }
 
     await this._uow.commit();
     if (result.modifiedCount !== 0) await this.sendUsersChangesUpdates('enroll', role, requests);
@@ -257,18 +258,17 @@ export class CoursesService {
   }
 
   private async dropUsers(requestParams: IUserRequest[], role: Role, byUser: IUserToken) {
-    this.authorize(byUser, role === Role.teacher ? requestParams[0].schoolId : undefined);
+    if (role !== Role.teacher) this.authorize(byUser);
+    else this.authorizeTeacherRequest(byUser, requestParams);
     const finishDate = new Date();
     await this.validateCoursesAndUsers(requestParams, role);
     return this._commandsProcessor.sendCommand('courses', this.doDropUsers, requestParams, role, finishDate);
   }
 
   private async doDropUsers(requests: IUserRequest[], role: Role, finishDate: Date) {
-    const coursesUpdates: any[] = [];
-    for (const request of requests) {
-      const { schoolId, sectionId, courseId, usersIds } = request;
-      coursesUpdates.push({ filter: { _id: courseId, schoolId, sectionId }, usersIds });
-    }
+    const coursesUpdates = requests.map(({ schoolId, sectionId, courseId, usersIds }) => ({
+      filter: { _id: courseId, schoolId, ...(role === Role.student ? { sectionId } : {}) }, usersIds
+    }));
     const result = await this.coursesRepo.finishUsersInCourses(coursesUpdates, role, finishDate);
     if (result.modifiedCount !== 0) await this.sendUsersChangesUpdates('drop', role, requests);
     return result;
@@ -345,17 +345,22 @@ export class CoursesService {
   private async validateCoursesAndUsers(requestParams: IUserRequest[], role: Role, sameSection = true) {
     const { schoolId, sectionId } = requestParams[0];
     const courseIds: string[] = requestParams.map(request => request.courseId);
-    const coursesObjs: ICourse[] = await this.coursesRepo.findMany({ _id: { $in: courseIds }, schoolId, ...(sameSection ? { sectionId } : {}) });
+    const coursesObjs: ICourse[] = await this.coursesRepo.findMany({ _id: { $in: courseIds }, schoolId, ...(sameSection && role === Role.student ? { sectionId } : {}) });
     validateAllObjectsExist(coursesObjs, courseIds, schoolId, 'course');
     const userIds: string[] = Array.from(new Set<string>(requestParams.reduce((list, params) => [...list, ...params.usersIds], <any>[])));
     const usersObjs: IUser[] = await this.usersRepo.findMany({ '_id': { $in: userIds }, 'school._id': schoolId, role });
     validateAllObjectsExist(usersObjs, userIds, schoolId, role);
   }
 
-  protected authorize(byUser: IUserToken, schoolId?: string) {
+  protected authorizeTeacherRequest(byUser: IUserToken, request: IUserRequest[]) {
+    return this.authorize(byUser, request[0].schoolId, request.reduce((list, r) => list.concat(r.usersIds), <string[]>[]));
+  }
+
+  protected authorize(byUser: IUserToken, schoolId?: string, usersIds?: string[]) {
     if (!byUser) throw new ForbiddenError('access token is required!');
     if (schoolId && byUser.schooluuid === schoolId && byUser.role.includes(Role.teacher)) {
-      return true;
+      if (!usersIds) return true;
+      else if (usersIds.every(id => byUser.sub === id)) return true;
     } else if (byUser.role.includes(config.authorizedRole)) {
       return true;
     }

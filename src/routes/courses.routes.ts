@@ -47,11 +47,11 @@ export default (commandsProccessor: CommandsProcessor, updatesProcessor: Updates
       const controller = new CoursesController(new CoursesService(ctx.uow, commandsProccessor, updatesProcessor));
       return controller.dropStudent(ctx, next);
     })
-    .post('/:schoolId/sections/:sectionId/courses/:courseId/enroll/teachers/:userId', (ctx: Koa.Context, next: () => void) => {
+    .post('/:schoolId/courses/:courseId/enroll/teachers/:userId', (ctx: Koa.Context, next: () => void) => {
       const controller = new CoursesController(new CoursesService(ctx.uow, commandsProccessor, updatesProcessor));
       return controller.enrollTeacher(ctx, next);
     })
-    .post('/:schoolId/sections/:sectionId/courses/:courseId/drop/teachers/:userId', (ctx: Koa.Context, next: () => void) => {
+    .post('/:schoolId/courses/:courseId/drop/teachers/:userId', (ctx: Koa.Context, next: () => void) => {
       const controller = new CoursesController(new CoursesService(ctx.uow, commandsProccessor, updatesProcessor));
       return controller.dropTeacher(ctx, next);
     })
@@ -67,7 +67,7 @@ export default (commandsProccessor: CommandsProcessor, updatesProcessor: Updates
       const controller = new CoursesController(new CoursesService(ctx.uow, commandsProccessor, updatesProcessor));
       return controller.enrollStudents(ctx, next);
     })
-    .post('/:schoolId/sections/:sectionId/courses/:courseId/enroll/teachers', (ctx: Koa.Context, next: () => void) => {
+    .post('/:schoolId/courses/:courseId/enroll/teachers', (ctx: Koa.Context, next: () => void) => {
       const controller = new CoursesController(new CoursesService(ctx.uow, commandsProccessor, updatesProcessor));
       return controller.enrollTeachers(ctx, next);
     })
@@ -75,7 +75,7 @@ export default (commandsProccessor: CommandsProcessor, updatesProcessor: Updates
       const controller = new CoursesController(new CoursesService(ctx.uow, commandsProccessor, updatesProcessor));
       return controller.dropStudents(ctx, next);
     })
-    .post('/:schoolId/sections/:sectionId/courses/:courseId/drop/teachers', (ctx: Koa.Context, next: () => void) => {
+    .post('/:schoolId/courses/:courseId/drop/teachers', (ctx: Koa.Context, next: () => void) => {
       const controller = new CoursesController(new CoursesService(ctx.uow, commandsProccessor, updatesProcessor));
       return controller.dropTeachers(ctx, next);
     })
@@ -91,15 +91,15 @@ export default (commandsProccessor: CommandsProcessor, updatesProcessor: Updates
       const controller = new CoursesController(new CoursesService(ctx.uow, commandsProccessor, updatesProcessor));
       return controller.switchStudentsCourses(ctx, next);
     })
-    .post('/:schoolId/sections/:sectionId/teachers/enroll/courses', (ctx: Koa.Context, next: () => void) => {
+    .post('/:schoolId/teachers/enroll/courses', (ctx: Koa.Context, next: () => void) => {
       const controller = new CoursesController(new CoursesService(ctx.uow, commandsProccessor, updatesProcessor));
       return controller.enrollTeachersInCourses(ctx, next);
     })
-    .post('/:schoolId/sections/:sectionId/teachers/drop/courses', (ctx: Koa.Context, next: () => void) => {
+    .post('/:schoolId/teachers/drop/courses', (ctx: Koa.Context, next: () => void) => {
       const controller = new CoursesController(new CoursesService(ctx.uow, commandsProccessor, updatesProcessor));
       return controller.dropTeachersInCourses(ctx, next);
     })
-    .post('/:schoolId/sections/:sectionId/teachers/switch/courses', (ctx: Koa.Context, next: () => void) => {
+    .post('/:schoolId/teachers/switch/courses', (ctx: Koa.Context, next: () => void) => {
       const controller = new CoursesController(new CoursesService(ctx.uow, commandsProccessor, updatesProcessor));
       return controller.switchTeachersCourses(ctx, next);
     });
