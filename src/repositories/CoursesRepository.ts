@@ -99,6 +99,12 @@ export class CoursesRepository extends AduitableRepository<ICourse> {
 
   async getActiveCoursesForUsers(role: Role, usersIds: string[]) {
     const currentDate = new Date();
+    console.log(JSON.stringify({
+      [`${role}s`]: { $elemMatch: { _id: { $in: usersIds }, isEnabled: true, finishDate: { $exists: false } } },
+      'academicTerm.startDate': { $lte: currentDate },
+      'academicTerm.endDate': { $gte: currentDate },
+      'isEnabled': true
+    }));
     return this.findMany({
       [`${role}s`]: { $elemMatch: { _id: { $in: usersIds }, isEnabled: true, finishDate: { $exists: false } } },
       'academicTerm.startDate': { $lte: currentDate },
