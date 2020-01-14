@@ -227,7 +227,7 @@ describe('Courses Service', () => {
     });
 
     it('should succeed to get active courses for specified student', async () => {
-      repositoryReturns(Repo.courses, { getActiveCoursesForUsers: () => [course] });
+      repositoryReturns(Repo.courses, { getActiveCoursesForUser: () => [course] });
       const result = await _coursesService.getActiveCourses('student1', Role.student);
       expect(result.courses).to.have.lengthOf(1);
       expect(result.teachers).equal(undefined);
@@ -235,7 +235,7 @@ describe('Courses Service', () => {
 
     it('should succeed to get active courses for specified teacher', async () => {
       const user = { _id: 'user1', isEnabled: true };
-      repositoryReturns(Repo.courses, { getActiveCoursesForUsers: () => [{ ...course, students: [user], teachers: [user] }] });
+      repositoryReturns(Repo.courses, { getActiveCoursesForUser: () => [{ ...course, students: [user], teachers: [user] }] });
       repositoryReturns(Repo.sections, { findMany: () => [{}] });
       repositoryReturns(Repo.users, { findMany: () => [{ role: Role.student }, { role: Role.teacher }] });
       const result = await _coursesService.getActiveCourses('teacher1', Role.teacher);
