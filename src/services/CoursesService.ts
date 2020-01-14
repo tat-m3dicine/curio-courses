@@ -279,7 +279,7 @@ export class CoursesService {
     return result;
   }
 
-  private async sendUsersChangesUpdates(action: 'enroll' | 'drop' | 'refresh', role: Role, requests: IUserRequest[]) {
+  private async sendUsersChangesUpdates(action: 'enroll' | 'drop', role: Role, requests: IUserRequest[]) {
     const usersIds = Array.from(new Set(requests.reduce((list, request) => [...list, ...request.usersIds], <string[]>[])));
     const users: IUser[] = await this.usersRepo.findMany({ _id: { $in: usersIds } });
     const courses: ICourse[] = await this.coursesRepo.getActiveCoursesForUsers(role, usersIds);
