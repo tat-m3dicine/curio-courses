@@ -247,6 +247,14 @@ export class CoursesController {
     ctx.type = 'json';
   }
 
+  async repairUsers(ctx: Context, next: () => void) {
+    const { role } = ctx.params;
+    const { userIds } = ctx.request.body;
+    await this.coursesService.repairUsers(role, userIds, ctx.user);
+    ctx.status = 200;
+    ctx.body = { ok: true };
+    ctx.type = 'json';
+  }
   protected transformUsersToCourses(query: { _id: string, courses: string[] }[]): { [courseId: string]: string[] } {
     const courses = {};
     for (const student of query) {
