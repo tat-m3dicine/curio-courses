@@ -84,16 +84,18 @@ let server: import('http').Server;
 
     await kafkaService.createTopics();
 
+    // Stream starting ...
+    await streamsProcessor.start();
+
     // Migration
     if (config.irpUrl) {
       const migateUsers = new MigrationScripts(updatesProcessor, commandsProcessor);
       await migateUsers.migrateIRPSchools();
-      await migateUsers.migrateIRPUsersAndSections();
+      await migateUsers.migrateIRPSections();
+      await migateUsers.migrateIRPUsers();
+      await migateUsers.prepareCourses();
       await migateUsers.migrateTeachers();
     }
-
-    // Stream starting ...
-    await streamsProcessor.start();
 
   } catch (err) {
     logger.error('Background Proccesses Error', err);
