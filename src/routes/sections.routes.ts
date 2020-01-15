@@ -2,7 +2,7 @@ import KoaRoute from 'koa-tree-router';
 import Koa from 'koa';
 import { SectionsService } from '../services/SectionsService';
 import { SectionsController } from '../controllers/SectionsController';
-import { CommandsProcessor } from '../services/processors/CommandsProcessor';
+import { CommandsProcessor } from '@saal-oryx/event-sourcing';
 
 
 export default (commandsProccessor: CommandsProcessor) => {

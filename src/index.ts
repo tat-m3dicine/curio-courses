@@ -20,32 +20,50 @@ import { StreamsProcessor } from './services/streams/StreamsProcessor';
 import meRoutes from './routes/me.routes';
 import { createRedisBus } from '@saal-oryx/message-bus';
 import nanoid from 'nanoid';
-import { Kafka } from 'kafkajs';
 import { KafkaStreams } from 'kafka-streams';
 import { MigrationScripts } from './migration/MigrationScripts';
-import { KafkaService } from './services/processors/KafkaService';
 import { UpdatesProcessor } from './services/processors/UpdatesProcessor';
-import { CommandsProcessor } from './services/processors/CommandsProcessor';
+import { CommandsProcessor, KafkaService } from '@saal-oryx/event-sourcing';
+import { Server } from 'http';
 
 const logger = loggerFactory.getLogger('Index');
 
 logger.trace('Started ...');
 const app = new Koa();
 
-let server: import('http').Server;
+let server: Server;
 (async () => {
 
   // Singletons ...
-  const kafkaService = new KafkaService(config => new Kafka(config));
-  const kafkaStreams = new KafkaStreams(<any>getNativeConfig('CoursesCommandsStreams', 'CoursesCommandsStreams'));
+  const kafkaService = new KafkaService({
+    kafkaBrokers: config.kafkaBrokers,
+    kafkaClientId: config.kafkaClientId,
+    allowAutoTopicCreation: false,
+    kafkaTopics: [
+      config.kafkaCommandsTopic,
+      config.kafkaUpdatesTopic
+    ]
+  });
+  const kafkaStreams = new KafkaStreams(
+    <any>getNativeConfig('CoursesCommandsStreams', 'CoursesCommandsStreams')
+  );
   const commandsBus = createRedisBus(nanoid(10), {
     host: config.redisHost,
     port: config.redisPort
   });
   // Stream
   const updatesProcessor = new UpdatesProcessor(kafkaService);
-  const commandsProcessor = new CommandsProcessor(kafkaService, commandsBus);
-  const streamsProcessor = new StreamsProcessor(updatesProcessor, commandsProcessor, kafkaService, kafkaStreams, unitOfWorkFactory);
+  const commandsProcessor = new CommandsProcessor(kafkaService, commandsBus, {
+    kafkaCommandsTopic: config.kafkaCommandsTopic,
+    commandsTimeout: config.commandsTimeout
+  });
+  const streamsProcessor = new StreamsProcessor(
+    commandsProcessor,
+    kafkaStreams,
+    unitOfWorkFactory,
+    updatesProcessor,
+    kafkaService,
+  );
 
   app.proxy = true;
   app.use(loggerHandler);

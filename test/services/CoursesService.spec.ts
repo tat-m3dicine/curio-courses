@@ -6,7 +6,7 @@ chai.use(require('sinon-chai'));
 import { tryAndExpect } from '../tryAndExpect';
 import { UnitOfWork, IPaging } from '@saal-oryx/unit-of-work';
 import { CoursesService } from '../../src/services/CoursesService';
-import { Repo } from '../../src/repositories/RepoNames';
+import { Repo } from '../../src/models/RepoNames';
 import config from '../../src/config';
 import { IUserToken } from '../../src/models/IUserToken';
 import { ICreateCourseRequest } from '../../src/models/requests/ICourseRequests';
@@ -21,7 +21,7 @@ import { UnauthorizedError } from '../../src/exceptions/UnauthorizedError';
 import { ForbiddenError } from '../../src/exceptions/ForbiddenError';
 import { IUserRequest } from '../../src/models/requests/IUserRequest';
 import { UpdatesProcessor } from '../../src/services/processors/UpdatesProcessor';
-import { CommandsProcessor } from '../../src/services/processors/CommandsProcessor';
+import { CommandsProcessor } from '@saal-oryx/event-sourcing';
 
 const unitOfWorkStub = sinon.spy(() => sinon.createStubInstance(UnitOfWork));
 const updatesProcessorStub = sinon.spy(() => sinon.createStubInstance(UpdatesProcessor));

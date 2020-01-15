@@ -2,7 +2,7 @@ import { Collection, ClientSession } from 'mongodb';
 import { AduitableRepository } from './AduitableRepository';
 import { ICourse, IUserCourseInfo } from '../models/entities/ICourse';
 import { Role } from '../models/Role';
-import { Repo } from './RepoNames';
+import { Repo } from '../models/RepoNames';
 import loggerFactory from '../utils/logging';
 const logger = loggerFactory.getLogger('CoursesRepository');
 

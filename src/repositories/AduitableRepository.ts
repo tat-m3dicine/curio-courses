@@ -1,5 +1,5 @@
 import { UpdateManyOptions, FindOneAndUpdateOption } from 'mongodb';
-import { BaseRepository, IEntity } from '@saal-oryx/unit-of-work';
+import { BaseRepository } from '@saal-oryx/unit-of-work';
 import { IAuditable } from '../models/entities/Common';
 
 import loggerFactory from '../utils/logging';

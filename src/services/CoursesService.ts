@@ -25,9 +25,10 @@ import { SectionsRepository } from '../repositories/SectionsRepository';
 import { validateAllObjectsExist } from '../utils/validators/AllObjectsExist';
 import { IUserUpdatedEvent, IUserCourseUpdates } from '../models/events/IUserUpdatedEvent';
 import { newCourseId } from '../utils/IdGenerator';
-import { Repo } from '../repositories/RepoNames';
-import { CommandsProcessor } from './processors/CommandsProcessor';
+import { Repo } from '../models/RepoNames';
+import { CommandsProcessor } from '@saal-oryx/event-sourcing';
 import { UpdatesProcessor } from './processors/UpdatesProcessor';
+import { Service } from '../models/ServiceName';
 
 export class CoursesService {
   constructor(
@@ -83,7 +84,7 @@ export class CoursesService {
       validateAllObjectsExist(teachersObjs, teachers, schoolId, Role.teacher);
     }
 
-    return this._commandsProcessor.sendCommand('courses', this.doCreate, <ICourse>{
+    return this._commandsProcessor.sendCommand(Service.courses, this.doCreate, <ICourse>{
       _id: newCourseId(sectionId, subject, academicTerm.year),
       schoolId, sectionId, curriculum, grade, subject, academicTerm,
       defaultLocale: course.defaultLocale || Object.keys(course.locales)[0] || 'en',
@@ -123,7 +124,7 @@ export class CoursesService {
   async update(schoolId: string, sectionId: string, courseId: string, updateObj: Partial<ICourse>, byUser: IUserToken) {
     this.authorize(byUser);
     validators.validateUpdateCourse(updateObj);
-    return this._commandsProcessor.sendCommand('courses', this.doUpdate, { _id: courseId, sectionId, schoolId }, updateObj);
+    return this._commandsProcessor.sendCommand(Service.courses, this.doUpdate, { _id: courseId, sectionId, schoolId }, updateObj);
   }
 
   private async doUpdate(filter: object, updateObj: Partial<ICourse>) {
@@ -134,7 +135,7 @@ export class CoursesService {
     this.authorize(byUser);
     const course = await this.coursesRepo.findOne({ _id: courseId, sectionId, schoolId });
     if (!course) throw new NotFoundError(`Couldn't find course '${courseId}' in section '${sectionId}'`);
-    return this._commandsProcessor.sendCommand('courses', this.doDelete, courseId);
+    return this._commandsProcessor.sendCommand(Service.courses, this.doDelete, courseId);
   }
 
   private async doDelete(courseId: string) {
@@ -152,7 +153,7 @@ export class CoursesService {
   private async toggleUsers(requestParam: IUserRequest, role: Role, value: boolean, byUser: IUserToken) {
     this.authorize(byUser);
     await this.validateCoursesAndUsers([requestParam], role);
-    return this._commandsProcessor.sendCommand('courses', this.doToggleStudents, requestParam, role, value);
+    return this._commandsProcessor.sendCommand(Service.courses, this.doToggleStudents, requestParam, role, value);
   }
 
   private async doToggleStudents({ schoolId, sectionId, courseId, usersIds }: IUserRequest, role: Role, value: boolean) {
@@ -236,7 +237,7 @@ export class CoursesService {
     this.authorize(byUser, role === Role.teacher ? requestParams[0].schoolId : undefined);
     const joinDate = new Date();
     await this.validateCoursesAndUsers(requestParams, role, sameSection);
-    return this._commandsProcessor.sendCommand('courses', this.doEnrollUsers, requestParams, role, joinDate);
+    return this._commandsProcessor.sendCommand(Service.courses, this.doEnrollUsers, requestParams, role, joinDate);
   }
 
   private async doEnrollUsers(requests: IUserRequest[], role: Role, joinDate: Date) {
@@ -265,7 +266,7 @@ export class CoursesService {
     this.authorize(byUser, role === Role.teacher ? requestParams[0].schoolId : undefined);
     const finishDate = new Date();
     await this.validateCoursesAndUsers(requestParams, role);
-    return this._commandsProcessor.sendCommand('courses', this.doDropUsers, requestParams, role, finishDate);
+    return this._commandsProcessor.sendCommand(Service.courses, this.doDropUsers, requestParams, role, finishDate);
   }
 
   private async doDropUsers(requests: IUserRequest[], role: Role, finishDate: Date) {

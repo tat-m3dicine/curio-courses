@@ -1,7 +1,7 @@
 import { Collection, ClientSession } from 'mongodb';
 import { ISection } from '../models/entities/ISection';
 import { AduitableRepository } from './AduitableRepository';
-import { Repo } from './RepoNames';
+import { Repo } from '../models/RepoNames';
 
 export class SectionsRepository extends AduitableRepository<ISection> {
   constructor(collection: Collection, session?: ClientSession) {

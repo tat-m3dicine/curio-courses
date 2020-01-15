@@ -20,10 +20,11 @@ import loggerFactory from '../utils/logging';
 import { IRegistrationAction } from '../models/requests/IRegistrationAction';
 import { InvalidLicenseError } from '../exceptions/InvalidLicenseError';
 import { newSchoolId, newAcademicTermId } from '../utils/IdGenerator';
-import { Repo } from '../repositories/RepoNames';
-import { CommandsProcessor } from './processors/CommandsProcessor';
-import { KafkaService } from './processors/KafkaService';
+import { Repo } from '../models/RepoNames';
+import { CommandsProcessor, KafkaService } from '@saal-oryx/event-sourcing';
 import { Events } from './processors/UpdatesProcessor';
+import { Service } from '../models/ServiceName';
+
 const logger = loggerFactory.getLogger('SchoolsService');
 
 export class SchoolsService {
@@ -50,7 +51,7 @@ export class SchoolsService {
 
   async delete(schoolId: string, byUser: IUserToken) {
     this.authorize(byUser);
-    return this._commandsProcessor.sendCommand('schools', this.doDelete, schoolId);
+    return this._commandsProcessor.sendCommand(Service.schools, this.doDelete, schoolId);
   }
 
   private async doDelete(schoolId: string) {
@@ -73,7 +74,7 @@ export class SchoolsService {
       academicTerms: [],
       users: []
     };
-    return this._commandsProcessor.sendCommand('schools', this.doAdd, school);
+    return this._commandsProcessor.sendCommand(Service.schools, this.doAdd, school);
   }
 
   private async doAdd(school: ISchool) {
@@ -83,7 +84,7 @@ export class SchoolsService {
   async update(updateObj: IUpdateSchoolRequest, schoolId: string, byUser: IUserToken) {
     this.authorize(byUser);
     validators.validateUpdateSchool(updateObj);
-    return this._commandsProcessor.sendCommand('schools', this.doUpdate, schoolId, updateObj);
+    return this._commandsProcessor.sendCommand(Service.schools, this.doUpdate, schoolId, updateObj);
   }
 
   private async doUpdate(schoolId: string, updateObj: IUpdateSchoolRequest) {
@@ -96,7 +97,7 @@ export class SchoolsService {
     const usersIds: string[] = updateObjs.users.map(user => user._id);
     const usersObjs: IUser[] = await this.usersRepo.findMany({ '_id': { $in: usersIds }, 'school._id': schoolId });
     validateAllObjectsExist(usersObjs, usersIds, schoolId);
-    return this._commandsProcessor.sendCommand('schools', this.doUpdateUsers, schoolId, updateObjs.users);
+    return this._commandsProcessor.sendCommand(Service.schools, this.doUpdateUsers, schoolId, updateObjs.users);
   }
 
   async getUsers(filter: { schoolId: string, role: Role, status: 'all' | Status }, paging: IPaging, byUser: IUserToken) {
@@ -145,9 +146,9 @@ export class SchoolsService {
       case 'approve':
         return this.approve(dbSchool, request);
       case 'reject':
-        return this._commandsProcessor.sendCommand('schools', this.doReject, request);
+        return this._commandsProcessor.sendCommand(Service.schools, this.doReject, request);
       case 'withdraw':
-        return this._commandsProcessor.sendCommand('schools', this.doWithdraw, request);
+        return this._commandsProcessor.sendCommand(Service.schools, this.doWithdraw, request);
       default:
         throw new InvalidRequestError(`Unrecognized action ${request.action}!`);
     }
@@ -168,7 +169,7 @@ export class SchoolsService {
     const isQuotaAvailable = (school.license[usersKey].max - school.license[usersKey].consumed) > usersCount;
     if (!isQuotaAvailable) throw new InvalidLicenseError(`License quota is over for school ${school._id}`);
 
-    return this._commandsProcessor.sendCommand('schools', this.doApprove, request);
+    return this._commandsProcessor.sendCommand(Service.schools, this.doApprove, request);
   }
 
   private async doApprove(request: IRegistrationAction) {
@@ -224,7 +225,7 @@ export class SchoolsService {
   async deleteUsers(updateObjs: { users: string[] }, schoolId: string, byUser: IUserToken) {
     this.authorize(byUser);
     validators.validateDeleteSchoolUsers(updateObjs);
-    return this._commandsProcessor.sendCommand('schools', this.doDeleteUsers, schoolId, updateObjs.users);
+    return this._commandsProcessor.sendCommand(Service.schools, this.doDeleteUsers, schoolId, updateObjs.users);
   }
 
   private async doDeleteUsers(schoolId: string, usersIds: string[]) {
@@ -244,7 +245,7 @@ export class SchoolsService {
     };
     // ToDo: validation school before moving forward
     validators.validateUpdateSchoolAcademicTerm({ academicTerm });
-    return this._commandsProcessor.sendCommand('schools', this.doUpdateAcademicTerm, scoolId, updateObj, academicTerm);
+    return this._commandsProcessor.sendCommand(Service.schools, this.doUpdateAcademicTerm, scoolId, updateObj, academicTerm);
   }
 
   private async doUpdateAcademicTerm(schoolId: string, updateObj: IUpdateAcademicTermRequest, academicTerm: IAcademicTerm) {
@@ -259,7 +260,7 @@ export class SchoolsService {
       const coursesIds = activeCourses.map(course => course._id).join("', '");
       throw new ConditionalBadRequest(`Unable to delete the Academic Term because ['${coursesIds}'] are active within.`);
     }
-    return this._commandsProcessor.sendCommand('schools', this.doDeleteAcademicTerm, schoolId, academicTermId);
+    return this._commandsProcessor.sendCommand(Service.schools, this.doDeleteAcademicTerm, schoolId, academicTermId);
   }
 
   private async doDeleteAcademicTerm(schoolId: string, academicTermId: string) {
@@ -270,7 +271,7 @@ export class SchoolsService {
     this.authorize(byUser);
     if (!updateObj) throw new InvalidRequestError('Request should not be empty!');
     validators.validateUpdateSchool(updateObj);
-    return this._commandsProcessor.sendCommand('schools', this.doPatch, schoolId, updateObj);
+    return this._commandsProcessor.sendCommand(Service.schools, this.doPatch, schoolId, updateObj);
   }
 
   private async doPatch(schoolId: string, updateObj: IUpdateSchoolRequest) {
@@ -295,7 +296,7 @@ export class SchoolsService {
      */
     const isLicenseConflicts = await this.schoolsRepo.findOne({ '_id': schoolId, 'license.validTo': { $gt: license.validTo } });
     if (isLicenseConflicts) throw new InvalidRequestError('ValidTo conflicts with existing license validTo date, validTo should be greater');
-    return this._commandsProcessor.sendCommand('schools', this.doPatchLicense, schoolId, license);
+    return this._commandsProcessor.sendCommand(Service.schools, this.doPatchLicense, schoolId, license);
   }
 
   private async doPatchLicense(schoolId: string, updateObj: ILicense) {

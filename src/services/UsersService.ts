@@ -20,10 +20,10 @@ import { newSchoolId, newSectionId } from '../utils/IdGenerator';
 import { getNotMatchingObjects } from '../utils/validators/AllObjectsExist';
 import { ISection } from '../models/entities/ISection';
 import config from '../config';
-import { Repo } from '../repositories/RepoNames';
+import { Repo } from '../models/RepoNames';
 import { IUserUpdatedData } from '../models/events/IUserUpdatedEvent';
 import { NotFoundError } from '../exceptions/NotFoundError';
-import { KafkaService } from './processors/KafkaService';
+import { KafkaService } from '@saal-oryx/event-sourcing';
 import { Events } from './processors/UpdatesProcessor';
 const logger = loggerFactory.getLogger('UserSchema');
 

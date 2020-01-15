@@ -6,7 +6,7 @@ chai.use(require('sinon-chai'));
 import { tryAndExpect } from '../tryAndExpect';
 import { UnitOfWork } from '@saal-oryx/unit-of-work';
 import { UsersService } from '../../src/services/UsersService';
-import { Repo } from '../../src/repositories/RepoNames';
+import { Repo } from '../../src/models/RepoNames';
 import { Status } from '../../src/models/entities/IUser';
 import { getTestData, Test } from '../mockdata/getTestData';
 import { SignupMethods, ISchool } from '../../src/models/entities/ISchool';
@@ -17,7 +17,7 @@ import { IUserUpdatedData } from '../../src/models/events/IUserUpdatedEvent';
 import { Role } from '../../src/models/Role';
 import { NotFoundError } from '../../src/exceptions/NotFoundError';
 import { InvalidRequestError } from '../../src/exceptions/InvalidRequestError';
-import { KafkaService } from '../../src/services/processors/KafkaService';
+import { KafkaService } from '@saal-oryx/event-sourcing';
 
 const unitOfWorkStub = sinon.spy(() => sinon.createStubInstance(UnitOfWork));
 const kafkaServiceStub = sinon.spy(() => sinon.createStubInstance(KafkaService));

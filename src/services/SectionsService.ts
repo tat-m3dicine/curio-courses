@@ -17,8 +17,9 @@ import { Role } from '../models/Role';
 import { IUser } from '../models/entities/IUser';
 import { validateAllObjectsExist } from '../utils/validators/AllObjectsExist';
 import { newSectionId } from '../utils/IdGenerator';
-import { Repo } from '../repositories/RepoNames';
-import { CommandsProcessor } from './processors/CommandsProcessor';
+import { Repo } from '../models/RepoNames';
+import { CommandsProcessor } from '@saal-oryx/event-sourcing';
+import { Service } from '../models/ServiceName';
 
 export class SectionsService {
 
@@ -44,7 +45,7 @@ export class SectionsService {
       await this.validateStudentsInSchool(students, schoolId);
     }
     await this.validateWithSchoolLicense(grade, schoolId);
-    return this._commandsProcessor.sendCommand('sections', this.doCreate, <ISection>{
+    return this._commandsProcessor.sendCommand(Service.sections, this.doCreate, <ISection>{
       _id: section._id || newSectionId(schoolId, grade, locales),
       locales, schoolId, grade,
       students: students || []
@@ -69,7 +70,7 @@ export class SectionsService {
     this.authorize(byUser);
     const section = await this.sectionsRepo.findOne({ _id: sectionId, schoolId });
     if (!section) throw new NotFoundError(`Couldn't find section '${sectionId}' in school '${schoolId}'`);
-    return this._commandsProcessor.sendCommand('sections', this.doDelete, sectionId);
+    return this._commandsProcessor.sendCommand(Service.sections, this.doDelete, sectionId);
   }
 
   private async doDelete(sectionId: string) {
@@ -91,7 +92,7 @@ export class SectionsService {
     studentIds = studentIds.filter(studentId => !section.students.includes(studentId));
     if (studentIds.length === 0) return new InvalidRequestError(`All students were already registered in section ${sectionId}`);
     await this.validateStudentsInSchool(studentIds, schoolId);
-    return this._commandsProcessor.sendCommand('sections', this.doRegisterStudents, schoolId, sectionId, studentIds);
+    return this._commandsProcessor.sendCommand(Service.sections, this.doRegisterStudents, schoolId, sectionId, studentIds);
   }
 
   private async doRegisterStudents(schoolId: string, sectionId: string, studentIds: string[]) {
@@ -102,7 +103,7 @@ export class SectionsService {
     this.authorize(byUser);
     const section: ISection | undefined = await this.sectionsRepo.findOne({ _id: sectionId, schoolId });
     if (!section) throw new NotFoundError(`Couldn't find section '${sectionId}' in school '${schoolId}'`);
-    return this._commandsProcessor.sendCommand('sections', this.doRemoveStudents, schoolId, sectionId, studentIds, new Date());
+    return this._commandsProcessor.sendCommand(Service.sections, this.doRemoveStudents, schoolId, sectionId, studentIds, new Date());
   }
 
   private async doRemoveStudents(schoolId: string, sectionId: string, studentIds: string[], finishDate: Date) {
