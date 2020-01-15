@@ -4,7 +4,7 @@ import { IUser, Status } from '../models/entities/IUser';
 import { IUserToken } from '../models/IUserToken';
 import { IAcademicTerm } from '../models/entities/Common';
 import { ILicenseRequest } from '../models/requests/ILicenseRequest';
-import { ISchool, ISchoolUserPermissions, ILicense, SignupMethods } from '../models/entities/ISchool';
+import { ISchool, ISchoolUserPermissions, ILicense } from '../models/entities/ISchool';
 import { ICreateSchoolRequest, IUpdateSchoolRequest, ICreateLicenseRequest, IDeleteAcademicTermRequest, IUpdateUserRequest, IUpdateAcademicTermRequest } from '../models/requests/ISchoolRequests';
 import { IUnitOfWork, defaultPaging, IPaging } from '@saal-oryx/unit-of-work';
 import { SchoolsRepository } from '../repositories/SchoolsRepository';
@@ -280,7 +280,7 @@ export class SchoolsService {
   async patchLicense(licenseObj: ICreateLicenseRequest, schoolId: string, byUser: IUserToken) {
     this.authorize(byUser);
     validators.validateCreateLicense(licenseObj);
-    const { grades, features = [], signupMethods = [SignupMethods.auto, SignupMethods.inviteCodes] } = licenseObj.package;
+    const { grades, features = [], signupMethods = [] } = licenseObj.package;
     const license: ILicenseRequest = {
       students: { max: licenseObj.students },
       teachers: { max: licenseObj.teachers },
