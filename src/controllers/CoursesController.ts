@@ -56,7 +56,7 @@ export class CoursesController {
     const result = await this.coursesService.getById(schoolId, courseId, profiles, ctx.user);
     if (!result) throw new NotFoundError(`Couldn't find course '${courseId}'`);
     ctx.status = 200;
-    ctx.body = { ok: true, result };
+    ctx.body = result;
     ctx.type = 'json';
   }
 
