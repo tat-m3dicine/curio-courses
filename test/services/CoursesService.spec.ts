@@ -180,16 +180,16 @@ describe('Courses Service', () => {
     });
 
     it('should fail to get course due to no user token sent', async () => {
-      await tryAndExpect(() => _coursesService.getById(course.schoolId, course._id, <any>undefined), ForbiddenError);
+      await tryAndExpect(() => _coursesService.getById(course.schoolId, course._id, true, <any>undefined), ForbiddenError);
     });
 
     it('should fail to get course by id due to teacher not in school', async () => {
-      await tryAndExpect(() => _coursesService.getById(course.schoolId, course._id, <IUserToken>{ role: [Role.teacher] }), UnauthorizedError);
+      await tryAndExpect(() => _coursesService.getById(course.schoolId, course._id, true, <IUserToken>{ role: [Role.teacher] }), UnauthorizedError);
     });
 
     it('should succeed to get course by id in specified school', async () => {
-      repositoryReturns(Repo.courses, { findOne: ({ _id, schoolId }) => [{ _id, schoolId, sectionId: course.sectionId }] });
-      const result = await _coursesService.getById(course.schoolId, course._id, <IUserToken>{ role: [Role.teacher], schooluuid: course.schoolId });
+      repositoryReturns(Repo.courses, { getById: (schoolId, courseId, profiles) => [{ _id: courseId, schoolId, sectionId: course.sectionId }] });
+      const result = await _coursesService.getById(course.schoolId, course._id, true, <IUserToken>{ role: [Role.teacher], schooluuid: course.schoolId });
       expect(result).to.deep.equal([course]);
     });
 

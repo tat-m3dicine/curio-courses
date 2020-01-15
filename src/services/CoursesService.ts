@@ -110,9 +110,9 @@ export class CoursesService {
     return this.coursesRepo.findManyPage({ schoolId, sectionId }, paging);
   }
 
-  async getById(schoolId: string, courseId: string, byUser: IUserToken) {
+  async getById(schoolId: string, courseId: string, includeProfiles: boolean, byUser: IUserToken) {
     this.authorize(byUser, schoolId);
-    return this.coursesRepo.findOne({ _id: courseId, schoolId });
+    return this.coursesRepo.getById(schoolId, courseId, includeProfiles);
   }
 
   async get(schoolId: string, sectionId: string, courseId: string, byUser: IUserToken) {

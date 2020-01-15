@@ -173,4 +173,66 @@ export class CoursesRepository extends AduitableRepository<ICourse> {
     });
   }
 
+  async getById(schoolId: string, courseId: string, includeProfiles: boolean) {
+    const pipeline: any[] = [
+      {
+        $match: { _id: courseId, schoolId }
+      },
+      {
+        $addFields: {
+          students: {
+            $filter: {
+              input: '$students',
+              as: 'student',
+              cond: {
+                $and: [
+                  { $eq: ['$$student.isEnabled', true] },
+                  { $not: '$$student.finishDate' }
+                ]
+              }
+            }
+          },
+          teachers: {
+            $filter: {
+              input: '$teachers',
+              as: 'teacher',
+              cond: {
+                $and: [
+                  { $eq: ['$$teacher.isEnabled', true] },
+                  { $not: '$$teacher.finishDate' }
+                ]
+              }
+            }
+          }
+        }
+      }
+    ];
+    if (includeProfiles) {
+      pipeline.push({
+        $lookup:
+        {
+          from: 'Users',
+          let: { students: '$students' },
+          pipeline: [
+            { $match: { $expr: { $in: ['$_id', '$$students._id'] } } },
+            { $project: { profile: 1, _id: 1 } }
+          ],
+          as: 'students'
+        }
+      }, {
+        $lookup:
+        {
+          from: 'Users',
+          let: { teachers: '$teachers' },
+          pipeline: [
+            { $match: { $expr: { $in: ['$_id', '$$teachers._id'] } } },
+            { $project: { profile: 1, _id: 1 } }
+          ],
+          as: 'teachers'
+        }
+      });
+    }
+    return this._collection.aggregate(pipeline, { session: this._session }).toArray();
+  }
+
 }
