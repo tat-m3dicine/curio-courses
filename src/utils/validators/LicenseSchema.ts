@@ -48,9 +48,8 @@ const createLicenseSchema = {
         type: 'array',
         items: {
           type: 'enum',
-          values: Object.keys(SignupMethods)
-        },
-        optional: true
+          values: Object.values(SignupMethods)
+        }
       },
       grades: {
         type: 'custom',
