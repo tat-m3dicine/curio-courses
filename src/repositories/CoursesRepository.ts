@@ -232,7 +232,7 @@ export class CoursesRepository extends AduitableRepository<ICourse> {
         }
       });
     }
-    return this._collection.aggregate(pipeline, { session: this._session }).toArray()[0];
+    return this._collection.aggregate(pipeline, { session: this._session }).toArray().then(a => a[0]);
   }
 
 }
