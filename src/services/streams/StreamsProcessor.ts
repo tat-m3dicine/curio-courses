@@ -4,7 +4,7 @@ import { UnitOfWork } from '@saal-oryx/unit-of-work';
 import { CommandsProcessor, KafkaService, CommandsStream } from '@saal-oryx/event-sourcing';
 import config from '../../config';
 import { UpdatesProcessor } from '../processors/UpdatesProcessor';
-import { getFactory } from '../serviceFactory';
+import { getFactory } from '../ServiceFactory';
 import { Service } from '../../models/ServiceName';
 import { UsersService } from '../UsersService';
 
