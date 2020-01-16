@@ -38,11 +38,7 @@ let server: Server;
   const kafkaService = new KafkaService({
     kafkaBrokers: config.kafkaBrokers,
     kafkaClientId: config.kafkaClientId,
-    allowAutoTopicCreation: false,
-    kafkaTopics: [
-      config.kafkaCommandsTopic,
-      config.kafkaUpdatesTopic
-    ]
+    allowAutoTopicCreation: false
   });
   const kafkaStreams = new KafkaStreams(
     <any>getNativeConfig('CoursesCommandsStreams', 'CoursesCommandsStreams')
@@ -100,7 +96,10 @@ let server: Server;
 
   try {
 
-    await kafkaService.createTopics();
+    await kafkaService.createTopics([
+      { topic: config.kafkaCommandsTopic, numPartitions: 6 },
+      { topic: config.kafkaIRPTopic, numPartitions: 6 }
+    ]);
 
     // Stream starting ...
     await streamsProcessor.start();
