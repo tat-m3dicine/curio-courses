@@ -16,11 +16,11 @@ import { ICourse } from '../models/entities/ICourse';
 import config from '../config';
 import { IUserToken } from '../models/IUserToken';
 import { Role } from '../models/Role';
-import { Repo } from '../repositories/RepoNames';
+import { Repo } from '../models/RepoNames';
 import { CoursesService } from '../services/CoursesService';
 import { IRPRequests } from './IRPRequests';
 import { UpdatesProcessor } from '../services/processors/UpdatesProcessor';
-import { CommandsProcessor } from '../services/processors/CommandsProcessor';
+import { CommandsProcessor } from '@saal-oryx/event-sourcing';
 import { SectionsRepository } from '../repositories/SectionsRepository';
 
 const logger = loggerFactory.getLogger('MigrationScripts');

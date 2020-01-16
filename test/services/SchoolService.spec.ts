@@ -6,12 +6,11 @@ const expect = chai.expect;
 
 import { UnitOfWork } from '@saal-oryx/unit-of-work';
 import { SchoolsService } from '../../src/services/SchoolsService';
-import { Repo } from '../../src/repositories/RepoNames';
+import { Repo } from '../../src/models/RepoNames';
 import { IUserToken } from '../../src/models/IUserToken';
 import config from '../../src/config';
 import { schoolRequest } from '../mockData/getTestData';
-import { KafkaService } from '../../src/services/processors/KafkaService';
-import { CommandsProcessor } from '../../src/services/processors/CommandsProcessor';
+import { CommandsProcessor, KafkaService } from '@saal-oryx/event-sourcing';
 
 const unitOfWorkStub = sinon.spy(() => sinon.createStubInstance(UnitOfWork));
 const kafkaServiceStub = sinon.spy(() => sinon.createStubInstance(KafkaService));

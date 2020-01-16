@@ -6,7 +6,7 @@ chai.use(require('sinon-chai'));
 const expect = chai.expect;
 
 import config from '../../src/config';
-import { Repo } from '../../src/repositories/RepoNames';
+import { Repo } from '../../src/models/RepoNames';
 import { SectionsService } from '../../src/services/SectionsService';
 import { getTestData, Test } from '../mockData/getSectionsTestData';
 import { IUserToken } from '../../src/models/IUserToken';
@@ -18,7 +18,7 @@ import { IUser } from '../../src/models/entities/IUser';
 import { ISection } from '../../src/models/entities/ISection';
 import { tryAndExpect } from '../tryAndExpect';
 import { UpdatesProcessor } from '../../src/services/processors/UpdatesProcessor';
-import { CommandsProcessor } from '../../src/services/processors/CommandsProcessor';
+import { CommandsProcessor } from '@saal-oryx/event-sourcing';
 
 
 const token = <IUserToken>{ role: [config.authorizedRole] };

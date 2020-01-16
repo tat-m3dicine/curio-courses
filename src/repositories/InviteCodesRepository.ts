@@ -1,7 +1,7 @@
 import { Collection, ClientSession } from 'mongodb';
 import { AduitableRepository } from './AduitableRepository';
 import { IInviteCode } from '../models/entities/IInviteCode';
-import { Repo } from './RepoNames';
+import { Repo } from '../models/RepoNames';
 
 export class InviteCodesRepository extends AduitableRepository<IInviteCode> {
   constructor(collection: Collection, session?: ClientSession) {

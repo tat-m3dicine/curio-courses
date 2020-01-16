@@ -1,7 +1,7 @@
 import { Collection, ClientSession } from 'mongodb';
 import { AduitableRepository } from './AduitableRepository';
 import { IUser } from '../models/entities/IUser';
-import { Repo } from './RepoNames';
+import { Repo } from '../models/RepoNames';
 
 export class UsersRepository extends AduitableRepository<IUser> {
   constructor(collection: Collection, session?: ClientSession) {

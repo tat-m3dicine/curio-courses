@@ -3,7 +3,7 @@ import Koa from 'koa';
 import { CoursesService } from '../services/CoursesService';
 import { CoursesController } from '../controllers/CoursesController';
 import { UnauthorizedError } from '../exceptions/UnauthorizedError';
-import { CommandsProcessor } from '../services/processors/CommandsProcessor';
+import { CommandsProcessor } from '@saal-oryx/event-sourcing';
 import { UpdatesProcessor } from '../services/processors/UpdatesProcessor';
 import { Role } from '../models/Role';
 

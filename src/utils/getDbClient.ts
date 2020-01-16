@@ -1,7 +1,7 @@
 import { MongoClient } from 'mongodb';
 import config from '../config';
 import loggerFactory from './logging';
-import { Repo } from '../repositories/RepoNames';
+import { Repo } from '../models/RepoNames';
 
 
 const logger = loggerFactory.getLogger('getDbClient');

@@ -2,7 +2,7 @@ import KoaRoute from 'koa-tree-router';
 import Koa from 'koa';
 import { ProvidersController } from '../controllers/ProvidersController';
 import { ProvidersService } from '../services/ProviderService';
-import { CommandsProcessor } from '../services/processors/CommandsProcessor';
+import { CommandsProcessor } from '@saal-oryx/event-sourcing';
 
 export default (commandsProccessor: CommandsProcessor) => {
   const providerRoutes = new KoaRoute();
