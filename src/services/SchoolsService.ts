@@ -232,7 +232,7 @@ export class SchoolsService {
     return this.schoolsRepo.deleteUsersPermission(schoolId, usersIds);
   }
 
-  async updateAcademicTerm(updateObj: IUpdateAcademicTermRequest, scoolId: string, byUser: IUserToken) {
+  async updateAcademicTerm(updateObj: IUpdateAcademicTermRequest, schoolId: string, byUser: IUserToken) {
     this.authorize(byUser);
     const academicTerm: IAcademicTerm = {
       _id: newAcademicTermId(),
@@ -243,9 +243,10 @@ export class SchoolsService {
       gracePeriod: updateObj.gracePeriod,
       isEnabled: updateObj.isEnabled
     };
-    // ToDo: validation school before moving forward
     validators.validateUpdateSchoolAcademicTerm({ academicTerm });
-    return this._commandsProcessor.sendCommand(Service.schools, this.doUpdateAcademicTerm, scoolId, updateObj, academicTerm);
+    const school = await this.schoolsRepo.findOne({ _id: schoolId });
+    if (!school) throw new InvalidRequestError(`Invalid schoolId ${schoolId}`);
+    return this._commandsProcessor.sendCommand(Service.schools, this.doUpdateAcademicTerm, schoolId, updateObj, academicTerm);
   }
 
   private async doUpdateAcademicTerm(schoolId: string, updateObj: IUpdateAcademicTermRequest, academicTerm: IAcademicTerm) {
@@ -294,8 +295,9 @@ export class SchoolsService {
     /**
      * If validTo is less than existing license validTo
      */
-    const isLicenseConflicts = await this.schoolsRepo.findOne({ '_id': schoolId, 'license.validTo': { $gt: license.validTo } });
-    if (isLicenseConflicts) throw new InvalidRequestError('ValidTo conflicts with existing license validTo date, validTo should be greater');
+    const school = await this.schoolsRepo.findOne({ _id: schoolId });
+    if (!school) throw new InvalidRequestError(`Invalid schoolId ${schoolId}`);
+    if (school.license && school.license.validTo > license.validTo) throw new InvalidRequestError('ValidTo conflicts with existing license validTo date, validTo should be greater');
     return this._commandsProcessor.sendCommand(Service.schools, this.doPatchLicense, schoolId, license);
   }
 

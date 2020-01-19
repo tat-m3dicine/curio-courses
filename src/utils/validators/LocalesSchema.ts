@@ -4,7 +4,7 @@ const validator = new Validator();
 const localeRegExp = /^([a-z]{2})(-([a-z]{2}))?$/.compile();
 
 const validateOneLocale = validator.compile({
-  name: 'string',
+  name: { type: 'string', min: 1 },
   description: {
     type: 'string',
     optional: true
