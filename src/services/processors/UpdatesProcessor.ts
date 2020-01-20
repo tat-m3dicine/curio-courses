@@ -2,6 +2,7 @@ import config from '../../config';
 import { IUserUpdatedEvent, IUserUpdatedData } from '../../models/events/IUserUpdatedEvent';
 import { IAppEvent } from '../../models/events/IAppEvent';
 import { KafkaService } from '@saal-oryx/event-sourcing';
+import loggerFactory from '../../utils/logging';
 
 export class UpdatesProcessor {
 
