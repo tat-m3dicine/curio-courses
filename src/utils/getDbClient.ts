@@ -30,7 +30,16 @@ export const getDbClient = async () => {
         await result.db().createCollection(Repo.providers);
 
         // Indices..
-        // await result.db().collection(Repo.schools).createIndex({ user_id: 1 });
+        await result.db().collection(Repo.schools).createIndex({ 'provider.links': 1 });
+        await result.db().collection(Repo.sections).createIndex({ schoolId: 1 });
+        await result.db().collection(Repo.courses).createIndexes([
+          { key: { sectionId: 1 } },
+          { key: { 'academicTerm._id': 1 } },
+          { key: { 'academicTerm.startDate': -1 } },
+        ]);
+        await result.db().collection(Repo.users).createIndexes([
+          { key: { schoolId: 1 } }
+        ]);
 
         logger.info('Database is ready...');
         return result;
