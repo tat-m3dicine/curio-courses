@@ -2,19 +2,16 @@ import { Collection, ClientSession } from 'mongodb';
 import { AduitableRepository } from './AduitableRepository';
 import { IUser } from '../models/entities/IUser';
 import { Repo } from '../models/RepoNames';
-import { InvalidRequestError } from '../exceptions/InvalidRequestError';
+import { validateAllObjectsExist } from '../utils/validators/AllObjectsExist';
 
 export class UsersRepository extends AduitableRepository<IUser> {
   constructor(collection: Collection, session?: ClientSession) {
     super(Repo.users, collection, session);
   }
 
-  async getUsersInSchool(schoolId: string, users: string[]) {
-    const dbUsers: IUser[] = await this.findMany({ 'school._id': schoolId, '_id': { $in: users } });
-    if (dbUsers.length !== users.length) {
-      const usersNotInSchool = users.filter(uId => dbUsers.find(dbUser => dbUser._id === uId));
-      throw new InvalidRequestError(`not all users where found in the school, ${usersNotInSchool}`);
-    }
+  async getUsersInSchool(schoolId: string, usersIds: string[]) {
+    const dbUsers: IUser[] = await this.findMany({ 'school._id': schoolId, '_id': { $in: usersIds } });
+    validateAllObjectsExist(dbUsers, usersIds, schoolId);
     return dbUsers;
   }
 
