@@ -27,7 +27,7 @@ import { IUserUpdatedEvent, IUserCourseUpdates } from '../models/events/IUserUpd
 import { newCourseId } from '../utils/IdGenerator';
 import { Repo } from '../models/RepoNames';
 import { CommandsProcessor } from '@saal-oryx/event-sourcing';
-import { UpdatesProcessor } from './processors/UpdatesProcessor';
+import { UpdatesProcessor, Events } from './processors/UpdatesProcessor';
 import { Service } from '../models/ServiceName';
 import loggerFactory from '../utils/logging';
 const logger = loggerFactory.getLogger('CoursesService');
@@ -103,7 +103,7 @@ export class CoursesService {
       schoolId: course.schoolId,
       sectionId: course.sectionId
     };
-    let addedCourse;
+    let addedCourse: ICourse;
     try {
       const coursesRepoWithTransactions = this._uow.getRepository(Repo.courses, true) as CoursesRepository;
       addedCourse = await coursesRepoWithTransactions.add(course);
@@ -123,6 +123,7 @@ export class CoursesService {
       role: Role.teacher,
       usersIds: course.teachers.map(s => s._id)
     }]);
+    this._updatesProcessor.notifyCourseEvents(Events.course_created, { ...addedCourse, students: undefined, teachers: undefined });
     return addedCourse;
   }
 
@@ -155,7 +156,12 @@ export class CoursesService {
   }
 
   private async doUpdate(filter: object, updateObj: Partial<ICourse>) {
-    return this.coursesRepo.patch(filter, updateObj);
+    const coursesRepoWithTransactions = this._uow.getRepository(Repo.courses, true) as CoursesRepository;
+    const result = await coursesRepoWithTransactions.patch(filter, updateObj);
+    const updatedCourse = await coursesRepoWithTransactions.findOne(filter);
+    await this._updatesProcessor.notifyCourseEvents(Events.course_updated, { ...updatedCourse, students: undefined, teachers: undefined });
+    await this._uow.commit();
+    return result;
   }
 
   async delete(schoolId: string, sectionId: string, courseId: string, byUser: IUserToken) {
@@ -166,7 +172,11 @@ export class CoursesService {
   }
 
   private async doDelete(courseId: string) {
-    return this.coursesRepo.delete({ _id: courseId });
+    const coursesRepoWithTransactions = this._uow.getRepository(Repo.courses, true) as CoursesRepository;
+    const result = await coursesRepoWithTransactions.delete({ _id: courseId });
+    await this._updatesProcessor.notifyCourseEvents(Events.course_deleted, { _id: courseId });
+    await this._uow.commit();
+    return result;
   }
 
   async enableStudent(requestParam: IUserRequest, byUser: IUserToken) {
