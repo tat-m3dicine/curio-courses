@@ -6,7 +6,7 @@ chai.use(require('sinon-chai'));
 import { tryAndExpect } from '../tryAndExpect';
 import { UnitOfWork, IPaging } from '@saal-oryx/unit-of-work';
 import { CoursesService } from '../../src/services/CoursesService';
-import { Repo } from '../../src/repositories/RepoNames';
+import { Repo } from '../../src/models/RepoNames';
 import config from '../../src/config';
 import { IUserToken } from '../../src/models/IUserToken';
 import { ICreateCourseRequest } from '../../src/models/requests/ICourseRequests';
@@ -21,7 +21,7 @@ import { UnauthorizedError } from '../../src/exceptions/UnauthorizedError';
 import { ForbiddenError } from '../../src/exceptions/ForbiddenError';
 import { IUserRequest } from '../../src/models/requests/IUserRequest';
 import { UpdatesProcessor } from '../../src/services/processors/UpdatesProcessor';
-import { CommandsProcessor } from '../../src/services/processors/CommandsProcessor';
+import { CommandsProcessor } from '@saal-oryx/event-sourcing';
 
 const unitOfWorkStub = sinon.spy(() => sinon.createStubInstance(UnitOfWork));
 const updatesProcessorStub = sinon.spy(() => sinon.createStubInstance(UpdatesProcessor));
@@ -32,7 +32,7 @@ const license = <ILicense>{ package: { grades: <any>{ ['4']: { math: ['moe'] } }
 const activeTerm = <IAcademicTerm>{ _id: 'active', startDate: new Date('2019'), endDate: new Date('2099') };
 const expiredTerm = <IAcademicTerm>{ _id: 'expired', startDate: new Date('2018'), endDate: new Date('2019') };
 const course = <ICourse>{ _id: 'course1', schoolId: 'school1', sectionId: 'section1' };
-const userRequest: IUserRequest = { ...course, courseId: course._id, usersIds: ['user1', 'user2'] };
+const userRequest: IUserRequest = { ...course, courseId: course._id, usersIds: ['user1', 'user2'], role: Role.student };
 const request: ICreateCourseRequest = {
   schoolId: 'aldar_ba526',
   sectionId: 'section_1',
@@ -126,21 +126,22 @@ describe('Courses Service', () => {
     it('should fail to create course due to requeted users not found in database', async () => {
       repositoryReturns(Repo.schools, { findById: () => ({ license, academicTerms: [activeTerm] }) });
       repositoryReturns(Repo.sections, { findOne: () => ({}) });
-      repositoryReturns(Repo.users, { findMany: () => [] });
+      repositoryReturns(Repo.users, { getUsersInSchool: () => [] });
       await tryAndExpect(() => _coursesService.create({ ...request, students: ['student1'], teachers: ['teacher1'] }, token), NotFoundError);
     });
 
     it('should fail to create course due to requeted teacher is a student', async () => {
       repositoryReturns(Repo.schools, { findById: () => ({ license, academicTerms: [activeTerm] }) });
       repositoryReturns(Repo.sections, { findOne: () => ({}) });
-      repositoryReturns(Repo.users, { findMany: () => [{ _id: 'teacher1', role: [Role.student] }] });
+      repositoryReturns(Repo.users, { findMany: () => [{ _id: 'teacher1', role: [Role.student] }], getUsersInSchool: () => [] });
       await tryAndExpect(() => _coursesService.create({ ...request, teachers: ['teacher1'] }, token), NotFoundError);
     });
 
     it('should succeed to create course in active term without students or teachers', async () => {
       repositoryReturns(Repo.schools, { findById: () => ({ license, academicTerms: [activeTerm] }) });
       repositoryReturns(Repo.sections, { findOne: () => ({}) });
-      repositoryReturns(Repo.courses, { add: course => course });
+      repositoryReturns(Repo.courses, { add: course => course, getActiveCoursesForUsers: () => [{ ...course, students: [], teachers: [] }] });
+      repositoryReturns(Repo.users, { getUsersInSchool: () => [] });
       const { _id, ...result } = <any>await _coursesService.create(request, token);
       expect(result).to.deep.equal({ ...request, academicTerm: activeTerm, defaultLocale: 'en', isEnabled: true });
     });
@@ -148,7 +149,8 @@ describe('Courses Service', () => {
     it('should succeed to create course in specified term without students or teachers', async () => {
       repositoryReturns(Repo.schools, { findById: () => ({ license, academicTerms: [activeTerm] }) });
       repositoryReturns(Repo.sections, { findOne: () => ({}) });
-      repositoryReturns(Repo.courses, { add: course => course });
+      repositoryReturns(Repo.courses, { add: course => course, getActiveCoursesForUsers: () => [{ ...course, students: [], teachers: [] }] });
+      repositoryReturns(Repo.users, { getUsersInSchool: () => [] });
       const { _id, ...result } = <any>await _coursesService.create({ ...request, academicTermId: activeTerm._id }, token);
       expect(result).to.deep.equal({ ...request, academicTerm: activeTerm, defaultLocale: 'en', isEnabled: true });
     });
@@ -156,8 +158,24 @@ describe('Courses Service', () => {
     it('should succeed to create course in active term with students and teachers', async () => {
       repositoryReturns(Repo.schools, { findById: () => ({ license, academicTerms: [activeTerm] }) });
       repositoryReturns(Repo.sections, { findOne: () => ({}) });
-      repositoryReturns(Repo.courses, { add: course => course });
-      repositoryReturns(Repo.users, { findMany: () => [{ _id: 'student1', role: [Role.student] }, { _id: 'teacher1', role: [Role.teacher] }] });
+      repositoryReturns(Repo.courses, { add: course => course, getActiveCoursesForUsers: () => [{ ...course, students: ['student1'], teachers: ['teacher1'] }] });
+      repositoryReturns(Repo.users, {
+        findMany: () => [{ _id: 'student1', role: [Role.student] }, { _id: 'teacher1', role: [Role.teacher] }],
+        getUsersInSchool: () => [{
+          _id: 'student1',
+          role: [Role.student],
+          school: {
+            _id: request.schoolId
+          }
+        }, {
+          _id: 'teacher1',
+          role: [Role.teacher],
+          school: {
+            _id: request.schoolId,
+            joinDate: new Date()
+          }
+        }]
+      });
       const { _id, ...result } = <any>await _coursesService.create({ ...request, students: ['student1'], teachers: ['teacher1'] }, token);
       expect({ ...result, students: [], teachers: [] }).to.deep.equal({ ...request, academicTerm: activeTerm, defaultLocale: 'en', isEnabled: true });
       expect(result.students).to.have.lengthOf(1);
@@ -180,16 +198,16 @@ describe('Courses Service', () => {
     });
 
     it('should fail to get course due to no user token sent', async () => {
-      await tryAndExpect(() => _coursesService.getById(course.schoolId, course._id, <any>undefined), ForbiddenError);
+      await tryAndExpect(() => _coursesService.getById(course.schoolId, course._id, true, <any>undefined), ForbiddenError);
     });
 
     it('should fail to get course by id due to teacher not in school', async () => {
-      await tryAndExpect(() => _coursesService.getById(course.schoolId, course._id, <IUserToken>{ role: [Role.teacher] }), UnauthorizedError);
+      await tryAndExpect(() => _coursesService.getById(course.schoolId, course._id, true, <IUserToken>{ role: [Role.teacher] }), UnauthorizedError);
     });
 
     it('should succeed to get course by id in specified school', async () => {
-      repositoryReturns(Repo.courses, { findOne: ({ _id, schoolId }) => [{ _id, schoolId, sectionId: course.sectionId }] });
-      const result = await _coursesService.getById(course.schoolId, course._id, <IUserToken>{ role: [Role.teacher], schooluuid: course.schoolId });
+      repositoryReturns(Repo.courses, { getById: (schoolId, courseId, profiles) => [{ _id: courseId, schoolId, sectionId: course.sectionId }] });
+      const result = await _coursesService.getById(course.schoolId, course._id, true, <IUserToken>{ role: [Role.teacher], schooluuid: course.schoolId });
       expect(result).to.deep.equal([course]);
     });
 
@@ -227,7 +245,7 @@ describe('Courses Service', () => {
     });
 
     it('should succeed to get active courses for specified student', async () => {
-      repositoryReturns(Repo.courses, { getActiveCoursesForUsers: () => [course] });
+      repositoryReturns(Repo.courses, { getActiveCoursesForUser: () => [course] });
       const result = await _coursesService.getActiveCourses('student1', Role.student);
       expect(result.courses).to.have.lengthOf(1);
       expect(result.teachers).equal(undefined);
@@ -235,7 +253,7 @@ describe('Courses Service', () => {
 
     it('should succeed to get active courses for specified teacher', async () => {
       const user = { _id: 'user1', isEnabled: true };
-      repositoryReturns(Repo.courses, { getActiveCoursesForUsers: () => [{ ...course, students: [user], teachers: [user] }] });
+      repositoryReturns(Repo.courses, { getActiveCoursesForUser: () => [{ ...course, students: [user], teachers: [user] }] });
       repositoryReturns(Repo.sections, { findMany: () => [{}] });
       repositoryReturns(Repo.users, { findMany: () => [{ role: Role.student }, { role: Role.teacher }] });
       const result = await _coursesService.getActiveCourses('teacher1', Role.teacher);
@@ -274,7 +292,7 @@ describe('Courses Service', () => {
         findMany: () => [course], addUsersToCourses: updates => updates,
         getActiveCoursesForUsers: () => [{ ...course, students: userRequest.usersIds }]
       });
-      repositoryReturns(Repo.users, { findMany: () => userRequest.usersIds });
+      repositoryReturns(Repo.users, { findMany: () => userRequest.usersIds, getUsersInSchool: () => [] });
       repositoryReturns(Repo.sections, { addStudentsToSections: () => undefined });
       const result = await _coursesService.enrollStudents(userRequest, token);
       expect(result).to.have.lengthOf(1);
@@ -286,7 +304,7 @@ describe('Courses Service', () => {
         findMany: () => [course, course], addUsersToCourses: updates => updates,
         getActiveCoursesForUsers: () => [courseWithStudents, courseWithStudents]
       });
-      repositoryReturns(Repo.users, { findMany: () => userRequest.usersIds });
+      repositoryReturns(Repo.users, { findMany: () => userRequest.usersIds, getUsersInSchool: () => [] });
       repositoryReturns(Repo.sections, { addStudentsToSections: () => undefined });
       const result = await _coursesService.enrollStudentsInCourses([userRequest, userRequest], token);
       expect(result).to.have.lengthOf(2);
@@ -297,7 +315,7 @@ describe('Courses Service', () => {
         findMany: () => [course], finishUsersInCourses: updates => updates,
         getActiveCoursesForUsers: () => [{ ...course, students: userRequest.usersIds }]
       });
-      repositoryReturns(Repo.users, { findMany: () => userRequest.usersIds });
+      repositoryReturns(Repo.users, { findMany: () => userRequest.usersIds, getUsersInSchool: () => [] });
       const result = await _coursesService.dropStudents(userRequest, token);
       expect(result).to.have.lengthOf(1);
     });
@@ -307,28 +325,30 @@ describe('Courses Service', () => {
         findMany: () => [course, course], finishUsersInCourses: updates => updates,
         getActiveCoursesForUsers: () => []
       });
-      repositoryReturns(Repo.users, { findMany: () => userRequest.usersIds });
+      repositoryReturns(Repo.users, { findMany: () => userRequest.usersIds, getUsersInSchool: () => [] });
       const result = await _coursesService.dropStudentsInCourses([userRequest, userRequest], token);
       expect(result).to.have.lengthOf(2);
     });
 
     it('should succeed to enroll multiple teachers in one course', async () => {
+      userRequest.role = Role.teacher;
       repositoryReturns(Repo.courses, {
         findMany: () => [course], addUsersToCourses: updates => updates,
         getActiveCoursesForUsers: () => [{ ...course, teachers: userRequest.usersIds }]
       });
-      repositoryReturns(Repo.users, { findMany: () => userRequest.usersIds });
+      repositoryReturns(Repo.users, { findMany: () => userRequest.usersIds, getUsersInSchool: () => [] });
       const result = await _coursesService.enrollTeachers(userRequest, token);
       expect(result).to.have.lengthOf(1);
     });
 
     it('should succeed to enroll multiple teachers in multiple courses', async () => {
+      userRequest.role = Role.teacher;
       const courseWithTeachers = { ...course, teachers: userRequest.usersIds };
       repositoryReturns(Repo.courses, {
         findMany: () => [course, course], addUsersToCourses: updates => updates,
         getActiveCoursesForUsers: () => [courseWithTeachers, courseWithTeachers]
       });
-      repositoryReturns(Repo.users, { findMany: () => userRequest.usersIds });
+      repositoryReturns(Repo.users, { findMany: () => userRequest.usersIds, getUsersInSchool: () => [] });
       const result = await _coursesService.enrollTeachersInCourses([userRequest, userRequest], token);
       expect(result).to.have.lengthOf(2);
     });
@@ -338,7 +358,7 @@ describe('Courses Service', () => {
         findMany: () => [course], finishUsersInCourses: updates => updates,
         getActiveCoursesForUsers: () => [{ ...course, teachers: userRequest.usersIds }]
       });
-      repositoryReturns(Repo.users, { findMany: () => userRequest.usersIds });
+      repositoryReturns(Repo.users, { findMany: () => userRequest.usersIds, getUsersInSchool: () => [] });
       const result = await _coursesService.dropTeachers(userRequest, token);
       expect(result).to.have.lengthOf(1);
     });
@@ -349,7 +369,7 @@ describe('Courses Service', () => {
         findMany: () => [course, course], finishUsersInCourses: updates => updates,
         getActiveCoursesForUsers: () => [courseWithTeachers, courseWithTeachers]
       });
-      repositoryReturns(Repo.users, { findMany: () => userRequest.usersIds });
+      repositoryReturns(Repo.users, { findMany: () => userRequest.usersIds, getUsersInSchool: () => [] });
       const result = await _coursesService.dropTeachersInCourses([userRequest, userRequest], token);
       expect(result).to.have.lengthOf(2);
     });

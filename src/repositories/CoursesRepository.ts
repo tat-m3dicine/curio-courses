@@ -2,7 +2,7 @@ import { Collection, ClientSession } from 'mongodb';
 import { AduitableRepository } from './AduitableRepository';
 import { ICourse, IUserCourseInfo } from '../models/entities/ICourse';
 import { Role } from '../models/Role';
-import { Repo } from './RepoNames';
+import { Repo } from '../models/RepoNames';
 import loggerFactory from '../utils/logging';
 const logger = loggerFactory.getLogger('CoursesRepository');
 
@@ -100,7 +100,7 @@ export class CoursesRepository extends AduitableRepository<ICourse> {
   async getActiveCoursesForUsers(role: Role, usersIds: string[]) {
     const currentDate = new Date();
     return this.findMany({
-      [`${role}s`]: { $elemMatch: { _id: { $in: usersIds } } },
+      [`${role}s`]: { $elemMatch: { _id: { $in: usersIds }, isEnabled: true, finishDate: { $exists: false } } },
       'academicTerm.startDate': { $lte: currentDate },
       'academicTerm.endDate': { $gte: currentDate },
       'isEnabled': true
@@ -112,7 +112,7 @@ export class CoursesRepository extends AduitableRepository<ICourse> {
     const pipeline: any[] = [
       {
         $match: {
-          [`${role}s`]: { $elemMatch: { _id: { $eq: usersId } } },
+          [`${role}s`]: { $elemMatch: { _id: { $eq: usersId }, isEnabled: true, finishDate: { $exists: false } } },
           'academicTerm.startDate': { $lte: currentDate },
           'academicTerm.endDate': { $gte: currentDate },
           'isEnabled': true
@@ -151,30 +151,6 @@ export class CoursesRepository extends AduitableRepository<ICourse> {
               }
             }
           }
-        },
-        {
-          $lookup:
-          {
-            from: 'Users',
-            let: { students: '$students' },
-            pipeline: [
-              { $match: { $expr: { $in: ['$_id', '$$students._id'] } } },
-              { $project: { profile: 1, _id: 1 } }
-            ],
-            as: 'students'
-          }
-        },
-        {
-          $lookup:
-          {
-            from: 'Users',
-            let: { teachers: '$teachers' },
-            pipeline: [
-              { $match: { $expr: { $in: ['$_id', '$$teachers._id'] } } },
-              { $project: { profile: 1, _id: 1 } }
-            ],
-            as: 'teachers'
-          }
         }
       );
     }
@@ -189,6 +165,68 @@ export class CoursesRepository extends AduitableRepository<ICourse> {
       'academicTerm.endDate': { $gte: currentDate },
       'isEnabled': true
     });
+  }
+
+  async getById(schoolId: string, courseId: string, includeProfiles: boolean) {
+    const pipeline: any[] = [
+      {
+        $match: { _id: courseId, schoolId }
+      },
+      {
+        $addFields: {
+          students: {
+            $filter: {
+              input: '$students',
+              as: 'student',
+              cond: {
+                $and: [
+                  { $eq: ['$$student.isEnabled', true] },
+                  { $not: '$$student.finishDate' }
+                ]
+              }
+            }
+          },
+          teachers: {
+            $filter: {
+              input: '$teachers',
+              as: 'teacher',
+              cond: {
+                $and: [
+                  { $eq: ['$$teacher.isEnabled', true] },
+                  { $not: '$$teacher.finishDate' }
+                ]
+              }
+            }
+          }
+        }
+      }
+    ];
+    if (includeProfiles) {
+      pipeline.push({
+        $lookup:
+        {
+          from: 'Users',
+          let: { students: '$students' },
+          pipeline: [
+            { $match: { $expr: { $in: ['$_id', '$$students._id'] } } },
+            { $project: { profile: 1, _id: 1 } }
+          ],
+          as: 'students'
+        }
+      }, {
+        $lookup:
+        {
+          from: 'Users',
+          let: { teachers: '$teachers' },
+          pipeline: [
+            { $match: { $expr: { $in: ['$_id', '$$teachers._id'] } } },
+            { $project: { profile: 1, _id: 1 } }
+          ],
+          as: 'teachers'
+        }
+      });
+    }
+    return this._collection.aggregate(pipeline, { session: this._session }).toArray().then(a => a[0]);
   }
 
 }

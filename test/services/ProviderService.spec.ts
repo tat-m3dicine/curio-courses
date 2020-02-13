@@ -6,7 +6,7 @@ chai.use(require('sinon-chai'));
 const expect = chai.expect;
 
 import config from '../../src/config';
-import { Repo } from '../../src/repositories/RepoNames';
+import { Repo } from '../../src/models/RepoNames';
 import { NotFoundError } from '../../src/exceptions/NotFoundError';
 import { ProvidersService } from '../../src/services/ProviderService';
 import { ValidationError } from '../../src/exceptions/ValidationError';
@@ -19,7 +19,7 @@ import { IUpdateAcademicTermRequest } from '../../src/models/requests/ISchoolReq
 import { IDeleteProviderAcademicTermRequest, IProvider } from '../../src/models/entities/IProvider';
 import { ICourse } from '../../src/models/entities/ICourse';
 import { UpdatesProcessor } from '../../src/services/processors/UpdatesProcessor';
-import { CommandsProcessor } from '../../src/services/processors/CommandsProcessor';
+import { CommandsProcessor } from '@saal-oryx/event-sourcing';
 
 
 const unitOfWorkStub = sinon.spy(() => sinon.createStubInstance(UnitOfWork));

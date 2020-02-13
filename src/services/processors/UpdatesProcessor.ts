@@ -1,7 +1,9 @@
 import config from '../../config';
 import { IUserUpdatedEvent, IUserUpdatedData } from '../../models/events/IUserUpdatedEvent';
 import { IAppEvent } from '../../models/events/IAppEvent';
-import { KafkaService } from './KafkaService';
+import { KafkaService } from '@saal-oryx/event-sourcing';
+import loggerFactory from '../../utils/logging';
+import { ICourse } from '../../models/entities/ICourse';
 
 export class UpdatesProcessor {
 
@@ -46,10 +48,26 @@ export class UpdatesProcessor {
     }));
     await this._kafkaService.sendMany(config.kafkaUpdatesTopic, events);
   }
+
+  async notifyCourseEvents(event: Events.course_created | Events.course_updated, data: Partial<ICourse>);
+  async notifyCourseEvents(event: Events.course_deleted, data: { _id: string });
+  async notifyCourseEvents(event: Events, data: any) {
+    const now = Date.now();
+    await this._kafkaService.send(config.kafkaUpdatesTopic, {
+      key: data._id,
+      event,
+      data,
+      timestamp: now,
+      v: '1.0.0'
+    });
+  }
 }
 
 export enum Events {
   enroll = 'user_enrolled',
   drop = 'user_dropped',
-  enrollment = 'user_enrollment'
+  enrollment = 'user_enrollment',
+  course_created = 'course_created',
+  course_updated = 'course_updated',
+  course_deleted = 'course_deleted'
 }

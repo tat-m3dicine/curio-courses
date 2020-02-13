@@ -17,8 +17,9 @@ import { InviteCodesRepository } from '../repositories/InviteCodesRepository';
 import { ICourse } from '../models/entities/ICourse';
 import { InvalidRequestError } from '../exceptions/InvalidRequestError';
 import { newInviteCodeId } from '../utils/IdGenerator';
-import { Repo } from '../repositories/RepoNames';
-import { CommandsProcessor } from './processors/CommandsProcessor';
+import { Repo } from '../models/RepoNames';
+import { CommandsProcessor } from '@saal-oryx/event-sourcing';
+import { Service } from '../models/ServiceName';
 
 export class InviteCodesService {
 
@@ -60,7 +61,7 @@ export class InviteCodesService {
     if (!(signupMethods instanceof Array) || !signupMethods.includes(SignupMethods.inviteCodes)) {
       throw new InvalidLicenseError(`Sign up through invite codes isn't included in '${schoolId}' school's license package!`);
     }
-    return this._commandsProcessor.sendCommand('inviteCodes', this.doCreate, <IInviteCode>{
+    return this._commandsProcessor.sendCommand(Service.inviteCodes, this.doCreate, <IInviteCode>{
       _id: newInviteCodeId(),
       schoolId, validity, isEnabled: true,
       quota: { max: quota, consumed: 0 },
@@ -86,7 +87,7 @@ export class InviteCodesService {
     this.authorize(byUser);
     const inviteCode = await this.inviteCodesRepo.findOne({ _id: codeId, schoolId });
     if (!inviteCode) throw new NotFoundError(`Couldn't find invite code '${codeId}' in school '${schoolId}'`);
-    return this._commandsProcessor.sendCommand('inviteCodes', this.doDelete, codeId);
+    return this._commandsProcessor.sendCommand(Service.inviteCodes, this.doDelete, codeId);
   }
 
   private async doDelete(codeId: string) {

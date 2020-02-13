@@ -25,9 +25,12 @@ import { SectionsRepository } from '../repositories/SectionsRepository';
 import { validateAllObjectsExist } from '../utils/validators/AllObjectsExist';
 import { IUserUpdatedEvent, IUserCourseUpdates } from '../models/events/IUserUpdatedEvent';
 import { newCourseId } from '../utils/IdGenerator';
-import { Repo } from '../repositories/RepoNames';
-import { CommandsProcessor } from './processors/CommandsProcessor';
-import { UpdatesProcessor } from './processors/UpdatesProcessor';
+import { Repo } from '../models/RepoNames';
+import { CommandsProcessor } from '@saal-oryx/event-sourcing';
+import { UpdatesProcessor, Events } from './processors/UpdatesProcessor';
+import { Service } from '../models/ServiceName';
+import loggerFactory from '../utils/logging';
+const logger = loggerFactory.getLogger('CoursesService');
 
 export class CoursesService {
   constructor(
@@ -63,7 +66,7 @@ export class CoursesService {
     const studentsObjs: IUserCourseInfo[] = [], teachersObjs: IUserCourseInfo[] = [];
     if (usersIds.length > 0) {
       const now = new Date();
-      const users: IUser[] = await this.usersRepo.findMany({ '_id': { $in: usersIds }, 'school._id': schoolId });
+      const users: IUser[] = await this.usersRepo.getUsersInSchool(schoolId, usersIds);
       const usersMap: { [_id: string]: IUser } = users.reduce((map, user) => ({ ...map, [user._id]: user }), {});
 
       students.forEach(_id => {
@@ -83,7 +86,7 @@ export class CoursesService {
       validateAllObjectsExist(teachersObjs, teachers, schoolId, Role.teacher);
     }
 
-    return this._commandsProcessor.sendCommand('courses', this.doCreate, <ICourse>{
+    return this._commandsProcessor.sendCommand(Service.courses, this.doCreate, <ICourse>{
       _id: newCourseId(sectionId, subject, academicTerm.year),
       schoolId, sectionId, curriculum, grade, subject, academicTerm,
       defaultLocale: course.defaultLocale || Object.keys(course.locales)[0] || 'en',
@@ -95,7 +98,33 @@ export class CoursesService {
   }
 
   private async doCreate(course: ICourse) {
-    return this.coursesRepo.add(course);
+    const partialRequest = {
+      courseId: course._id,
+      schoolId: course.schoolId,
+      sectionId: course.sectionId
+    };
+    let addedCourse: ICourse;
+    try {
+      const coursesRepoWithTransactions = this._uow.getRepository(Repo.courses, true) as CoursesRepository;
+      addedCourse = await coursesRepoWithTransactions.add(course);
+      await this._uow.commit();
+    } catch (err) {
+      if (err && err.code === 11000) { // Duplicate error
+        addedCourse = course;
+      }
+      throw err;
+    }
+    await this.sendUsersChangesUpdates('enroll', [{
+      ...partialRequest,
+      role: Role.student,
+      usersIds: course.students.map(s => s._id)
+    }, {
+      ...partialRequest,
+      role: Role.teacher,
+      usersIds: course.teachers.map(s => s._id)
+    }]);
+    this._updatesProcessor.notifyCourseEvents(Events.course_created, { ...addedCourse, students: undefined, teachers: undefined });
+    return addedCourse;
   }
 
   async listWithSections(schoolId: string, byUser: IUserToken) {
@@ -110,9 +139,9 @@ export class CoursesService {
     return this.coursesRepo.findManyPage({ schoolId, sectionId }, paging);
   }
 
-  async getById(schoolId: string, courseId: string, byUser: IUserToken) {
+  async getById(schoolId: string, courseId: string, includeProfiles: boolean, byUser: IUserToken) {
     this.authorize(byUser, schoolId);
-    return this.coursesRepo.findOne({ _id: courseId, schoolId });
+    return this.coursesRepo.getById(schoolId, courseId, includeProfiles);
   }
 
   async get(schoolId: string, sectionId: string, courseId: string, byUser: IUserToken) {
@@ -123,22 +152,31 @@ export class CoursesService {
   async update(schoolId: string, sectionId: string, courseId: string, updateObj: Partial<ICourse>, byUser: IUserToken) {
     this.authorize(byUser);
     validators.validateUpdateCourse(updateObj);
-    return this._commandsProcessor.sendCommand('courses', this.doUpdate, { _id: courseId, sectionId, schoolId }, updateObj);
+    return this._commandsProcessor.sendCommand(Service.courses, this.doUpdate, { _id: courseId, sectionId, schoolId }, updateObj);
   }
 
   private async doUpdate(filter: object, updateObj: Partial<ICourse>) {
-    return this.coursesRepo.patch(filter, updateObj);
+    const coursesRepoWithTransactions = this._uow.getRepository(Repo.courses, true) as CoursesRepository;
+    const result = await coursesRepoWithTransactions.patch(filter, updateObj);
+    const updatedCourse = await coursesRepoWithTransactions.findOne(filter);
+    await this._updatesProcessor.notifyCourseEvents(Events.course_updated, { ...updatedCourse, students: undefined, teachers: undefined });
+    await this._uow.commit();
+    return result;
   }
 
   async delete(schoolId: string, sectionId: string, courseId: string, byUser: IUserToken) {
     this.authorize(byUser);
     const course = await this.coursesRepo.findOne({ _id: courseId, sectionId, schoolId });
     if (!course) throw new NotFoundError(`Couldn't find course '${courseId}' in section '${sectionId}'`);
-    return this._commandsProcessor.sendCommand('courses', this.doDelete, courseId);
+    return this._commandsProcessor.sendCommand(Service.courses, this.doDelete, courseId);
   }
 
   private async doDelete(courseId: string) {
-    return this.coursesRepo.delete({ _id: courseId });
+    const coursesRepoWithTransactions = this._uow.getRepository(Repo.courses, true) as CoursesRepository;
+    const result = await coursesRepoWithTransactions.delete({ _id: courseId });
+    await this._updatesProcessor.notifyCourseEvents(Events.course_deleted, { _id: courseId });
+    await this._uow.commit();
+    return result;
   }
 
   async enableStudent(requestParam: IUserRequest, byUser: IUserToken) {
@@ -152,7 +190,7 @@ export class CoursesService {
   private async toggleUsers(requestParam: IUserRequest, role: Role, value: boolean, byUser: IUserToken) {
     this.authorize(byUser);
     await this.validateCoursesAndUsers([requestParam], role);
-    return this._commandsProcessor.sendCommand('courses', this.doToggleStudents, requestParam, role, value);
+    return this._commandsProcessor.sendCommand(Service.courses, this.doToggleStudents, requestParam, role, value);
   }
 
   private async doToggleStudents({ schoolId, sectionId, courseId, usersIds }: IUserRequest, role: Role, value: boolean) {
@@ -193,14 +231,14 @@ export class CoursesService {
 
   async getActiveCourses(userId: string, role?: Role) {
     if (!role) return { courses: [], sections: [] };
-    const courses = await this.coursesRepo.getActiveCoursesForUsers(role, [userId]);
+    const courses = await this.coursesRepo.getActiveCoursesForUser(role, userId);
     if (role === Role.student) {
       return {
         courses: courses.map(c => ({ ...c, students: undefined, teachers: undefined }))
       };
     }
     const userIds = courses.reduce((list, c) =>
-      list.concat([...c.students, ...c.teachers].filter(u => u.isEnabled && !u.finishDate).map(u => u._id)), <string[]>[]
+      list.concat([...c.students, ...c.teachers].map(u => u._id)), <string[]>[]
     );
     const users = await this.usersRepo.findMany({ _id: { $in: Array.from(new Set(userIds)) } });
     const sections = await this.sectionsRepo.findMany({ _id: { $in: courses.map(c => c.sectionId) } });
@@ -214,7 +252,7 @@ export class CoursesService {
   }
 
   public async notifyForUserEnrollment(role: Role, userIds: string[]) {
-    const users: IUser[] = await this.usersRepo.findMany({ _id: { $in: userIds } });
+    const users: IUser[] = await this.usersRepo.findMany({ _id: { $in: userIds }, role });
     const courses: ICourse[] = await this.coursesRepo.getActiveCoursesForUsers(role, userIds);
     const coursesUpdates = this.transformCoursesToUpdates(courses, role);
     const events = users.map(user => ({
@@ -227,11 +265,16 @@ export class CoursesService {
     this._updatesProcessor.sendEnrollmentUpdates(events);
   }
 
-  private async enrollUsers(requestParams: IUserRequest[], role: Role, byUser: IUserToken, sameSection = true) {
+  async repairUsers(role: Role, userIds: string[], byUser: IUserToken) {
     this.authorize(byUser);
+    return this.notifyForUserEnrollment(role, userIds);
+  }
+
+  private async enrollUsers(requestParams: IUserRequest[], role: Role, byUser: IUserToken, sameSection = true) {
+    this.authorize(byUser, role === Role.teacher ? requestParams[0].schoolId : undefined);
     const joinDate = new Date();
     await this.validateCoursesAndUsers(requestParams, role, sameSection);
-    return this._commandsProcessor.sendCommand('courses', this.doEnrollUsers, requestParams, role, joinDate);
+    return this._commandsProcessor.sendCommand(Service.courses, this.doEnrollUsers, requestParams, role, joinDate);
   }
 
   private async doEnrollUsers(requests: IUserRequest[], role: Role, joinDate: Date) {
@@ -252,15 +295,15 @@ export class CoursesService {
     if (role === Role.student) await sectionsRepoWithTransactions.addStudentsToSections(sectionsUpdates);
 
     await this._uow.commit();
-    if (result.modifiedCount !== 0) await this.sendUsersChangesUpdates('enroll', role, requests);
+    if (result.modifiedCount !== 0) await this.sendUsersChangesUpdates('enroll', requests);
     return result;
   }
 
   private async dropUsers(requestParams: IUserRequest[], role: Role, byUser: IUserToken) {
-    this.authorize(byUser);
+    this.authorize(byUser, role === Role.teacher ? requestParams[0].schoolId : undefined);
     const finishDate = new Date();
     await this.validateCoursesAndUsers(requestParams, role);
-    return this._commandsProcessor.sendCommand('courses', this.doDropUsers, requestParams, role, finishDate);
+    return this._commandsProcessor.sendCommand(Service.courses, this.doDropUsers, requestParams, role, finishDate);
   }
 
   private async doDropUsers(requests: IUserRequest[], role: Role, finishDate: Date) {
@@ -270,28 +313,32 @@ export class CoursesService {
       coursesUpdates.push({ filter: { _id: courseId, schoolId, sectionId }, usersIds });
     }
     const result = await this.coursesRepo.finishUsersInCourses(coursesUpdates, role, finishDate);
-    if (result.modifiedCount !== 0) await this.sendUsersChangesUpdates('drop', role, requests);
+    if (result.modifiedCount !== 0) await this.sendUsersChangesUpdates('drop', requests);
     return result;
   }
 
-  private async sendUsersChangesUpdates(action: 'enroll' | 'drop', role: Role, requests: IUserRequest[]) {
-    const usersIds = Array.from(new Set(requests.reduce((list, request) => [...list, ...request.usersIds], <string[]>[])));
-    const users: IUser[] = await this.usersRepo.findMany({ _id: { $in: usersIds } });
-    const courses: ICourse[] = await this.coursesRepo.getActiveCoursesForUsers(role, usersIds);
-    if (courses.length === 0) return;
-    const coursesUpdates = this.transformCoursesToUpdates(courses, role);
+  private async sendUsersChangesUpdates(action: 'enroll' | 'drop', requests: IUserRequest[]) {
+    logger.debug(`Sending user changes for action: ${action} with request`, requests);
     const coursesIds = requests.map(request => request.courseId);
-    const events = users.map(user => <IUserUpdatedEvent>{
-      event: action,
-      data: {
-        _id: user._id,
-        // tslint:disable-next-line: no-null-keyword
-        schoolId: user.school ? user.school._id : null,
-        status: user.registration ? user.registration.status : (user.school ? Status.active : Status.inactive),
-        courses: coursesUpdates[user._id]
-      }
-    });
-    this._updatesProcessor.sendEnrollmentUpdatesWithActions(events, coursesIds);
+    const events: IUserUpdatedEvent[] = [];
+    for (const request of requests) {
+      const usersIds = Array.from(new Set(request.usersIds));
+      const users: IUser[] = await this.usersRepo.getUsersInSchool(request.schoolId, request.usersIds);
+      const courses: ICourse[] = await this.coursesRepo.getActiveCoursesForUsers(request.role, usersIds);
+      if (courses.length === 0) return;
+      const coursesUpdates = this.transformCoursesToUpdates(courses, request.role);
+      events.push(...users.map(user => <IUserUpdatedEvent>{
+        event: action,
+        data: {
+          _id: user._id,
+          // tslint:disable-next-line: no-null-keyword
+          schoolId: user.school ? user.school._id : null,
+          status: user.registration ? user.registration.status : (user.school ? Status.active : Status.inactive),
+          courses: coursesUpdates[user._id]
+        }
+      }));
+    }
+    return this._updatesProcessor.sendEnrollmentUpdatesWithActions(events, coursesIds);
   }
 
   private transformCoursesToUpdates(courses: ICourse[], role: Role): { [_id: string]: IUserCourseUpdates[] } {

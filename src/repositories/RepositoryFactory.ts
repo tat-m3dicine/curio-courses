@@ -7,7 +7,7 @@ import { SectionsRepository } from './SectionsRepository';
 import { UsersRepository } from './UsersRepository';
 import { InviteCodesRepository } from './InviteCodesRepository';
 import { ProvidersRepository } from './ProvidersRepository';
-import { Repo } from './RepoNames';
+import { Repo } from '../models/RepoNames';
 
 const logger = loggerFactory.getLogger('RepositoryFactory');
 

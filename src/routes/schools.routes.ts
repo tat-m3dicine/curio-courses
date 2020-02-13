@@ -3,8 +3,7 @@ import Koa from 'koa';
 import { SchoolsController } from '../controllers/SchoolsController';
 import { SchoolsService } from '../services/SchoolsService';
 import { Role } from '../models/Role';
-import { CommandsProcessor } from '../services/processors/CommandsProcessor';
-import { KafkaService } from '../services/processors/KafkaService';
+import { CommandsProcessor, KafkaService } from '@saal-oryx/event-sourcing';
 
 export default (commandsProccessor: CommandsProcessor, kafkaService: KafkaService) => {
   const schoolRoutes = new KoaRoute();

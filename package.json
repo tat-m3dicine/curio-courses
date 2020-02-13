@@ -12,6 +12,7 @@
     "type-check": "./node_modules/.bin/tsc --noEmit"
   },
   "dependencies": {
+    "@saal-oryx/event-sourcing": "^0.0.7",
     "@saal-oryx/distributed-cache": "^1.0.0",
     "@saal-oryx/message-bus": "^0.0.4",
     "@saal-oryx/unit-of-work": "^0.5.4",
