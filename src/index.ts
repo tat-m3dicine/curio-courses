@@ -98,7 +98,7 @@ let server: Server;
 
     await kafkaService.createTopics([
       { topic: config.kafkaCommandsTopic, numPartitions: 6 },
-      { topic: config.kafkaIRPTopic, numPartitions: 6 }
+      { topic: config.kafkaUpdatesTopic, numPartitions: 6 }
     ]);
 
     // Stream starting ...
