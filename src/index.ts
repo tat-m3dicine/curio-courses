@@ -98,6 +98,7 @@ let server: Server;
 
     await kafkaService.createTopics([
       { topic: config.kafkaCommandsTopic, numPartitions: 6 },
+      { topic: `${config.kafkaCommandsTopic}_db_failed`, numPartitions: 6 },
       { topic: config.kafkaUpdatesTopic, numPartitions: 6 }
     ]);
 
