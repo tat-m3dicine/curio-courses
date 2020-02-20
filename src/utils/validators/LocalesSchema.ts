@@ -1,7 +1,7 @@
 import Validator, { ValidationError } from 'fastest-validator';
 
 const validator = new Validator();
-const localeRegExp = /^([a-z]{2})(-([a-z]{2}))?$/.compile();
+const localeRegExp = /^[a-z]{2}(-[a-z]{2})?$/;
 
 const validateOneLocale = validator.compile({
   name: { type: 'string', min: 1 },
