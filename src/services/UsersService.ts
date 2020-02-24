@@ -243,7 +243,6 @@ export class UsersService {
       },
       registration: {
         grade: data.grade,
-        curriculum: data.curriculum,
         status: Status.inactive,
         school: data.inviteCode ? undefined : data.school && {
           _id: data.school.uuid,

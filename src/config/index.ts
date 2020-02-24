@@ -19,6 +19,7 @@ const config: {
 } = <any>{
   port: 80,
   production: false,
+  kafkaBrokers: [],
   kafkaClientId: 'courses',
   kafkaProducersGroup: 'courses-producers-group',
   kafkaUpdatesTopic: 'courses_updates',

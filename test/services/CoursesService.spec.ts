@@ -223,7 +223,10 @@ describe('Courses Service', () => {
 
     it('should succeed to update course in specified school and section', async () => {
       const updates = { locales: { en: { name: 'New Course Name' } } };
-      repositoryReturns(Repo.courses, { patch: (filter, updateObj) => ({ ...filter, ...updateObj }) });
+      repositoryReturns(Repo.courses, {
+        findOne: ({ _id, sectionId, schoolId }) => ({ _id, schoolId, sectionId }),
+        patch: (filter, updateObj) => ({ ...filter, ...updateObj })
+      });
       const result = await _coursesService.update(course.schoolId, course.sectionId, course._id, updates, token);
       expect(result).to.deep.equal({ ...course, ...updates });
     });

@@ -20,7 +20,6 @@ export interface IRegistration {
   inviteCode?: string;
   status: Status;
   grade: string;
-  curriculum: string;
   provider: string;
 }
 

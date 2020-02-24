@@ -86,7 +86,11 @@ export class UserRegisteration {
     const type = isProvider ? SignupMethods.provider : SignupMethods.auto;
     const status = this.getRegistrationStatus(type);
     if (status !== Status.active) {
-      this._requirements.status = status;
+      this._requirements = {
+        status,
+        school: this._user.registration.school,
+        sections: this._user.registration.sections
+      };
       return;
     }
     this._requirements = {
