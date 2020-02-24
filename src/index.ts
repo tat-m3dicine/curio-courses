@@ -40,9 +40,7 @@ let server: Server;
     kafkaClientId: config.kafkaClientId,
     allowAutoTopicCreation: false
   });
-  const kafkaStreams = new KafkaStreams(
-    <any>getNativeConfig('CoursesCommandsStreams', 'CoursesCommandsStreams')
-  );
+
   const commandsBus = createRedisBus(nanoid(10), {
     host: config.redisHost,
     port: config.redisPort
@@ -55,7 +53,6 @@ let server: Server;
   });
   const streamsProcessor = new StreamsProcessor(
     commandsProcessor,
-    kafkaStreams,
     unitOfWorkFactory,
     updatesProcessor,
     kafkaService,
@@ -102,9 +99,6 @@ let server: Server;
       { topic: config.kafkaUpdatesTopic, numPartitions: 6 }
     ]);
 
-    // Stream starting ...
-    await streamsProcessor.start();
-
     // Migration
     if (config.irpUrl) {
       const migateUsers = new MigrationScripts(updatesProcessor, commandsProcessor);
@@ -115,8 +109,11 @@ let server: Server;
       await migateUsers.migrateTeachers();
     }
 
+    // Stream starting ...
+    streamsProcessor.start();
   } catch (err) {
     logger.error('Background Proccesses Error', err);
+    process.exit(2);
   }
 
 })().catch((err) => {

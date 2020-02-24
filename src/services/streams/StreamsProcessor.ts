@@ -7,6 +7,7 @@ import { UpdatesProcessor } from '../processors/UpdatesProcessor';
 import { getFactory } from '../ServiceFactory';
 import { Service } from '../../models/ServiceName';
 import { UsersService } from '../UsersService';
+import { getNativeConfig } from '../../config/native';
 
 export class StreamsProcessor {
   private _serviceFactory: (name: string) => any;
@@ -14,7 +15,6 @@ export class StreamsProcessor {
 
   constructor(
     protected _commandsProcessor: CommandsProcessor,
-    protected _kafkaStreams: KafkaStreams,
     unitOfWorkFactory: (options: any) => Promise<UnitOfWork>,
     updatesProcessor: UpdatesProcessor,
     kafkaService: KafkaService
@@ -24,9 +24,12 @@ export class StreamsProcessor {
   }
 
   private _getStreams(): { start: () => any }[] {
-    const irpStream = new IRPStream(this._kafkaStreams, this._getUsersService);
+    const kafkaStreams = new KafkaStreams(
+      <any>getNativeConfig('CoursesCommandsStreams', 'CoursesCommandsStreams')
+    );
+    const irpStream = new IRPStream(kafkaStreams, this._getUsersService);
     const commandsStream = new CommandsStream(
-      this._kafkaStreams,
+      kafkaStreams,
       this._serviceFactory,
       this._commandsProcessor,
       {
