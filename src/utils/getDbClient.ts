@@ -55,7 +55,7 @@ export const getDbClient = async () => {
         return result;
       })
       .catch(err => {
-        logger.error('Database connection was not estalished...', err);
+        logger.error('Database connection was not estalished...', JSON.stringify(err));
       });
   }
   return _dbClient;
