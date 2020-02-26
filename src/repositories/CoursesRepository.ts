@@ -24,6 +24,7 @@ export class CoursesRepository extends AduitableRepository<ICourse> {
       }
     }));
     logger.debug('bulkWrite', JSON.stringify(command));
+    if (command.length === 0) return { modifiedCount: 0 };
     return this._collection.bulkWrite(command, { session: this._session });
   }
 
@@ -74,6 +75,7 @@ export class CoursesRepository extends AduitableRepository<ICourse> {
       }
     }));
     logger.debug('bulkWrite', JSON.stringify(command));
+    if (command.length === 0) return { modifiedCount: 0 };
     return this._collection.bulkWrite(command, { session: this._session });
   }
 

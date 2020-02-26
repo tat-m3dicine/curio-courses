@@ -99,6 +99,9 @@ let server: Server;
       { topic: config.kafkaUpdatesTopic, numPartitions: 6 }
     ]);
 
+    // Stream starting ...
+    streamsProcessor.start();
+
     // Migration
     if (config.irpUrl) {
       const migateUsers = new MigrationScripts(updatesProcessor, commandsProcessor);
@@ -108,9 +111,6 @@ let server: Server;
       await migateUsers.prepareCourses();
       await migateUsers.migrateTeachers();
     }
-
-    // Stream starting ...
-    streamsProcessor.start();
   } catch (err) {
     logger.error('Background Proccesses Error', err);
     process.exit(2);
