@@ -36,7 +36,7 @@ export const getDbClient = async () => {
           { key: { 'academicTerms.startDate': 1 } },
           { key: { 'users._id': 1 } }
         ]);
-        await result.db().collection(Repo.sections).createIndex([
+        await result.db().collection(Repo.sections).createIndexes([
           { key: { schoolId: 1 } },
           { key: { 'students._id': 1 } }
         ]);
