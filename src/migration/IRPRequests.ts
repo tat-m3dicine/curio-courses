@@ -39,7 +39,7 @@ export class IRPRequests {
         headers: {
           'curio-request-correlation-id': correlationIDHelper.getCorrelationId(),
         }, gzip: true, json: true,
-        timeout: 15000,
+        timeout: 60000,
       }, (error: any, response: request.Response, body: any[]) => {
         if (error) return reject(error);
         if (response.statusCode < 200 || response.statusCode >= 300) return reject(body);
