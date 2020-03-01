@@ -41,10 +41,10 @@ export class MigrationScripts {
     const listOfUsers = await usersRepo.findMany({});
     const allSchools = await irpRequests.getAllSchools();
     let schoolList: ISchool[] = [];
-    await Promise.all(allSchools.map(async school => {
+    for (const school of allSchools) {
       const results = await this.mapIRPSchoolsToDbSchools(school, listOfUsers);
       schoolList = schoolList.concat(results);
-    }));
+    }
     schoolsRepo.addMany(schoolList, false).catch(err => {
       if (err && err.code === 11000) return undefined;
       throw err;
@@ -83,10 +83,10 @@ export class MigrationScripts {
     const irpRequests = new IRPRequests();
     const allSections = await irpRequests.getAllSections();
     let usersList: IIRPUserMigrationRequest[] = [];
-    await Promise.all(allSections.map(async section => {
+    for (const section of allSections) {
       const results = await irpRequests.getAllUsersBySection(section.uuid);
       usersList = usersList.concat(results);
-    }));
+    }
     return usersList;
   }
 
@@ -94,7 +94,8 @@ export class MigrationScripts {
     logger.info('migrateIRPUsers invoked');
 
     const usersList = await this.usersList();
-    const [users] = await Promise.all([this.migrateUsers(usersList), this.migrateUsersInSections(usersList)]);
+    const users = await this.migrateUsers(usersList);
+    await this.migrateUsersInSections(usersList);
     logger.info('Count of Users Migrated', users && users.length);
   }
 
@@ -109,7 +110,7 @@ export class MigrationScripts {
 
     const userIds: string[] = [];
     const schools = await schoolsRepo.findMany({});
-    await Promise.all(schools.map(async school => {
+    for (const school of schools) {
       const irpTeachers = await irpRequests.getTeachersByPrefrences(school._id);
       irpTeachers.forEach(t => userIds.push(t._id));
       await this.registerTeachers(school._id, irpTeachers.map(t => ({ _id: t._id, name: t.name, avatar: t.avatar })));
@@ -124,7 +125,7 @@ export class MigrationScripts {
           }
         }
       }
-    }));
+    }
 
     await courseService.notifyForUserEnrollment(Role.teacher, userIds);
   }
