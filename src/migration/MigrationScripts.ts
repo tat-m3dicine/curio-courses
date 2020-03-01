@@ -245,12 +245,11 @@ export class MigrationScripts {
 
     for (const section of sections) {
       const school: ISchool | undefined = schools.find(school => school._id === section.schoolId);
-      if (!school || !school.license || !school.license.package || !school.license.package.grades || !school.license.package.grades[section.grade]) {
-        logger.warn('section was not migrated because its not included in the school.license.package');
+      if (!section || !school || !school.license || !school.license.package || !school.license.package.grades || !school.license.package.grades[String(section.grade)]) {
+        logger.warn(`section ${JSON.stringify(section)} was not migrated because its not included in the school.license.package`);
         continue;
       }
-      const subjects = school.license.package.grades[section.grade];
-
+      const subjects = school.license.package.grades[String(section.grade)];
       for (const subject in subjects) {
         const course: ICourse | undefined = courses.find(c => c.sectionId === section._id && c.subject === subject);
         if (course) {
@@ -269,10 +268,15 @@ export class MigrationScripts {
               }
             },
             curriculum: subjects[subject][0],
-            grade: section.grade,
+            grade: String(section.grade),
             students: section.students
           };
-          await courseService.create(req, <IUserToken>{ role: [config.authorizedRole] });
+          try {
+            await courseService.create(req, <IUserToken>{ role: [config.authorizedRole] });
+          } catch (err) {
+            logger.info(`course creation error `, JSON.stringify(req));
+            logger.error(`course '${school._id}-${section._id}-${subject}-${section.grade}' was not migrated properly`, err);
+          }
         }
       }
     }
