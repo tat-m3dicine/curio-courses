@@ -95,7 +95,7 @@ export class MigrationScripts {
 
     const usersList = await this.usersList();
     const users = await this.migrateUsers(usersList);
-    this.migrateUsersInSections(usersList);
+    await this.migrateUsersInSections(usersList);
     logger.info('Count of Users Migrated', users && users.length);
   }
 
