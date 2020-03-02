@@ -35,12 +35,24 @@ export class InviteCodesController {
     ctx.type = 'json';
   }
 
-  async get(ctx: Context, next: () => void) {
+  async getForSchool(ctx: Context, next: () => void) {
     const { schoolId, codeId } = ctx.params;
-    const result = await this.inviteCodesService.get(schoolId, codeId, ctx.user);
+    const result = await this.inviteCodesService.getForSchool(schoolId, codeId, ctx.user);
     if (!result) throw new NotFoundError(`Couldn't find invite code '${codeId}' in school '${schoolId}'`);
     ctx.status = 200;
     ctx.body = result;
+    ctx.type = 'json';
+  }
+
+  async get(ctx: Context, next: () => void) {
+    const { codeId } = ctx.params;
+    const result = await this.inviteCodesService.getWithSchoolAndCourse(codeId, ctx.user);
+    if (result) {
+      ctx.body = result;
+    } else {
+      ctx.body = { valid: false };
+    }
+    ctx.status = 200;
     ctx.type = 'json';
   }
 

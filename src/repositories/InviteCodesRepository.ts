@@ -29,4 +29,14 @@ export class InviteCodesRepository extends AduitableRepository<IInviteCode> {
       'isEnabled': true
     });
   }
+
+  async getValidCode(codeId: string) {
+    const currentDate = new Date();
+    return this.findOne({
+      '_id': codeId,
+      'validity.fromDate': { $lte: currentDate },
+      'validity.toDate': { $gte: currentDate },
+      'isEnabled': true
+    });
+  }
 }
