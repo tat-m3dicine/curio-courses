@@ -53,7 +53,7 @@ export class UserRegisteration {
   }
 
   get role(): Role {
-    return this._user.role.includes(Role.teacher) ? Role.teacher : Role.student;
+    return this._user.role.includes(Role.student) ? Role.student : Role.teacher;
   }
 
   get dbUser(): IUserWithRegistration {
