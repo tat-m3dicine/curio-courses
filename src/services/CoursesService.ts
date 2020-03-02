@@ -30,6 +30,9 @@ import { CommandsProcessor } from '@saal-oryx/event-sourcing';
 import { UpdatesProcessor, Events } from './processors/UpdatesProcessor';
 import { Service } from '../models/ServiceName';
 import loggerFactory from '../utils/logging';
+import { InviteCodesRepository } from '../repositories/InviteCodesRepository';
+import { IInviteCodeForCourse } from '../models/entities/IInviteCode';
+
 const logger = loggerFactory.getLogger('CoursesService');
 
 export class CoursesService {
@@ -53,6 +56,10 @@ export class CoursesService {
 
   protected get coursesRepo() {
     return this._uow.getRepository(Repo.courses) as CoursesRepository;
+  }
+
+  protected get inviteCodesRepo() {
+    return this._uow.getRepository(Repo.inviteCodes) as InviteCodesRepository;
   }
 
   async create(course: ICreateCourseRequest, byUser: IUserToken) {
@@ -242,12 +249,14 @@ export class CoursesService {
     );
     const users = await this.usersRepo.findMany({ _id: { $in: Array.from(new Set(userIds)) } });
     const sections = await this.sectionsRepo.findMany({ _id: { $in: courses.map(c => c.sectionId) } });
+    const inviteCodes = await this.inviteCodesRepo.findForCourses(courses.map(c => c._id));
 
     return {
       courses: courses.map(course => ({ ...course, students: course.students.map(s => s._id), teachers: course.teachers.map(teacher => teacher._id) })),
       students: users.filter(student => student.role.includes(Role.student)).map(student => ({ _id: student._id, profile: student.profile })),
       teachers: users.filter(teacher => teacher.role.includes(Role.teacher)).map(teacher => ({ _id: teacher._id, profile: teacher.profile })),
-      sections: sections.map(section => ({ _id: section._id, locales: section.locales }))
+      sections: sections.map(section => ({ _id: section._id, locales: section.locales })),
+      invite_codes: inviteCodes.map(({ validity, quota, _id, enrollment }) => <IInviteCodeForCourse>{ validity, quota, _id, courseId: enrollment.courses![0] })
     };
   }
 
