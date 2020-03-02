@@ -156,7 +156,7 @@ export class CoursesRepository extends AduitableRepository<ICourse> {
         }
       );
     }
-    return this._collection.aggregate(pipeline, { session: this._session }).toArray();
+    return this._collection.aggregate<ICourse>(pipeline, { session: this._session }).toArray();
   }
 
   async getActiveCoursesUnderSections(sectionsIds: string[]) {
@@ -228,7 +228,6 @@ export class CoursesRepository extends AduitableRepository<ICourse> {
         }
       });
     }
-    return this._collection.aggregate(pipeline, { session: this._session }).toArray().then(a => a[0]);
+    return this._collection.aggregate<ICourse>(pipeline, { session: this._session }).toArray().then(a => a[0]);
   }
-
 }

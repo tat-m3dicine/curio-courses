@@ -19,4 +19,24 @@ export class InviteCodesRepository extends AduitableRepository<IInviteCode> {
       $inc: { 'quota.consumed': -1 }
     });
   }
+
+  async findForCourses(coursesIds: string[]) {
+    const currentDate = new Date();
+    return this.findMany({
+      'enrollment.courses': { $in: coursesIds.map(id => [id]) },
+      'validity.fromDate': { $lte: currentDate },
+      'validity.toDate': { $gte: currentDate },
+      'isEnabled': true
+    });
+  }
+
+  async getValidCode(codeId: string) {
+    const currentDate = new Date();
+    return this.findOne({
+      '_id': codeId,
+      'validity.fromDate': { $lte: currentDate },
+      'validity.toDate': { $gte: currentDate },
+      'isEnabled': true
+    });
+  }
 }

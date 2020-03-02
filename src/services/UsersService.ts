@@ -204,7 +204,13 @@ export class UsersService {
   }
 
   private getRole(user: IUser): Role {
-    return user.role.includes(Role.teacher) ? Role.teacher : Role.student;
+    if (user.role.includes(Role.teacher)) {
+      return Role.teacher;
+    }
+    if (user.role.includes(Role.principal)) {
+      return Role.teacher;
+    }
+    return Role.student;
   }
 
   private async validateProvider(providerId: string, entity: 'School' | 'Section' | 'Course') {

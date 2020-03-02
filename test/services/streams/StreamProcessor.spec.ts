@@ -31,7 +31,6 @@ describe('Stream Processor', () => {
     _commandsProcessorStub = new commandsProcessorStub();
     streamsProcessor = new StreamsProcessor(
       _commandsProcessorStub,
-      _kafkaStreamsStub,
       () => _unitOfWorkStub,
       _updatesProcessorStub,
       _kafkaServiceStub

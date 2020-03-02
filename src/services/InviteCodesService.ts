@@ -12,7 +12,7 @@ import { InvalidLicenseError } from '../exceptions/InvalidLicenseError';
 import { ForbiddenError } from '../exceptions/ForbiddenError';
 import { validateAllObjectsExist } from '../utils/validators/AllObjectsExist';
 import { ICreateInviteCodeRequest } from '../models/requests/IInviteCodeRequests';
-import { IInviteCode, EnrollmentType } from '../models/entities/IInviteCode';
+import { IInviteCode, EnrollmentType, IInviteCodeForCourse } from '../models/entities/IInviteCode';
 import { InviteCodesRepository } from '../repositories/InviteCodesRepository';
 import { ICourse } from '../models/entities/ICourse';
 import { InvalidRequestError } from '../exceptions/InvalidRequestError';
@@ -73,9 +73,23 @@ export class InviteCodesService {
     return this.inviteCodesRepo.add(inviteCode);
   }
 
-  async get(schoolId: string, codeId: string, byUser: IUserToken) {
+  async getForSchool(schoolId: string, codeId: string, byUser: IUserToken) {
     this.authorize(byUser);
     return this.inviteCodesRepo.findOne({ _id: codeId, schoolId });
+  }
+
+  async getWithSchoolAndCourse(codeId: string, byUser: IUserToken) {
+    const inviteCode = await this.inviteCodesRepo.getValidCode(codeId);
+    if (!inviteCode) return;
+    const { validity, quota, _id, enrollment, schoolId } = inviteCode;
+    if (!enrollment.courses || enrollment.courses.length !== 1 || quota.consumed >= quota.max) return;
+    const courseId = enrollment.courses[0];
+    const inviteCodeForCourse: IInviteCodeForCourse = { validity, quota, _id, courseId };
+    const school = await this.schoolsRepo.findById(schoolId, { _id: 1, license: 1, locales: 1 });
+    const course = await this.coursesRepo.findById(courseId, { teachers: 0, students: 0 });
+    if (!school || !school.license || !course) return;
+    const { license: { package: { grades } }, ...schoolInfo } = school;
+    return { school: { ...schoolInfo, grades }, course, invite_code: inviteCodeForCourse, valid: true };
   }
 
   async list(schoolId: string, paging: IPaging, byUser: IUserToken) {

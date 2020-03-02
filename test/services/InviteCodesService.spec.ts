@@ -101,16 +101,16 @@ describe('Invite Codes Service', () => {
   });
 
   it('should fail to authorize user as no token is sent', async () => {
-    await tryAndExpect(() => inviteCodesService.get('school1', 'code1', <any>undefined), ForbiddenError);
+    await tryAndExpect(() => inviteCodesService.getForSchool('school1', 'code1', <any>undefined), ForbiddenError);
   });
 
   it('should fail to authorize user as role is not "root"', async () => {
-    await tryAndExpect(() => inviteCodesService.get('school1', 'code1', <IUserToken>{ role: [Role.teacher] }), UnauthorizedError);
+    await tryAndExpect(() => inviteCodesService.getForSchool('school1', 'code1', <IUserToken>{ role: [Role.teacher] }), UnauthorizedError);
   });
 
   it('should succeed to get invite code in school by id', async () => {
     repositoryReturns(Repo.inviteCodes, { findOne: ({ _id }) => _id });
-    const result = await inviteCodesService.get('school1', 'code1', token);
+    const result = await inviteCodesService.getForSchool('school1', 'code1', token);
     expect(result).equal('code1');
   });
 
