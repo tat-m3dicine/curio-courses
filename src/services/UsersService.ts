@@ -240,6 +240,13 @@ export class UsersService {
 
   private transformToUser(request: ISignupRequest): IUserWithRegistration {
     const { user_id, new_user_data: data, provider } = request;
+    let sections: { _id: string; name: string }[] = [];
+    if (data.section instanceof Array) {
+      sections = data.section.map(section => ({
+        _id: section.uuid,
+        name: section.name
+      }));
+    }
     return {
       _id: user_id,
       role: data.role,
@@ -255,10 +262,7 @@ export class UsersService {
           _id: data.school.uuid,
           name: data.school.name
         },
-        sections: data.inviteCode ? undefined : data.section && data.section.map(section => ({
-          _id: section.uuid,
-          name: section.name
-        })),
+        sections: data.inviteCode ? undefined : sections,
         provider: provider || 'curio',
         inviteCode: data.inviteCode
       }
