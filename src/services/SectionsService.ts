@@ -63,7 +63,7 @@ export class SectionsService {
 
   async list(filter: { schoolId: string, grade?: string }, paging: IPaging, byUser: IUserToken) {
     this.authorize(byUser, filter.schoolId);
-    return this.sectionsRepo.findManyPage(filter, paging);
+    return this.sectionsRepo.findManyPage({ schoolId: filter.schoolId, ...(filter.grade ? { grade: filter.grade } : {}) }, paging);
   }
 
   async delete(schoolId: string, sectionId: string, byUser: IUserToken) {

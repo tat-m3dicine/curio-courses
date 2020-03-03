@@ -80,7 +80,7 @@ let server: Server;
   app.use(sectionsRoutes(commandsProcessor).mount('/schools'));
   app.use(coursesRoutes(commandsProcessor, updatesProcessor).mount('/schools'));
   app.use(schoolsInviteCodesRoutes(commandsProcessor).mount('/schools'));
-  app.use(inviteCodesRoutes(commandsProcessor).mount('/invite_codes'));
+  app.use(inviteCodesRoutes(commandsProcessor, updatesProcessor).mount('/invite_codes'));
   app.use(providerRoutes(commandsProcessor).mount('/provider'));
 
   app.on('error', err => {
