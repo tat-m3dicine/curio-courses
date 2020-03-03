@@ -116,7 +116,7 @@ describe('Invite Codes Service', () => {
 
   it('should succeed to list all invite codes in school', async () => {
     repositoryReturns(Repo.inviteCodes, { findManyPage: () => ['code1', 'code2'] });
-    const result = await inviteCodesService.list('school1', <IPaging>{}, token);
+    const result = await inviteCodesService.list({ schoolId: 'school1' }, <IPaging>{}, token);
     expect(result).to.have.lengthOf(2);
   });
 

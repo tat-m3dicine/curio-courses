@@ -82,17 +82,19 @@ export class InviteCodesService {
 
   async getWithAllInfo(codeId: string, byUser: IUserToken) {
     const inviteCode = await this.inviteCodesRepo.getValidCode(codeId);
-    if (!inviteCode) return;
-    const { validity, quota, _id, enrollment, schoolId } = inviteCode;
-    if (!enrollment.courses || enrollment.courses.length !== 1 || quota.consumed >= quota.max) return;
-    const courseId = enrollment.courses[0];
-    const inviteCodeForCourse: IInviteCodeForCourse = { validity, quota, _id, courseId };
+    if (!inviteCode) throw new NotFoundError('invite code was not found');
+    const { validity, quota, _id, enrollment: { sectionId, type, courses: coursesIds }, schoolId } = inviteCode;
+    if (quota.consumed >= quota.max) throw new InvalidRequestError('invite code is out of quota');
+    const inviteCodeForCourse = { validity, quota, _id, ...(type === EnrollmentType.courses ? { coursesIds } : {}) };
     const school = await this.schoolsRepo.findById(schoolId, { _id: 1, license: 1, locales: 1 });
-    const section = await this.sectionsRepo.findById(enrollment.sectionId, { _id: 1, schoolId: 1, grade: 1, locales: 1 });
-    const course = await this.coursesRepo.findById(courseId, { teachers: 0, students: 0 });
-    if (!school || !school.license || !section || !course) return;
+    const section = await this.sectionsRepo.findById(sectionId, { _id: 1, schoolId: 1, grade: 1, locales: 1 });
+    let courses;
+    if (!school || !school.license || !section) throw new NotFoundError('invite code school or section were not found');
+    if (type === EnrollmentType.courses && coursesIds) {
+      courses = await this.coursesRepo.findMany(coursesIds, { teachers: 0, students: 0 });
+    }
     const { license: { package: { grades } }, ...schoolInfo } = school;
-    return { school: { ...schoolInfo, grades }, section, course, invite_code: inviteCodeForCourse, valid: true };
+    return { school: { ...schoolInfo, grades }, section, courses, invite_code: inviteCodeForCourse, valid: true };
   }
 
   async list(filter: { schoolId: string, type?: string }, paging: IPaging, byUser: IUserToken) {
