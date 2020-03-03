@@ -24,7 +24,9 @@ export class SectionsController {
   }
 
   async list(ctx: Context, next: () => void) {
-    const result = await this.sectionsService.list(ctx.params.schoolId, this.extractPaging(ctx.query), ctx.user);
+    const { grade } = ctx.query;
+    const { schoolId } = ctx.params;
+    const result = await this.sectionsService.list({ schoolId, grade }, this.extractPaging(ctx.query), ctx.user);
     ctx.status = 200;
     ctx.body = result;
     ctx.type = 'json';
@@ -78,15 +80,17 @@ export class SectionsController {
 
   protected extractPaging(query: any) {
     const { index, size } = query;
+    const createdAt = query['sorter.createdAt'] === '-1' ? -1 : 1;
     let parsedIndex = parseInt(index);
     let parsedSize = parseInt(size);
     if (!parsedIndex || parsedIndex < 1 || isNaN(parsedIndex)) parsedIndex = 0;
     else parsedIndex -= 1;
     if (!parsedSize || parsedSize < 1 || isNaN(parsedSize)) parsedSize = 10;
-
-    return <IPaging>{
+    const result = <IPaging>{
       index: parsedIndex,
-      size: parsedSize
+      size: parsedSize,
+      sorter: { createdAt }
     };
+    return result;
   }
 }
