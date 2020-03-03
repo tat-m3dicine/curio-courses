@@ -80,7 +80,7 @@ export class InviteCodesService {
     return this.inviteCodesRepo.findOne({ _id: codeId, schoolId });
   }
 
-  async getWithSchoolAndCourse(codeId: string, byUser: IUserToken) {
+  async getWithAllInfo(codeId: string, byUser: IUserToken) {
     const inviteCode = await this.inviteCodesRepo.getValidCode(codeId);
     if (!inviteCode) return;
     const { validity, quota, _id, enrollment, schoolId } = inviteCode;
@@ -88,10 +88,11 @@ export class InviteCodesService {
     const courseId = enrollment.courses[0];
     const inviteCodeForCourse: IInviteCodeForCourse = { validity, quota, _id, courseId };
     const school = await this.schoolsRepo.findById(schoolId, { _id: 1, license: 1, locales: 1 });
+    const section = await this.sectionsRepo.findById(enrollment.sectionId, { _id: 1, schoolId: 1, grade: 1, locales: 1 });
     const course = await this.coursesRepo.findById(courseId, { teachers: 0, students: 0 });
-    if (!school || !school.license || !course) return;
+    if (!school || !school.license || !section || !course) return;
     const { license: { package: { grades } }, ...schoolInfo } = school;
-    return { school: { ...schoolInfo, grades }, course, invite_code: inviteCodeForCourse, valid: true };
+    return { school: { ...schoolInfo, grades }, section, course, invite_code: inviteCodeForCourse, valid: true };
   }
 
   async list(filter: { schoolId: string, type?: string }, paging: IPaging, byUser: IUserToken) {
