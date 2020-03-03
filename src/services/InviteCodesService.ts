@@ -21,6 +21,7 @@ import { Repo } from '../models/RepoNames';
 import { CommandsProcessor } from '@saal-oryx/event-sourcing';
 import { Service } from '../models/ServiceName';
 import validators from '../utils/validators';
+import { Role } from '../models/Role';
 
 export class InviteCodesService {
   constructor(protected _uow: IUnitOfWork, protected _commandsProcessor: CommandsProcessor) {
@@ -43,7 +44,7 @@ export class InviteCodesService {
   }
 
   async create(inviteCode: ICreateInviteCodeRequest, byUser: IUserToken) {
-    this.authorize(byUser);
+    this.authorize(byUser, inviteCode.schoolId);
     validators.validateCreateInviteCode(inviteCode);
     const { schoolId, quota, validity, enrollment: { sectionId, type, courses } } = inviteCode;
 
@@ -75,7 +76,7 @@ export class InviteCodesService {
   }
 
   async getForSchool(schoolId: string, codeId: string, byUser: IUserToken) {
-    this.authorize(byUser);
+    this.authorize(byUser, schoolId);
     return this.inviteCodesRepo.findOne({ _id: codeId, schoolId });
   }
 
@@ -93,13 +94,13 @@ export class InviteCodesService {
     return { school: { ...schoolInfo, grades }, course, invite_code: inviteCodeForCourse, valid: true };
   }
 
-  async list(schoolId: string, paging: IPaging, byUser: IUserToken) {
-    this.authorize(byUser);
-    return this.inviteCodesRepo.findManyPage({ schoolId }, paging);
+  async list(filter: { schoolId: string, type?: string }, paging: IPaging, byUser: IUserToken) {
+    this.authorize(byUser, filter.schoolId);
+    return this.inviteCodesRepo.findManyPage({ schoolId: filter.schoolId, ...(filter.type ? { 'enrollment.type': filter.type } : {}) }, paging);
   }
 
   async delete(schoolId: string, codeId: string, byUser: IUserToken) {
-    this.authorize(byUser);
+    this.authorize(byUser, schoolId);
     const inviteCode = await this.inviteCodesRepo.findOne({ _id: codeId, schoolId });
     if (!inviteCode) throw new NotFoundError(`Couldn't find invite code '${codeId}' in school '${schoolId}'`);
     return this._commandsProcessor.sendCommand(Service.inviteCodes, this.doDelete, codeId);
@@ -109,9 +110,10 @@ export class InviteCodesService {
     return this.inviteCodesRepo.delete({ _id: codeId });
   }
 
-  protected authorize(byUser: IUserToken) {
+  protected authorize(byUser: IUserToken, schoolId?: string) {
     if (!byUser) throw new ForbiddenError('access token is required!');
     if (byUser.role.includes(config.authorizedRole)) return true;
+    if (byUser.role.includes(Role.principal) && byUser.schooluuid === schoolId) return true;
     throw new UnauthorizedError('you are not authorized to do this action');
   }
 }
