@@ -26,7 +26,7 @@ export const localesSchema = (...requiredLangs: string[]) => {
       }
       for (const lang of langs) {
         if (!localeRegExp.test(lang)) {
-          errors.push(validator.makeError(`incorrect lanuage name format '${lang}'!`));
+          errors.push(validator.makeError(`incorrect language name format '${lang}'!`));
         }
         const isValidationPassed = validateOneLocale(locales[lang]);
         if (typeof isValidationPassed !== 'boolean') {

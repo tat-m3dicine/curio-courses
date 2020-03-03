@@ -5,7 +5,7 @@
     "dev": "./node_modules/.bin/nodemon -L -e .ts -w src --exec \"./node_modules/ts-node/dist/bin.js src\"",
     "build": "./node_modules/.bin/tsc --p tsconfig.json",
     "start": "node dist",
-    "pretest": "npm install --registry https://npr.saal.ai",
+    "pretest": "#npm install --registry https://npr.saal.ai",
     "test": "NODE_ENV=test ./node_modules/.bin/nyc ./node_modules/.bin/mocha 'test/**/*.spec.ts'",
     "lint": "./node_modules/.bin/tslint src/*/*.ts --format codeframe --project ./tsconfig.json",
     "fix-lint": "./node_modules/.bin/tslint src/*/*.ts --fix",

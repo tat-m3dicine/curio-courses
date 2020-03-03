@@ -9,7 +9,7 @@ const createSchoolsSchema = {
     type: 'string',
     optional: true
   },
-  locales: localesSchema('en'),
+  locales: localesSchema(), // 'en'
   location: {
     type: 'string'
   },

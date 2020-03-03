@@ -58,7 +58,7 @@ export class SchoolsService {
     return this.schoolsRepo.delete({ _id: schoolId });
   }
 
-  async list(paging = defaultPaging, byUser: IUserToken) {
+  async list(paging: IPaging = defaultPaging, byUser: IUserToken) {
     this.authorize(byUser);
     return this.schoolsRepo.findManyPage({}, paging);
   }
@@ -66,7 +66,9 @@ export class SchoolsService {
   async add(createObj: ICreateSchoolRequest, byUser: IUserToken) {
     this.authorize(byUser);
     validators.validateCreateSchool(createObj);
-    const defaultLocale = createObj.locales.en || Object.values(createObj.locales)[0];
+    console.log(`createobj`, createObj);
+    const defaultLocale = createObj.locales.en || Object.values(createObj.locales)[0]; // fix
+    console.log(`default locale`, defaultLocale);
     const school: ISchool = {
       _id: createObj._id || newSchoolId(defaultLocale.name),
       locales: createObj.locales,
@@ -94,6 +96,7 @@ export class SchoolsService {
   async updateUsers(updateObjs: { users: IUpdateUserRequest[] }, schoolId: string, byUser: IUserToken) {
     this.authorize(byUser);
     validators.validateUpdateSchoolUsers(updateObjs);
+    console.log(`here`);
     const usersIds: string[] = updateObjs.users.map(user => user._id);
     const usersObjs: IUser[] = await this.usersRepo.findMany({ '_id': { $in: usersIds }, 'school._id': schoolId });
     validateAllObjectsExist(usersObjs, usersIds, schoolId);
@@ -102,6 +105,7 @@ export class SchoolsService {
 
   async getUsers(filter: { schoolId: string, role: Role, status: 'all' | Status }, paging: IPaging, byUser: IUserToken) {
     this.authorize(byUser);
+
     const _filter: any = {
       role: filter.role
     };
@@ -116,7 +120,7 @@ export class SchoolsService {
       _filter['registration.schoolId'] = filter.schoolId;
     }
     else {
-      if (filter.status) _filter.registration.status = filter.status;
+      if (filter.status) _filter.registration = { status: filter.status };
       _filter['registration.school._id'] = filter.schoolId;
     }
     logger.debug('getUsers filter:', _filter);
@@ -137,7 +141,7 @@ export class SchoolsService {
   async registerUsers(request: IRegistrationAction, byUser: IUserToken) {
     this.authorize(byUser);
     validators.validateUserRegisteration(request);
-
+    console.log(`request`, request);
     // Step 1: validated user registeration against school
     await this.validateUsersInSchool(request);
     const dbSchool = await this.schoolsRepo.findById(request.schoolId);
