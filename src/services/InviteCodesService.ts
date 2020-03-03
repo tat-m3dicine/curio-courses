@@ -88,10 +88,10 @@ export class InviteCodesService {
     const inviteCodeForCourse = { validity, quota, _id, ...(type === EnrollmentType.courses ? { coursesIds } : {}) };
     const school = await this.schoolsRepo.findById(schoolId, { _id: 1, license: 1, locales: 1 });
     const section = await this.sectionsRepo.findById(sectionId, { _id: 1, schoolId: 1, grade: 1, locales: 1 });
-    let courses;
+    let courses: ICourse[] = [];
     if (!school || !school.license || !section) throw new NotFoundError('invite code school or section were not found');
-    if (type === EnrollmentType.courses && coursesIds) {
-      courses = await this.coursesRepo.findMany(coursesIds, { teachers: 0, students: 0 });
+    if (type === EnrollmentType.courses && coursesIds && coursesIds.length > 0) {
+      courses = await this.coursesRepo.findMany({ _id: { $in: coursesIds } }, { teachers: 0, students: 0 });
     }
     const { license: { package: { grades } }, ...schoolInfo } = school;
     return { school: { ...schoolInfo, grades }, section, courses, invite_code: inviteCodeForCourse, valid: true };
