@@ -48,12 +48,8 @@ export class InviteCodesController {
   async get(ctx: Context, next: () => void) {
     const { codeId } = ctx.params;
     const result = await this.inviteCodesService.getWithAllInfo(codeId, ctx.user);
-    if (result) {
-      ctx.body = result;
-    } else {
-      ctx.body = { valid: false };
-    }
     ctx.status = 200;
+    ctx.body = result;
     ctx.type = 'json';
   }
 

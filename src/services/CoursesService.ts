@@ -333,7 +333,7 @@ export class CoursesService {
     const inviteCode = await this.inviteCodesRepo.getValidCode(codeId);
     if (!inviteCode) throw new NotFoundError(`${codeId} invite code was not found`);
     const { quota, enrollment } = inviteCode;
-    if (!enrollment.courses || quota.consumed >= quota.max) {
+    if (!enrollment.courses || enrollment.courses.length > 1 || quota.consumed >= quota.max) {
       throw new InvalidRequestError(`${codeId} invite code is not valid`);
     }
     if (byUser.schooluuid !== config.guestSchoolId && inviteCode.schoolId !== byUser.schooluuid) {
