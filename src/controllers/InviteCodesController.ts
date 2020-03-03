@@ -21,7 +21,6 @@ export class InviteCodesController {
         toDate: new Date(validity.toDate)
       }
     };
-    validators.validateCreateInviteCode(createObject);
     const result = await this.inviteCodesService.create(createObject, ctx.user);
     ctx.status = result.done ? 201 : 202;
     ctx.body = { ok: true, result: result.data };

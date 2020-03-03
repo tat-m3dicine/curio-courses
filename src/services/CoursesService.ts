@@ -32,6 +32,8 @@ import { Service } from '../models/ServiceName';
 import loggerFactory from '../utils/logging';
 import { InviteCodesRepository } from '../repositories/InviteCodesRepository';
 import { IInviteCodeForCourse } from '../models/entities/IInviteCode';
+import { InvalidRequestError } from '../exceptions/InvalidRequestError';
+import { RegistrationAction, ISwitchRegistrationAction } from '../models/requests/IRegistrationAction';
 
 const logger = loggerFactory.getLogger('CoursesService');
 
@@ -324,6 +326,37 @@ export class CoursesService {
     const result = await this.coursesRepo.finishUsersInCourses(coursesUpdates, role, finishDate);
     if (result.modifiedCount !== 0) await this.sendUsersChangesUpdates('drop', requests);
     return result;
+  }
+
+  async join(codeId: string, byUser: IUserToken) {
+    if (!byUser || !byUser.role.includes(Role.student)) throw new ForbiddenError(`you need to be a student to join a course`);
+    const inviteCode = await this.inviteCodesRepo.getValidCode(codeId);
+    if (!inviteCode) throw new NotFoundError(`${codeId} invite code was not found`);
+    const { quota, enrollment } = inviteCode;
+    if (!enrollment.courses || quota.consumed >= quota.max) {
+      throw new InvalidRequestError(`${codeId} invite code is not valid`);
+    }
+    if (byUser.schooluuid !== config.guestSchoolId && inviteCode.schoolId !== byUser.schooluuid) {
+      throw new InvalidRequestError('invite code provided is not for your school');
+    }
+    if (byUser.schooluuid === config.guestSchoolId) {
+      const doSwitch = async () => { return; }; // stub
+      await this._commandsProcessor.sendCommand(Service.schools, doSwitch, <ISwitchRegistrationAction>{
+        role: Role.student,
+        action: RegistrationAction.switch,
+        fromSchoolId: config.guestSchoolId,
+        toSchoolId: inviteCode.schoolId,
+        users: [byUser.sub]
+      });
+    }
+    const joinDate = new Date();
+    return this._commandsProcessor.sendCommand(Service.courses, this.doEnrollUsers, enrollment.courses.map(courseId => <IUserRequest>{
+      schoolId: inviteCode.schoolId,
+      sectionId: enrollment.sectionId,
+      usersIds: [byUser.sub],
+      role: Role.student,
+      courseId
+    }), Role.student, joinDate);
   }
 
   private async sendUsersChangesUpdates(action: 'enroll' | 'drop', requests: IUserRequest[]) {

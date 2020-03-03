@@ -10,5 +10,14 @@ export interface IRegistrationAction {
 export enum RegistrationAction {
   approve = 'approve',
   withdraw = 'withdraw',
-  reject = 'reject'
+  reject = 'reject',
+  switch = 'switch',
+}
+
+export interface ISwitchRegistrationAction {
+  fromSchoolId: string;
+  toSchoolId: string;
+  action: RegistrationAction.switch;
+  role: Role;
+  users: string[];
 }

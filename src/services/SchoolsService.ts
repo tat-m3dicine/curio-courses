@@ -8,6 +8,7 @@ import { ISchool, ISchoolUserPermissions, ILicense } from '../models/entities/IS
 import { ICreateSchoolRequest, IUpdateSchoolRequest, ICreateLicenseRequest, IDeleteAcademicTermRequest, IUpdateUserRequest, IUpdateAcademicTermRequest } from '../models/requests/ISchoolRequests';
 import { IUnitOfWork, defaultPaging, IPaging } from '@saal-oryx/unit-of-work';
 import { SchoolsRepository } from '../repositories/SchoolsRepository';
+import { SectionsRepository } from '../repositories/SectionsRepository';
 import { CoursesRepository } from '../repositories/CoursesRepository';
 import { ForbiddenError } from '../exceptions/ForbiddenError';
 import { UnauthorizedError } from '../exceptions/UnauthorizedError';
@@ -17,7 +18,7 @@ import { UsersRepository } from '../repositories/UsersRepository';
 import { validateAllObjectsExist } from '../utils/validators/AllObjectsExist';
 import { Role } from '../models/Role';
 import loggerFactory from '../utils/logging';
-import { IRegistrationAction } from '../models/requests/IRegistrationAction';
+import { IRegistrationAction, ISwitchRegistrationAction } from '../models/requests/IRegistrationAction';
 import { InvalidLicenseError } from '../exceptions/InvalidLicenseError';
 import { newSchoolId, newAcademicTermId } from '../utils/IdGenerator';
 import { Repo } from '../models/RepoNames';
@@ -173,9 +174,12 @@ export class SchoolsService {
   }
 
   private async doApprove(request: IRegistrationAction) {
-    await this.schoolsRepo.consumeLicense(request.schoolId, request.role, request.users.length);
+    const schoolsRepo = this._uow.getRepository(Repo.schools, true) as SchoolsRepository;
+    const usersRepo = this._uow.getRepository(Repo.users, true) as UsersRepository;
 
-    await this.usersRepo.approveRegistrations(request.schoolId, request.users);
+    await schoolsRepo.consumeLicense(request.schoolId, request.role, request.users.length);
+    await usersRepo.approveRegistrations(request.schoolId, request.users);
+
     await this._kafkaService.sendMany(config.kafkaUpdatesTopic, request.users.map(userId => ({
       event: Events.enrollment,
       data: {
@@ -196,12 +200,22 @@ export class SchoolsService {
   }
 
   private async doWithdraw(request: IRegistrationAction) {
-    const schoolRepo = this._uow.getRepository(Repo.schools, true) as SchoolsRepository;
-    const userRepo = this._uow.getRepository(Repo.users, true) as UsersRepository;
+    const schoolsRepo = this._uow.getRepository(Repo.schools, true) as SchoolsRepository;
+    const sectionsRepo = this._uow.getRepository(Repo.sections, true) as SectionsRepository;
+    const coursesRepo = this._uow.getRepository(Repo.courses, true) as CoursesRepository;
+    const usersRepo = this._uow.getRepository(Repo.users, true) as UsersRepository;
 
-    await schoolRepo.releaseLicense(request.schoolId, request.role, request.users.length);
+    await schoolsRepo.releaseLicense(request.schoolId, request.role, request.users.length);
+    await sectionsRepo.removeStudents({ schoolId: request.schoolId }, request.users);
 
-    await userRepo.withdraw(request.schoolId, request.users);
+    const now = new Date();
+    const courses = await coursesRepo.getActiveCoursesForUsers(request.role, request.users);
+    await coursesRepo.finishUsersInCourses(courses.map(course => ({
+      filter: { _id: course._id, schoolId: request.schoolId },
+      usersIds: request.users
+    })), request.role, now);
+
+    await usersRepo.withdraw(request.schoolId, request.users);
 
     await this._kafkaService.sendMany(config.kafkaUpdatesTopic, request.users.map(userId => ({
       event: Events.enrollment,
@@ -210,6 +224,42 @@ export class SchoolsService {
         status: Status.inactive,
         // tslint:disable-next-line: no-null-keyword
         schoolId: null,
+        courses: []
+      },
+      timestamp: Date.now(),
+      v: '1.0.0'
+    })));
+    await this._uow.commit();
+  }
+
+  async doSwitch(request: ISwitchRegistrationAction) {
+    const schoolsRepo = this._uow.getRepository(Repo.schools, true) as SchoolsRepository;
+    const sectionsRepo = this._uow.getRepository(Repo.sections, true) as SectionsRepository;
+    const coursesRepo = this._uow.getRepository(Repo.courses, true) as CoursesRepository;
+    const usersRepo = this._uow.getRepository(Repo.users, true) as UsersRepository;
+
+    await schoolsRepo.releaseLicense(request.fromSchoolId, request.role, request.users.length);
+    await sectionsRepo.removeStudents({ schoolId: request.fromSchoolId }, request.users);
+
+    const now = new Date();
+    const courses = await coursesRepo.getActiveCoursesForUsers(request.role, request.users);
+    await coursesRepo.finishUsersInCourses(courses.map(course => ({
+      filter: { _id: course._id, schoolId: request.fromSchoolId },
+      usersIds: request.users
+    })), request.role, now);
+
+    await usersRepo.withdraw(request.fromSchoolId, request.users);
+
+    await schoolsRepo.consumeLicense(request.toSchoolId, request.role, request.users.length);
+    await usersRepo.approveRegistrations(request.toSchoolId, request.users);
+
+    await this._kafkaService.sendMany(config.kafkaUpdatesTopic, request.users.map(userId => ({
+      event: Events.enrollment,
+      data: {
+        _id: userId,
+        status: Status.active,
+        // tslint:disable-next-line: no-null-keyword
+        schoolId: request.toSchoolId,
         courses: []
       },
       timestamp: Date.now(),

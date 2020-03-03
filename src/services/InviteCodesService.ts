@@ -20,9 +20,9 @@ import { newInviteCodeId } from '../utils/IdGenerator';
 import { Repo } from '../models/RepoNames';
 import { CommandsProcessor } from '@saal-oryx/event-sourcing';
 import { Service } from '../models/ServiceName';
+import validators from '../utils/validators';
 
 export class InviteCodesService {
-
   constructor(protected _uow: IUnitOfWork, protected _commandsProcessor: CommandsProcessor) {
   }
 
@@ -44,6 +44,7 @@ export class InviteCodesService {
 
   async create(inviteCode: ICreateInviteCodeRequest, byUser: IUserToken) {
     this.authorize(byUser);
+    validators.validateCreateInviteCode(inviteCode);
     const { schoolId, quota, validity, enrollment: { sectionId, type, courses } } = inviteCode;
 
     const school: ISchool | undefined = await this.schoolsRepo.findById(schoolId);
