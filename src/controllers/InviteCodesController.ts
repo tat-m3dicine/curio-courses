@@ -47,7 +47,7 @@ export class InviteCodesController {
 
   async get(ctx: Context, next: () => void) {
     const { codeId } = ctx.params;
-    const result = await this.inviteCodesService.getWithSchoolAndCourse(codeId, ctx.user);
+    const result = await this.inviteCodesService.getWithAllInfo(codeId, ctx.user);
     if (result) {
       ctx.body = result;
     } else {
