@@ -68,29 +68,67 @@ const dataMap = {
     }
   },
   [Test.school]: {
-    _id: 'aldar_ba526',
-    academicTerms: [
-      {
-        _id: '1234',
-        year: '2019',
-        startDate: new Date('2000-05-04'),
-        endDate: new Date('2099-12-30')
-      }
-    ],
-    license: {
-      students: { consumed: 0, max: 100 },
-      teachers: { consumed: 0, max: 100 },
-      package: {
-        signupMethods: [SignupMethods.auto, SignupMethods.inviteCodes],
-        grades: { ['4']: { math: ['moe'] } }
+    _id: 'ABCSchoolOTIPT1',
+    locales: {
+      en: {
+        name: 'ABC School'
       }
     },
+    location: 'AbuDhabi',
+    license: {
+      students: {
+        max: 1000000,
+        consumed: 0
+      },
+      teachers: {
+        max: 1000000,
+        consumed: 0
+      },
+      validFrom: new Date('2019-5-5'),
+      validTo: new Date('2029-1-1'),
+      reference: 'Curio-IRP',
+      isEnabled: true,
+      package: {
+        grades: {
+          8: {
+            math: [
+              'moe'
+            ],
+            science: [
+              'moe'
+            ],
+            english: [
+              'moe'
+            ],
+            arabic: [
+              'moe'
+            ]
+          }
+        },
+        features: [
+          'all'
+        ],
+        signupMethods: [
+          'auto'
+        ]
+      }
+    },
+    academicTerms: [
+      {
+        _id: 'UJy5j',
+        year: '2020',
+        term: '1',
+        startDate: new Date('2000-1-1'),
+        endDate: new Date('3000-1-1'),
+        gracePeriod: 30,
+        isEnabled: true
+      }
+    ],
     users: [
       {
-        _id: 'saad',
+        _id: '5d4c00784f8db9948ccdbf74',
         permissions: [
-          'admin',
-          'user'
+          'admin'
         ]
       }
     ]

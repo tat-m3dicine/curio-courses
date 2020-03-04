@@ -67,6 +67,7 @@ export class SchoolsService {
   async add(createObj: ICreateSchoolRequest, byUser: IUserToken) {
     this.authorize(byUser);
     validators.validateCreateSchool(createObj);
+    console.log(`data`, createObj);
     const defaultLocale = createObj.locales.en || Object.values(createObj.locales)[0];
     const school: ISchool = {
       _id: createObj._id || newSchoolId(defaultLocale.name),
@@ -179,7 +180,6 @@ export class SchoolsService {
 
     await schoolsRepo.consumeLicense(request.schoolId, request.role, request.users.length);
     await usersRepo.approveRegistrations(request.schoolId, request.users);
-
     await this._kafkaService.sendMany(config.kafkaUpdatesTopic, request.users.map(userId => ({
       event: Events.enrollment,
       data: {

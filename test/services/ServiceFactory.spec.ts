@@ -8,7 +8,7 @@ import { CommandsProcessor, KafkaService } from '@saal-oryx/event-sourcing';
 import { UpdatesProcessor } from '../../src/services/processors/UpdatesProcessor';
 import { getFactory } from '../../src/services/serviceFactory';
 import { Service } from '../../src/models/ServiceName';
-import { tryAndExpect } from '../tryAndExpect';
+import { tryAndExpect } from '../utils/tryAndExpect';
 
 const unitOfWorkStub = sinon.spy(() => sinon.createStubInstance(UnitOfWork));
 const kafkaServiceStub = sinon.spy(() => sinon.createStubInstance(KafkaService));

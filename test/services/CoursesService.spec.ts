@@ -3,7 +3,7 @@ import sinon from 'sinon';
 import chai, { expect } from 'chai';
 chai.use(require('sinon-chai'));
 
-import { tryAndExpect } from '../tryAndExpect';
+import { tryAndExpect } from '../utils/tryAndExpect';
 import { UnitOfWork, IPaging } from '@saal-oryx/unit-of-work';
 import { CoursesService } from '../../src/services/CoursesService';
 import { Repo } from '../../src/models/RepoNames';

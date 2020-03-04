@@ -12,7 +12,7 @@ export const getNativeConfig = (groupId: string, clientId: string) => {
 
 const nativeConfig = {
   noptions: {
-    'metadata.broker.list': config.kafkaBrokers.join(','), // native client requires broker hosts to connect to
+    'metadata.broker.list': (config.kafkaBrokers || []).join(','), // native client requires broker hosts to connect to
     'group.id': 'kafka-streams-test-native',
     'client.id': 'kafka-streams-test-name-native',
 
