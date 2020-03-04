@@ -12,7 +12,7 @@ import { InvalidLicenseError } from '../exceptions/InvalidLicenseError';
 import { ForbiddenError } from '../exceptions/ForbiddenError';
 import { validateAllObjectsExist } from '../utils/validators/AllObjectsExist';
 import { ICreateInviteCodeRequest } from '../models/requests/IInviteCodeRequests';
-import { IInviteCode, EnrollmentType } from '../models/entities/IInviteCode';
+import { IInviteCode, EnrollmentType, IInviteCodeForCourse } from '../models/entities/IInviteCode';
 import { InviteCodesRepository } from '../repositories/InviteCodesRepository';
 import { ICourse } from '../models/entities/ICourse';
 import { InvalidRequestError } from '../exceptions/InvalidRequestError';
@@ -20,9 +20,10 @@ import { newInviteCodeId } from '../utils/IdGenerator';
 import { Repo } from '../models/RepoNames';
 import { CommandsProcessor } from '@saal-oryx/event-sourcing';
 import { Service } from '../models/ServiceName';
+import validators from '../utils/validators';
+import { Role } from '../models/Role';
 
 export class InviteCodesService {
-
   constructor(protected _uow: IUnitOfWork, protected _commandsProcessor: CommandsProcessor) {
   }
 
@@ -43,7 +44,8 @@ export class InviteCodesService {
   }
 
   async create(inviteCode: ICreateInviteCodeRequest, byUser: IUserToken) {
-    this.authorize(byUser);
+    this.authorize(byUser, inviteCode.schoolId);
+    validators.validateCreateInviteCode(inviteCode);
     const { schoolId, quota, validity, enrollment: { sectionId, type, courses } } = inviteCode;
 
     const school: ISchool | undefined = await this.schoolsRepo.findById(schoolId);
@@ -73,18 +75,35 @@ export class InviteCodesService {
     return this.inviteCodesRepo.add(inviteCode);
   }
 
-  async get(schoolId: string, codeId: string, byUser: IUserToken) {
-    this.authorize(byUser);
+  async getForSchool(schoolId: string, codeId: string, byUser: IUserToken) {
+    this.authorize(byUser, schoolId);
     return this.inviteCodesRepo.findOne({ _id: codeId, schoolId });
   }
 
-  async list(schoolId: string, paging: IPaging, byUser: IUserToken) {
-    this.authorize(byUser);
-    return this.inviteCodesRepo.findManyPage({ schoolId }, paging);
+  async getWithAllInfo(codeId: string, byUser: IUserToken) {
+    const inviteCode = await this.inviteCodesRepo.getValidCode(codeId);
+    if (!inviteCode) throw new NotFoundError('invite code was not found');
+    const { validity, quota, _id, enrollment: { sectionId, type, courses: coursesIds }, schoolId } = inviteCode;
+    if (quota.consumed >= quota.max) throw new InvalidRequestError('invite code is out of quota');
+    const inviteCodeForCourse = { validity, quota, _id, ...(type === EnrollmentType.courses ? { coursesIds } : {}) };
+    const school = await this.schoolsRepo.findById(schoolId, { _id: 1, license: 1, locales: 1 });
+    const section = await this.sectionsRepo.findById(sectionId, { _id: 1, schoolId: 1, grade: 1, locales: 1 });
+    let courses: ICourse[] = [];
+    if (!school || !school.license || !section) throw new NotFoundError('invite code school or section were not found');
+    if (type === EnrollmentType.courses && coursesIds && coursesIds.length > 0) {
+      courses = await this.coursesRepo.findMany({ _id: { $in: coursesIds } }, { teachers: 0, students: 0 });
+    }
+    const { license: { package: { grades } }, ...schoolInfo } = school;
+    return { school: { ...schoolInfo, grades }, section, courses, invite_code: inviteCodeForCourse, valid: true };
+  }
+
+  async list(filter: { schoolId: string, type?: string }, paging: IPaging, byUser: IUserToken) {
+    this.authorize(byUser, filter.schoolId);
+    return this.inviteCodesRepo.findManyPage({ schoolId: filter.schoolId, ...(filter.type ? { 'enrollment.type': filter.type } : {}) }, paging);
   }
 
   async delete(schoolId: string, codeId: string, byUser: IUserToken) {
-    this.authorize(byUser);
+    this.authorize(byUser, schoolId);
     const inviteCode = await this.inviteCodesRepo.findOne({ _id: codeId, schoolId });
     if (!inviteCode) throw new NotFoundError(`Couldn't find invite code '${codeId}' in school '${schoolId}'`);
     return this._commandsProcessor.sendCommand(Service.inviteCodes, this.doDelete, codeId);
@@ -94,9 +113,10 @@ export class InviteCodesService {
     return this.inviteCodesRepo.delete({ _id: codeId });
   }
 
-  protected authorize(byUser: IUserToken) {
+  protected authorize(byUser: IUserToken, schoolId?: string) {
     if (!byUser) throw new ForbiddenError('access token is required!');
     if (byUser.role.includes(config.authorizedRole)) return true;
+    if (byUser.role.includes(Role.principal) && byUser.schooluuid === schoolId) return true;
     throw new UnauthorizedError('you are not authorized to do this action');
   }
 }

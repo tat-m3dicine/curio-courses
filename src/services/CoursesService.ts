@@ -30,6 +30,11 @@ import { CommandsProcessor } from '@saal-oryx/event-sourcing';
 import { UpdatesProcessor, Events } from './processors/UpdatesProcessor';
 import { Service } from '../models/ServiceName';
 import loggerFactory from '../utils/logging';
+import { InviteCodesRepository } from '../repositories/InviteCodesRepository';
+import { IInviteCodeForCourse } from '../models/entities/IInviteCode';
+import { InvalidRequestError } from '../exceptions/InvalidRequestError';
+import { RegistrationAction, ISwitchRegistrationAction } from '../models/requests/IRegistrationAction';
+
 const logger = loggerFactory.getLogger('CoursesService');
 
 export class CoursesService {
@@ -53,6 +58,10 @@ export class CoursesService {
 
   protected get coursesRepo() {
     return this._uow.getRepository(Repo.courses) as CoursesRepository;
+  }
+
+  protected get inviteCodesRepo() {
+    return this._uow.getRepository(Repo.inviteCodes) as InviteCodesRepository;
   }
 
   async create(course: ICreateCourseRequest, byUser: IUserToken) {
@@ -242,12 +251,14 @@ export class CoursesService {
     );
     const users = await this.usersRepo.findMany({ _id: { $in: Array.from(new Set(userIds)) } });
     const sections = await this.sectionsRepo.findMany({ _id: { $in: courses.map(c => c.sectionId) } });
+    const inviteCodes = await this.inviteCodesRepo.findForCourses(courses.map(c => c._id));
 
     return {
       courses: courses.map(course => ({ ...course, students: course.students.map(s => s._id), teachers: course.teachers.map(teacher => teacher._id) })),
       students: users.filter(student => student.role.includes(Role.student)).map(student => ({ _id: student._id, profile: student.profile })),
       teachers: users.filter(teacher => teacher.role.includes(Role.teacher)).map(teacher => ({ _id: teacher._id, profile: teacher.profile })),
-      sections: sections.map(section => ({ _id: section._id, locales: section.locales }))
+      sections: sections.map(section => ({ _id: section._id, locales: section.locales })),
+      invite_codes: inviteCodes.map(({ validity, quota, _id, enrollment }) => <IInviteCodeForCourse>{ validity, quota, _id, courseId: enrollment.courses![0] })
     };
   }
 
@@ -315,6 +326,52 @@ export class CoursesService {
     const result = await this.coursesRepo.finishUsersInCourses(coursesUpdates, role, finishDate);
     if (result.modifiedCount !== 0) await this.sendUsersChangesUpdates('drop', requests);
     return result;
+  }
+
+  async join(codeId: string, byUser: IUserToken) {
+    if (!byUser || !byUser.role.includes(Role.student)) throw new ForbiddenError(`you need to be a student to join a course`);
+    const inviteCode = await this.inviteCodesRepo.getValidCode(codeId);
+    if (!inviteCode) throw new NotFoundError(`${codeId} invite code was not found`);
+    const { quota, enrollment } = inviteCode;
+    if (!enrollment.courses || enrollment.courses.length > 1 || quota.consumed >= quota.max) {
+      throw new InvalidRequestError(`${codeId} invite code is not valid`);
+    }
+    if (byUser.schooluuid !== config.guestSchoolId && inviteCode.schoolId !== byUser.schooluuid) {
+      throw new InvalidRequestError('invite code provided is not for your school');
+    }
+    const userId = byUser.sub;
+    const now = new Date();
+    // TODO: change this to transaction commands by sending all commands in one go to kafka
+    if (byUser.schooluuid === config.guestSchoolId) {
+      const doSwitch = async () => { return; }; // stub
+      await this._commandsProcessor.sendCommand(Service.schools, doSwitch, <ISwitchRegistrationAction>{
+        role: Role.student,
+        action: RegistrationAction.switch,
+        fromSchoolId: config.guestSchoolId,
+        toSchoolId: inviteCode.schoolId,
+        users: [userId]
+      });
+    } else {
+      const avtiveCourses = await this.coursesRepo.getActiveCoursesForUser(Role.student, userId);
+      const newCourses = await this.coursesRepo.findMany({ _id: { $in: enrollment.courses } });
+      const overlapping = avtiveCourses.filter(ac => newCourses.find(nc => nc.subject === ac.subject));
+      if (overlapping.length > 0) {
+        await this._commandsProcessor.sendCommand(Service.courses, this.doDropUsers, overlapping.map(course => <IUserRequest>{
+          schoolId: course.schoolId,
+          sectionId: course.sectionId,
+          usersIds: [userId],
+          role: Role.student,
+          courseId: course._id
+        }), Role.student, now);
+      }
+    }
+    return this._commandsProcessor.sendCommand(Service.courses, this.doEnrollUsers, enrollment.courses.map(courseId => <IUserRequest>{
+      schoolId: inviteCode.schoolId,
+      sectionId: enrollment.sectionId,
+      usersIds: [userId],
+      role: Role.student,
+      courseId
+    }), Role.student, now);
   }
 
   private async sendUsersChangesUpdates(action: 'enroll' | 'drop', requests: IUserRequest[]) {

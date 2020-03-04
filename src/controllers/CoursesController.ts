@@ -60,6 +60,13 @@ export class CoursesController {
     ctx.type = 'json';
   }
 
+  async join(ctx: Context, next: () => void) {
+    const result = await this.coursesService.join(ctx.params.codeId, ctx.user);
+    ctx.status = 200;
+    ctx.body = result;
+    ctx.type = 'json';
+  }
+
   async update(ctx: Context, next: () => void) {
     const { schoolId, sectionId, courseId } = ctx.params;
     const result = await this.coursesService.update(schoolId, sectionId, courseId, ctx.request.body, ctx.user);

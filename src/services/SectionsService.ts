@@ -57,17 +57,17 @@ export class SectionsService {
   }
 
   async get(schoolId: string, sectionId: string, byUser: IUserToken) {
-    this.authorize(byUser);
+    this.authorize(byUser, schoolId);
     return this.sectionsRepo.findOne({ _id: sectionId, schoolId });
   }
 
-  async list(schoolId: string, paging: IPaging, byUser: IUserToken) {
-    this.authorize(byUser);
-    return this.sectionsRepo.findManyPage({ schoolId }, paging);
+  async list(filter: { schoolId: string, grade?: string }, paging: IPaging, byUser: IUserToken) {
+    this.authorize(byUser, filter.schoolId);
+    return this.sectionsRepo.findManyPage({ schoolId: filter.schoolId, ...(filter.grade ? { grade: filter.grade } : {}) }, paging);
   }
 
   async delete(schoolId: string, sectionId: string, byUser: IUserToken) {
-    this.authorize(byUser);
+    this.authorize(byUser, schoolId);
     const section = await this.sectionsRepo.findOne({ _id: sectionId, schoolId });
     if (!section) throw new NotFoundError(`Couldn't find section '${sectionId}' in school '${schoolId}'`);
     return this._commandsProcessor.sendCommand(Service.sections, this.doDelete, sectionId);
@@ -78,13 +78,13 @@ export class SectionsService {
   }
 
   async getStudents(schoolId: string, sectionId: string, byUser: IUserToken) {
-    this.authorize(byUser);
+    this.authorize(byUser, schoolId);
     const section = await this.sectionsRepo.findOne({ _id: sectionId, schoolId });
     return section ? section.students : undefined;
   }
 
   async registerStudents(schoolId: string, sectionId: string, studentIds: string[], byUser: IUserToken) {
-    this.authorize(byUser);
+    this.authorize(byUser, schoolId);
     if (!studentIds || studentIds.length === 0) return new InvalidRequestError('No students were provided!');
     const section: ISection | undefined = await this.sectionsRepo.findOne({ _id: sectionId, schoolId });
     if (!section) throw new NotFoundError(`Couldn't find section '${sectionId}' in school '${schoolId}'`);
@@ -100,7 +100,7 @@ export class SectionsService {
   }
 
   async removeStudents(schoolId: string, sectionId: string, studentIds: string[], byUser: IUserToken) {
-    this.authorize(byUser);
+    this.authorize(byUser, schoolId);
     const section: ISection | undefined = await this.sectionsRepo.findOne({ _id: sectionId, schoolId });
     if (!section) throw new NotFoundError(`Couldn't find section '${sectionId}' in school '${schoolId}'`);
     return this._commandsProcessor.sendCommand(Service.sections, this.doRemoveStudents, schoolId, sectionId, studentIds, new Date());
@@ -117,9 +117,10 @@ export class SectionsService {
     return updatedSection;
   }
 
-  protected authorize(byUser: IUserToken) {
+  protected authorize(byUser: IUserToken, schoolId?: string) {
     if (!byUser) throw new ForbiddenError('access token is required!');
     if (byUser.role.includes(config.authorizedRole)) return true;
+    if (byUser.role.includes(Role.principal) && byUser.schooluuid === schoolId) return true;
     throw new UnauthorizedError('you are not authorized to do this action');
   }
 

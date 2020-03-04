@@ -73,10 +73,7 @@ describe('Sections Service', () => {
 
     it('should list sections by schoolId with success response', async () => {
         repositoryReturns(Repo.sections, { findManyPage: () => allSectionsResponse });
-        const result = await _sectionsService.list('aldar_ba526', {
-            index: 1,
-            size: 1
-        }, token);
+        const result = await _sectionsService.list({ schoolId: 'aldar_ba526' }, { index: 1, size: 1 }, token);
         expect(result).equal(allSectionsResponse);
     });
 

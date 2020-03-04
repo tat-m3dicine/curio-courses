@@ -223,7 +223,7 @@ describe('Courses Service', () => {
 
     it('should succeed to update course in specified school and section', async () => {
       const updates = { locales: { en: { name: 'New Course Name' } } };
-      repositoryReturns(Repo.courses, { patch: (filter, updateObj) => ({ ...filter, ...updateObj }) });
+      repositoryReturns(Repo.courses, { findOne: () => ({}), patch: (filter, updateObj) => ({ ...filter, ...updateObj }) });
       const result = await _coursesService.update(course.schoolId, course.sectionId, course._id, updates, token);
       expect(result).to.deep.equal({ ...course, ...updates });
     });
@@ -256,6 +256,7 @@ describe('Courses Service', () => {
       repositoryReturns(Repo.courses, { getActiveCoursesForUser: () => [{ ...course, students: [user], teachers: [user] }] });
       repositoryReturns(Repo.sections, { findMany: () => [{}] });
       repositoryReturns(Repo.users, { findMany: () => [{ role: Role.student }, { role: Role.teacher }] });
+      repositoryReturns(Repo.inviteCodes, { findForCourses: () => [] });
       const result = await _coursesService.getActiveCourses('teacher1', Role.teacher);
       expect(result.courses).to.have.lengthOf(1);
       expect(result.students).to.have.lengthOf(1);
