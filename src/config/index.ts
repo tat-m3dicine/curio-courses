@@ -9,6 +9,7 @@ const config: {
   mongoDbUrl: string;
   authorizedRole: string;
   guestSchoolId: string;
+  servicePrefix: string;
   historyLength: number;
   kafkaUpdatesTopic: string;
   kafkaCommandsTopic: string;
@@ -28,6 +29,7 @@ const config: {
   commandsTimeout: 3 * 1000,
   authorizedRole: 'root',
   guestSchoolId: 'FREE_SCHOOL',
+  servicePrefix: 'courses',
   historyLength: 50
 };
 
@@ -73,6 +75,7 @@ else if (process.env.NODE_ENV !== 'test') {
 
 if (process.env.IRP_URL) config.irpUrl = process.env.IRP_URL;
 if (process.env.GUEST_SCHOOL_ID) config.guestSchoolId = process.env.GUEST_SCHOOL_ID;
+if (process.env.SERVICE_PREFIX) config.servicePrefix = process.env.SERVICE_PREFIX;
 if (process.env.COMMANDS_TIMEOUT) config.commandsTimeout = parseInt(process.env.COMMANDS_TIMEOUT);
 
 logger.info('Config for the app: %o', config);

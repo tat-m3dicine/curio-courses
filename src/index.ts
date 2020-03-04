@@ -16,6 +16,7 @@ import sectionsRoutes from './routes/sections.routes';
 import providerRoutes from './routes/providers.routes';
 import schoolsInviteCodesRoutes from './routes/schools_invite_codes.routes';
 import inviteCodesRoutes from './routes/invite_codes.routes';
+import externalRoutes from './routes/external.routes';
 import { StreamsProcessor } from './services/streams/StreamsProcessor';
 import meRoutes from './routes/me.routes';
 import { createRedisBus } from '@saal-oryx/message-bus';
@@ -82,6 +83,8 @@ let server: Server;
   app.use(schoolsInviteCodesRoutes(commandsProcessor).mount('/schools'));
   app.use(inviteCodesRoutes(commandsProcessor, updatesProcessor).mount('/invite_codes'));
   app.use(providerRoutes(commandsProcessor).mount('/provider'));
+
+  app.use(externalRoutes(commandsProcessor).mount(`/${config.servicePrefix}/external`));
 
   app.on('error', err => {
     logger.error('app_error', err);
