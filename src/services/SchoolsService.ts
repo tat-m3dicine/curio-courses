@@ -67,7 +67,6 @@ export class SchoolsService {
   async add(createObj: ICreateSchoolRequest, byUser: IUserToken) {
     this.authorize(byUser);
     validators.validateCreateSchool(createObj);
-    console.log(`data`, createObj);
     const defaultLocale = createObj.locales.en || Object.values(createObj.locales)[0];
     const school: ISchool = {
       _id: createObj._id || newSchoolId(defaultLocale.name),
@@ -118,7 +117,7 @@ export class SchoolsService {
       _filter['registration.schoolId'] = filter.schoolId;
     }
     else {
-      if (filter.status) _filter.registration.status = filter.status;
+      if (filter.status) _filter['registration.status'] = filter.status; //? has to be string for mongo
       _filter['registration.school._id'] = filter.schoolId;
     }
     logger.debug('getUsers filter:', _filter);

@@ -31,7 +31,8 @@ const createLicenseSchema = {
     }
   },
   reference: {
-    type: 'string'
+    type: 'string',
+    optional: true
   },
   isEnabled: {
     type: 'boolean'

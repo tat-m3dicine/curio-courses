@@ -85,12 +85,13 @@ export class SectionsService {
 
   async registerStudents(schoolId: string, sectionId: string, studentIds: string[], byUser: IUserToken) {
     this.authorize(byUser, schoolId);
-    if (!studentIds || studentIds.length === 0) return new InvalidRequestError('No students were provided!');
+    if (!studentIds || studentIds.length === 0) throw new InvalidRequestError('No students were provided!');
     const section: ISection | undefined = await this.sectionsRepo.findOne({ _id: sectionId, schoolId });
     if (!section) throw new NotFoundError(`Couldn't find section '${sectionId}' in school '${schoolId}'`);
 
-    studentIds = studentIds.filter(studentId => !section.students.includes(studentId));
-    if (studentIds.length === 0) return new InvalidRequestError(`All students were already registered in section ${sectionId}`);
+    // studentIds = studentIds.filter(studentId => !section.students.includes(studentId));
+    const studentsDifference = section.students.filter(studentId => !studentIds.includes(studentId));
+    if (studentsDifference.length === 0) throw new InvalidRequestError(`All students are already registered in section ${sectionId}`);
     await this.validateStudentsInSchool(studentIds, schoolId);
     return this._commandsProcessor.sendCommand(Service.sections, this.doRegisterStudents, schoolId, sectionId, studentIds);
   }
