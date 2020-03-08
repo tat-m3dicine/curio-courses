@@ -6,4 +6,11 @@ export interface ICreateSectionRequest {
   schoolId: string;
   grade: string;
   students?: string[];
+  courses?: ICreateSectionCourse[];
+}
+
+export interface ICreateSectionCourse {
+  subject: string;
+  curriculum: string;
+  enroll?: boolean;
 }
