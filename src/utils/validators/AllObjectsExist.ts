@@ -4,7 +4,8 @@ import { IEntity } from '@saal-oryx/unit-of-work';
 export const validateAllObjectsExist = (objects: IEntity[], objectsIds: string[], schoolId: string, objectType = 'user') => {
   if (objects.length !== objectsIds.length) {
     const notFound: string[] = getNotMatchingObjects(objects, objectsIds);
-    throw new NotFoundError(`${objectType}s ['${notFound.join("', '")}'] were not found in '${schoolId}' school!`);
+    const one = notFound.length === 1;
+    throw new NotFoundError(`${objectType}${one ? '' : 's'} ['${notFound.join("', '")}'] ${one ? 'was' : 'were'} not found in '${schoolId}' school!`);
   }
 };
 

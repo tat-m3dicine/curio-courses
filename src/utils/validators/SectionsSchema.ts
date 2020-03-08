@@ -16,6 +16,22 @@ const sectionsSchema = {
     items: 'string',
     optional: true
   },
+  courses: {
+    type: 'array',
+    items: {
+      type: 'object',
+      props: {
+        subject: 'string',
+        curriculum: 'string',
+        enroll: {
+          type: 'boolean',
+          optional: true
+        }
+      }
+    },
+    min: 1,
+    optional: true
+  },
   $$strict: true
 };
 

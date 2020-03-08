@@ -6,7 +6,7 @@ import { IUnitOfWork, IPaging } from '@saal-oryx/unit-of-work';
 import { Role } from '../models/Role';
 import { IUser, Status } from '../models/entities/IUser';
 import { IUserToken } from '../models/IUserToken';
-import { ISchool } from '../models/entities/ISchool';
+import { ISchool, IPackage } from '../models/entities/ISchool';
 import { IAcademicTerm } from '../models/entities/Common';
 import { IUserRequest } from '../models/requests/IUserRequest';
 import { ICourse, IUserCourseInfo } from '../models/entities/ICourse';
@@ -69,7 +69,7 @@ export class CoursesService {
     validators.validateCreateCourse(course);
     const school: ISchool = await this.validateAndGetSchool(course);
     const { schoolId, sectionId, curriculum, grade, subject, academicTermId, teachers = [], students = [] } = course;
-    const academicTerm: IAcademicTerm = this.validateAndGetAcademicTerm(school, academicTermId);
+    const academicTerm: IAcademicTerm = CoursesService.validateAndGetAcademicTerm(school, academicTermId);
 
     const usersIds = [...teachers, ...students];
     const studentsObjs: IUserCourseInfo[] = [], teachersObjs: IUserCourseInfo[] = [];
@@ -107,33 +107,31 @@ export class CoursesService {
   }
 
   private async doCreate(course: ICourse) {
-    const partialRequest = {
-      courseId: course._id,
-      schoolId: course.schoolId,
-      sectionId: course.sectionId
-    };
-    let addedCourse: ICourse;
     try {
-      const coursesRepoWithTransactions = this._uow.getRepository(Repo.courses, true) as CoursesRepository;
-      addedCourse = await coursesRepoWithTransactions.add(course);
-      await this._uow.commit();
+      const createdCourse = await this.coursesRepo.add(course);
+      const partialRequest = {
+        courseId: course._id,
+        schoolId: course.schoolId,
+        sectionId: course.sectionId
+      };
+      await this.sendUsersChangesUpdates('enroll', [{
+        ...partialRequest,
+        role: Role.student,
+        usersIds: course.students.map(s => s._id)
+      }, {
+        ...partialRequest,
+        role: Role.teacher,
+        usersIds: course.teachers.map(s => s._id)
+      }]);
+      await this._updatesProcessor.notifyCourseEvents(Events.course_created, { ...createdCourse, students: undefined, teachers: undefined });
+      return createdCourse;
     } catch (err) {
       if (err && err.code === 11000) { // Duplicate error
-        addedCourse = course;
+        return course;
+      } else {
+        throw err;
       }
-      throw err;
     }
-    await this.sendUsersChangesUpdates('enroll', [{
-      ...partialRequest,
-      role: Role.student,
-      usersIds: course.students.map(s => s._id)
-    }, {
-      ...partialRequest,
-      role: Role.teacher,
-      usersIds: course.teachers.map(s => s._id)
-    }]);
-    this._updatesProcessor.notifyCourseEvents(Events.course_created, { ...addedCourse, students: undefined, teachers: undefined });
-    return addedCourse;
   }
 
   async listWithSections(schoolId: string, byUser: IUserToken) {
@@ -380,9 +378,10 @@ export class CoursesService {
     const events: IUserUpdatedEvent[] = [];
     for (const request of requests) {
       const usersIds = Array.from(new Set(request.usersIds));
-      const users: IUser[] = await this.usersRepo.getUsersInSchool(request.schoolId, request.usersIds);
+      if (usersIds.length === 0) continue;
+      const users: IUser[] = await this.usersRepo.getUsersInSchool(request.schoolId, usersIds);
       const courses: ICourse[] = await this.coursesRepo.getActiveCoursesForUsers(request.role, usersIds);
-      if (courses.length === 0) return;
+      if (courses.length === 0) continue;
       const coursesUpdates = this.transformCoursesToUpdates(courses, request.role);
       events.push(...users.map(user => <IUserUpdatedEvent>{
         event: action,
@@ -419,7 +418,7 @@ export class CoursesService {
     return userCoursesUpdates;
   }
 
-  private validateAndGetAcademicTerm(school: ISchool, academicTermId: string | undefined): IAcademicTerm {
+  static validateAndGetAcademicTerm(school: ISchool, academicTermId?: string): IAcademicTerm {
     const now = new Date();
     if (academicTermId) {
       const academicTerm = school.academicTerms.find(term => term._id === academicTermId);
@@ -433,16 +432,23 @@ export class CoursesService {
     }
   }
 
-  private async validateAndGetSchool({ schoolId, sectionId, curriculum, grade, subject }: ICreateCourseRequest) {
+  static validateCourseInPackage(licensePackage: IPackage, grade: string, subject: string, curriculum: string) {
+    const gradePackage = licensePackage.grades[grade];
+    const isNotIncluded = `isn't included in school's license package!`;
+    if (!gradePackage) throw new InvalidLicenseError(`Grade '${grade}' ${isNotIncluded}`);
+    if (!gradePackage[subject]) throw new InvalidLicenseError(`Subject '${subject}' ${isNotIncluded}`);
+    if (!(gradePackage[subject] instanceof Array) || !gradePackage[subject].includes(curriculum)) {
+      throw new InvalidLicenseError(`Curriculum '${curriculum}' ${isNotIncluded}`);
+    }
+  }
+
+  private async validateAndGetSchool({ schoolId, sectionId, grade, subject, curriculum }: ICreateCourseRequest) {
     const school = await this.schoolsRepo.findById(schoolId);
     if (!school) throw new NotFoundError(`'${schoolId}' school was not found!`);
     const section = await this.sectionsRepo.findOne({ _id: sectionId, schoolId });
     if (!section) throw new NotFoundError(`'${sectionId}' section was not found in '${schoolId}' school!`);
     if (!school.license || !school.license.package) throw new InvalidLicenseError(`'${schoolId}' school doesn't have a vaild license!`);
-    const gradePackage = school.license.package.grades[grade];
-    if (!gradePackage || !gradePackage[subject] || !(gradePackage[subject] instanceof Array) || !gradePackage[subject].includes(curriculum)) {
-      throw new InvalidLicenseError(`Grade '${grade}', subject '${subject}', curriculum '${curriculum}' aren't included in '${schoolId}' school's license package!`);
-    }
+    CoursesService.validateCourseInPackage(school.license.package, grade, subject, curriculum);
     return school;
   }
 
