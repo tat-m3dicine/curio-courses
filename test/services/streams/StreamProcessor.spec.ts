@@ -49,6 +49,6 @@ describe('Stream Processor', () => {
     const result = streamsProcessor['_getStreams']();
     // tslint:disable-next-line: no-string-literal
     streamsProcessor['_getUsersService']();
-    expect(result).to.have.lengthOf(2);
+    expect(result).to.have.lengthOf(1);
   });
 });

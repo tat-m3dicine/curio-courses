@@ -23,8 +23,10 @@ import { createRedisBus } from '@saal-oryx/message-bus';
 import nanoid from 'nanoid';
 import { MigrationScripts } from './migration/MigrationScripts';
 import { UpdatesProcessor } from './services/processors/UpdatesProcessor';
-import { CommandsProcessor, KafkaService } from '@saal-oryx/event-sourcing';
+import { KafkaService } from '@saal-oryx/event-sourcing';
 import { Server } from 'http';
+import { getFactory } from './services/ServiceFactory';
+import { FakeCommandsProcessor } from './services/processors/FakeCommandsProcessor';
 
 const logger = loggerFactory.getLogger('Index');
 
@@ -47,10 +49,13 @@ let server: Server;
   });
   // Stream
   const updatesProcessor = new UpdatesProcessor(kafkaService);
-  const commandsProcessor = new CommandsProcessor(kafkaService, commandsBus, {
+  const commandsProcessor = new FakeCommandsProcessor(kafkaService, commandsBus, {
     kafkaCommandsTopic: config.kafkaCommandsTopic,
     commandsTimeout: config.commandsTimeout
   });
+  const serviceFactory = getFactory(unitOfWorkFactory, commandsProcessor, kafkaService, updatesProcessor);
+  commandsProcessor.setServiceFactory(serviceFactory);
+
   const streamsProcessor = new StreamsProcessor(
     commandsProcessor,
     unitOfWorkFactory,
