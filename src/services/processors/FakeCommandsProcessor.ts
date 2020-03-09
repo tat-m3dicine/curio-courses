@@ -26,7 +26,7 @@ export class FakeCommandsProcessor extends CommandsProcessor {
     done: boolean;
     data: any;
   }> {
-    const event = await super.sendCommandAsync(serviceName, proccessingFunction, args);
+    const event = await super.sendCommandAsync(serviceName, proccessingFunction, ...args);
     return this.handleEvent(event);
   }
 
