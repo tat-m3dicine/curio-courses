@@ -63,7 +63,7 @@ export class InviteCodesService {
     if (!(signupMethods instanceof Array) || !signupMethods.includes(SignupMethods.inviteCodes)) {
       throw new InvalidLicenseError(`Sign up through invite codes isn't included in '${schoolId}' school's license package!`);
     }
-    return this._commandsProcessor.sendCommand(Service.inviteCodes, this.doCreate, <IInviteCode>{
+    return this.doCreate(<IInviteCode>{
       _id: newInviteCodeId(),
       schoolId, validity, isEnabled: true,
       quota: { max: quota, consumed: 0 },
@@ -72,6 +72,7 @@ export class InviteCodesService {
   }
 
   private async doCreate(inviteCode: IInviteCode) {
+    await this._commandsProcessor.sendCommandAsync(Service.inviteCodes, this.doCreate, inviteCode);
     return this.inviteCodesRepo.add(inviteCode);
   }
 
@@ -106,10 +107,11 @@ export class InviteCodesService {
     this.authorize(byUser, schoolId);
     const inviteCode = await this.inviteCodesRepo.findOne({ _id: codeId, schoolId });
     if (!inviteCode) throw new NotFoundError(`Couldn't find invite code '${codeId}' in school '${schoolId}'`);
-    return this._commandsProcessor.sendCommand(Service.inviteCodes, this.doDelete, codeId);
+    return this.doDelete(codeId);
   }
 
   private async doDelete(codeId: string) {
+    await this._commandsProcessor.sendCommandAsync(Service.inviteCodes, this.doDelete, codeId);
     return this.inviteCodesRepo.delete({ _id: codeId });
   }
 

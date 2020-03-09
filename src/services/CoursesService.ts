@@ -95,7 +95,7 @@ export class CoursesService {
       validateAllObjectsExist(teachersObjs, teachers, schoolId, Role.teacher);
     }
 
-    return this._commandsProcessor.sendCommand(Service.courses, this.doCreate, <ICourse>{
+    return this.doCreate(<ICourse>{
       _id: newCourseId(sectionId, subject, academicTerm.year),
       schoolId, sectionId, curriculum, grade, subject, academicTerm,
       defaultLocale: course.defaultLocale || Object.keys(course.locales)[0] || 'en',
@@ -108,6 +108,7 @@ export class CoursesService {
 
   private async doCreate(course: ICourse) {
     try {
+      await this._commandsProcessor.sendCommandAsync(Service.courses, this.doCreate, course);
       const createdCourse = await this.coursesRepo.add(course);
       const partialRequest = {
         courseId: course._id,
@@ -159,10 +160,11 @@ export class CoursesService {
   async update(schoolId: string, sectionId: string, courseId: string, updateObj: Partial<ICourse>, byUser: IUserToken) {
     this.authorize(byUser);
     validators.validateUpdateCourse(updateObj);
-    return this._commandsProcessor.sendCommand(Service.courses, this.doUpdate, { _id: courseId, sectionId, schoolId }, updateObj);
+    return this.doUpdate({ _id: courseId, sectionId, schoolId }, updateObj);
   }
 
   private async doUpdate(filter: object, updateObj: Partial<ICourse>) {
+    await this._commandsProcessor.sendCommandAsync(Service.courses, this.doUpdate, filter, updateObj);
     const coursesRepoWithTransactions = this._uow.getRepository(Repo.courses, true) as CoursesRepository;
     const result = await coursesRepoWithTransactions.patch(filter, updateObj);
     const updatedCourse = await coursesRepoWithTransactions.findOne(filter);
@@ -175,10 +177,11 @@ export class CoursesService {
     this.authorize(byUser);
     const course = await this.coursesRepo.findOne({ _id: courseId, sectionId, schoolId });
     if (!course) throw new NotFoundError(`Couldn't find course '${courseId}' in section '${sectionId}'`);
-    return this._commandsProcessor.sendCommand(Service.courses, this.doDelete, courseId);
+    return this.doDelete(courseId);
   }
 
   private async doDelete(courseId: string) {
+    await this._commandsProcessor.sendCommandAsync(Service.courses, this.doDelete, courseId);
     const coursesRepoWithTransactions = this._uow.getRepository(Repo.courses, true) as CoursesRepository;
     const result = await coursesRepoWithTransactions.delete({ _id: courseId });
     await this._updatesProcessor.notifyCourseEvents(Events.course_deleted, { _id: courseId });
@@ -197,10 +200,11 @@ export class CoursesService {
   private async toggleUsers(requestParam: IUserRequest, role: Role, value: boolean, byUser: IUserToken) {
     this.authorize(byUser);
     await this.validateCoursesAndUsers([requestParam], role);
-    return this._commandsProcessor.sendCommand(Service.courses, this.doToggleStudents, requestParam, role, value);
+    return this.doToggleStudents(requestParam, role, value);
   }
 
   private async doToggleStudents({ schoolId, sectionId, courseId, usersIds }: IUserRequest, role: Role, value: boolean) {
+    await this._commandsProcessor.sendCommandAsync(Service.courses, this.doToggleStudents, { schoolId, sectionId, courseId, usersIds }, role, value);
     return this.coursesRepo.toggleUsersInCourses({ _id: courseId, schoolId, sectionId }, usersIds, role, value);
   }
 
@@ -283,10 +287,11 @@ export class CoursesService {
     this.authorize(byUser, role === Role.teacher ? requestParams[0].schoolId : undefined);
     const joinDate = new Date();
     await this.validateCoursesAndUsers(requestParams, role, sameSection);
-    return this._commandsProcessor.sendCommand(Service.courses, this.doEnrollUsers, requestParams, role, joinDate);
+    return this.doEnrollUsers(requestParams, role, joinDate);
   }
 
   private async doEnrollUsers(requests: IUserRequest[], role: Role, joinDate: Date) {
+    await this._commandsProcessor.sendCommandAsync(Service.courses, this.doEnrollUsers, requests, role, joinDate);
     const coursesUpdates: any[] = [], sectionsUpdates: any[] = [];
     for (const request of requests) {
       const { schoolId, sectionId, courseId, usersIds } = request;
@@ -312,10 +317,11 @@ export class CoursesService {
     this.authorize(byUser, role === Role.teacher ? requestParams[0].schoolId : undefined);
     const finishDate = new Date();
     await this.validateCoursesAndUsers(requestParams, role);
-    return this._commandsProcessor.sendCommand(Service.courses, this.doDropUsers, requestParams, role, finishDate);
+    return this.doDropUsers(requestParams, role, finishDate);
   }
 
   private async doDropUsers(requests: IUserRequest[], role: Role, finishDate: Date) {
+    await this._commandsProcessor.sendCommandAsync(Service.courses, this.doDropUsers, requests, role, finishDate);
     const coursesUpdates: any[] = [];
     for (const request of requests) {
       const { schoolId, sectionId, courseId, usersIds } = request;

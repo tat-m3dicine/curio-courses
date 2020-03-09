@@ -52,10 +52,11 @@ export class SchoolsService {
 
   async delete(schoolId: string, byUser: IUserToken) {
     this.authorize(byUser);
-    return this._commandsProcessor.sendCommand(Service.schools, this.doDelete, schoolId);
+    return this.doDelete(schoolId);
   }
 
   private async doDelete(schoolId: string) {
+    await this._commandsProcessor.sendCommandAsync(Service.schools, this.doDelete, schoolId);
     return this.schoolsRepo.delete({ _id: schoolId });
   }
 
@@ -75,20 +76,22 @@ export class SchoolsService {
       academicTerms: [],
       users: []
     };
-    return this._commandsProcessor.sendCommand(Service.schools, this.doAdd, school);
+    return this.doAdd(school);
   }
 
   private async doAdd(school: ISchool) {
+    await this._commandsProcessor.sendCommandAsync(Service.schools, this.doAdd, school);
     return this.schoolsRepo.add(school);
   }
 
   async update(updateObj: IUpdateSchoolRequest, schoolId: string, byUser: IUserToken) {
     this.authorize(byUser);
     validators.validateUpdateSchool(updateObj);
-    return this._commandsProcessor.sendCommand(Service.schools, this.doUpdate, schoolId, updateObj);
+    return this.doUpdate(schoolId, updateObj);
   }
 
   private async doUpdate(schoolId: string, updateObj: IUpdateSchoolRequest) {
+    await this._commandsProcessor.sendCommandAsync(Service.schools, this.doUpdate, schoolId, updateObj);
     return this.schoolsRepo.update({ _id: schoolId }, { $set: updateObj });
   }
 
@@ -98,7 +101,7 @@ export class SchoolsService {
     const usersIds: string[] = updateObjs.users.map(user => user._id);
     const usersObjs: IUser[] = await this.usersRepo.findMany({ '_id': { $in: usersIds }, 'school._id': schoolId });
     validateAllObjectsExist(usersObjs, usersIds, schoolId);
-    return this._commandsProcessor.sendCommand(Service.schools, this.doUpdateUsers, schoolId, updateObjs.users);
+    return this.doUpdateUsers(schoolId, updateObjs.users);
   }
 
   async getUsers(filter: { schoolId: string, role: Role, status: 'all' | Status }, paging: IPaging, byUser: IUserToken) {
@@ -147,9 +150,9 @@ export class SchoolsService {
       case 'approve':
         return this.approve(dbSchool, request);
       case 'reject':
-        return this._commandsProcessor.sendCommand(Service.schools, this.doReject, request);
+        return this.doReject(request);
       case 'withdraw':
-        return this._commandsProcessor.sendCommand(Service.schools, this.doWithdraw, request);
+        return this.doWithdraw(request);
       default:
         throw new InvalidRequestError(`Unrecognized action ${request.action}!`);
     }
@@ -170,10 +173,11 @@ export class SchoolsService {
     const isQuotaAvailable = (school.license[usersKey].max - school.license[usersKey].consumed) > usersCount;
     if (!isQuotaAvailable) throw new InvalidLicenseError(`License quota is over for school ${school._id}`);
 
-    return this._commandsProcessor.sendCommand(Service.schools, this.doApprove, request);
+    return this.doApprove(request);
   }
 
   private async doApprove(request: IRegistrationAction) {
+    await this._commandsProcessor.sendCommandAsync(Service.schools, this.doApprove, request);
     const schoolsRepo = this._uow.getRepository(Repo.schools, true) as SchoolsRepository;
     const usersRepo = this._uow.getRepository(Repo.users, true) as UsersRepository;
 
@@ -194,12 +198,14 @@ export class SchoolsService {
   }
 
   private async doReject(request: IRegistrationAction) {
+    await this._commandsProcessor.sendCommandAsync(Service.schools, this.doReject, request);
     // Step 2: remove user registeration
     await this.usersRepo.reject(request.schoolId, request.users);
     return { ok: 1 };
   }
 
   private async doWithdraw(request: IRegistrationAction) {
+    await this._commandsProcessor.sendCommandAsync(Service.schools, this.doWithdraw, request);
     const schoolsRepo = this._uow.getRepository(Repo.schools, true) as SchoolsRepository;
     const sectionsRepo = this._uow.getRepository(Repo.sections, true) as SectionsRepository;
     const coursesRepo = this._uow.getRepository(Repo.courses, true) as CoursesRepository;
@@ -233,6 +239,7 @@ export class SchoolsService {
   }
 
   async doSwitch(request: ISwitchRegistrationAction) {
+    await this._commandsProcessor.sendCommandAsync(Service.schools, this.doSwitch, request);
     const schoolsRepo = this._uow.getRepository(Repo.schools, true) as SchoolsRepository;
     const sectionsRepo = this._uow.getRepository(Repo.sections, true) as SectionsRepository;
     const coursesRepo = this._uow.getRepository(Repo.courses, true) as CoursesRepository;
@@ -269,16 +276,18 @@ export class SchoolsService {
   }
 
   private async doUpdateUsers(schoolId: string, users: ISchoolUserPermissions[]) {
+    await this._commandsProcessor.sendCommandAsync(Service.schools, this.doUpdateUsers, schoolId, users);
     return this.schoolsRepo.updateUsersPermission(schoolId, users);
   }
 
   async deleteUsers(updateObjs: { users: string[] }, schoolId: string, byUser: IUserToken) {
     this.authorize(byUser);
     validators.validateDeleteSchoolUsers(updateObjs);
-    return this._commandsProcessor.sendCommand(Service.schools, this.doDeleteUsers, schoolId, updateObjs.users);
+    return this.doDeleteUsers(schoolId, updateObjs.users);
   }
 
   private async doDeleteUsers(schoolId: string, usersIds: string[]) {
+    await this._commandsProcessor.sendCommandAsync(Service.schools, this.doDeleteUsers, schoolId, usersIds);
     return this.schoolsRepo.deleteUsersPermission(schoolId, usersIds);
   }
 
@@ -296,10 +305,11 @@ export class SchoolsService {
     validators.validateUpdateSchoolAcademicTerm({ academicTerm });
     const school = await this.schoolsRepo.findOne({ _id: schoolId });
     if (!school) throw new InvalidRequestError(`Invalid schoolId ${schoolId}`);
-    return this._commandsProcessor.sendCommand(Service.schools, this.doUpdateAcademicTerm, schoolId, updateObj, academicTerm);
+    return this.doUpdateAcademicTerm(schoolId, updateObj, academicTerm);
   }
 
   private async doUpdateAcademicTerm(schoolId: string, updateObj: IUpdateAcademicTermRequest, academicTerm: IAcademicTerm) {
+    await this._commandsProcessor.sendCommandAsync(Service.schools, this.doUpdateAcademicTerm, schoolId, updateObj, academicTerm);
     return this.schoolsRepo.updateAcademicTerm(schoolId, updateObj, academicTerm);
   }
 
@@ -311,10 +321,11 @@ export class SchoolsService {
       const coursesIds = activeCourses.map(course => course._id).join("', '");
       throw new ConditionalBadRequest(`Unable to delete the Academic Term because ['${coursesIds}'] are active within.`);
     }
-    return this._commandsProcessor.sendCommand(Service.schools, this.doDeleteAcademicTerm, schoolId, academicTermId);
+    return this.doDeleteAcademicTerm(schoolId, academicTermId);
   }
 
   private async doDeleteAcademicTerm(schoolId: string, academicTermId: string) {
+    await this._commandsProcessor.sendCommandAsync(Service.schools, this.doDeleteAcademicTerm, schoolId, academicTermId);
     return this.schoolsRepo.deleteAcademicTerm(schoolId, academicTermId);
   }
 
@@ -322,10 +333,11 @@ export class SchoolsService {
     this.authorize(byUser);
     if (!updateObj) throw new InvalidRequestError('Request should not be empty!');
     validators.validateUpdateSchool(updateObj);
-    return this._commandsProcessor.sendCommand(Service.schools, this.doPatch, schoolId, updateObj);
+    return this.doPatch(schoolId, updateObj);
   }
 
   private async doPatch(schoolId: string, updateObj: IUpdateSchoolRequest) {
+    await this._commandsProcessor.sendCommandAsync(Service.schools, this.doPatch, schoolId, updateObj);
     return this.schoolsRepo.patch({ _id: schoolId }, updateObj);
   }
 
@@ -348,11 +360,12 @@ export class SchoolsService {
     const school = await this.schoolsRepo.findOne({ _id: schoolId });
     if (!school) throw new InvalidRequestError(`Invalid schoolId ${schoolId}`);
     if (school.license && school.license.validTo > license.validTo) throw new InvalidRequestError('ValidTo conflicts with existing license validTo date, validTo should be greater');
-    return this._commandsProcessor.sendCommand(Service.schools, this.doPatchLicense, schoolId, license);
+    return this.doPatchLicense(schoolId, license);
   }
 
-  private async doPatchLicense(schoolId: string, updateObj: ILicense) {
-    return this.schoolsRepo.patch({ _id: schoolId }, { license: updateObj });
+  private async doPatchLicense(schoolId: string, updateObj: ILicenseRequest) {
+    await this._commandsProcessor.sendCommandAsync(Service.schools, this.doPatchLicense, schoolId, updateObj);
+    return this.schoolsRepo.patch({ _id: schoolId }, { license: <any>updateObj });
   }
 
   protected authorize(byUser: IUserToken) {
@@ -361,6 +374,7 @@ export class SchoolsService {
     throw new UnauthorizedError('you are not authorized to do this action');
   }
   async doAddMany(schools: ISchool[]) {
+    await this._commandsProcessor.sendCommandAsync(Service.schools, this.doAddMany, schools);
     return this.schoolsRepo.addMany(schools, false);
   }
 }
