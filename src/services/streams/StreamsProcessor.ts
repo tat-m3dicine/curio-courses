@@ -28,16 +28,16 @@ export class StreamsProcessor {
       <any>getNativeConfig('CoursesCommandsStreams', 'CoursesCommandsStreams')
     );
     const irpStream = new IRPStream(kafkaStreams, this._getUsersService);
-    const commandsStream = new CommandsStream(
-      kafkaStreams,
-      this._serviceFactory,
-      this._commandsProcessor,
-      {
-        streamTopic: config.kafkaCommandsTopic,
-        failuresStreamTopic: `${config.kafkaCommandsTopic}_db_failed`
-      }
-    );
-    return [commandsStream, irpStream];
+    // .. const commandsStream = new CommandsStream(
+    //   kafkaStreams,
+    //   this._serviceFactory,
+    //   this._commandsProcessor,
+    //   {
+    //     streamTopic: config.kafkaCommandsTopic,
+    //     failuresStreamTopic: `${config.kafkaCommandsTopic}_db_failed`
+    //   }
+    // );
+    return [irpStream];
   }
 
   async start() {

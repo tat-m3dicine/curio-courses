@@ -45,12 +45,12 @@ describe('Sections Service', () => {
         _commandsProcessorStub.sendCommand = (service, method, ...args) => _sectionsService[method.name](...args);
     });
 
-    it('should fail to create section as there is no students', async () => {
+    it('should fail to create section if school not exist', async () => {
         repositoryReturns(Repo.schools, { findById: () => undefined });
-        await tryAndExpect(() => _sectionsService.create(createSectionWithNoStudents, token), InvalidLicenseError);
+        await tryAndExpect(() => _sectionsService.create(createSectionWithNoStudents, token), NotFoundError);
     });
 
-    it('should fail to create section with students', async () => {
+    it('should fail to create section with students if school not exist', async () => {
         repositoryReturns(Repo.schools, { findById: () => undefined });
         repositoryReturns(Repo.users, { findMany: () => [{ _id: 1 }] });
         await tryAndExpect(() => _sectionsService.create(createSectionWithStudents, token), NotFoundError);

@@ -4,22 +4,24 @@ import config from '../config';
 import { IUserToken } from '../models/IUserToken';
 import { SectionsRepository } from '../repositories/SectionsRepository';
 import { UsersRepository } from '../repositories/UsersRepository';
-import { ICreateSectionRequest } from '../models/requests/ISectionRequests';
+import { ICreateSectionRequest, ICreateSectionCourse } from '../models/requests/ISectionRequests';
 import { NotFoundError } from '../exceptions/NotFoundError';
 import { ISection } from '../models/entities/ISection';
 import { CoursesRepository } from '../repositories/CoursesRepository';
 import { SchoolsRepository } from '../repositories/SchoolsRepository';
-import { ISchool } from '../models/entities/ISchool';
 import { InvalidLicenseError } from '../exceptions/InvalidLicenseError';
 import { ForbiddenError } from '../exceptions/ForbiddenError';
 import { InvalidRequestError } from '../exceptions/InvalidRequestError';
 import { Role } from '../models/Role';
 import { IUser } from '../models/entities/IUser';
 import { validateAllObjectsExist } from '../utils/validators/AllObjectsExist';
-import { newSectionId } from '../utils/IdGenerator';
+import { newSectionId, newCourseId } from '../utils/IdGenerator';
 import { Repo } from '../models/RepoNames';
 import { CommandsProcessor } from '@saal-oryx/event-sourcing';
 import { Service } from '../models/ServiceName';
+import { CoursesService } from './CoursesService';
+import { ICourse, IUserCourseInfo } from '../models/entities/ICourse';
+import { ISchool } from '../models/entities/ISchool';
 
 export class SectionsService {
 
@@ -40,20 +42,38 @@ export class SectionsService {
 
   async create(section: ICreateSectionRequest, byUser: IUserToken) {
     this.authorize(byUser);
-    const { schoolId, locales, grade, students } = section;
-    if (students) {
-      await this.validateStudentsInSchool(students, schoolId);
+    const { schoolId, locales, grade, students = [], courses } = section;
+    const school = await this.schoolsRepo.findById(schoolId);
+    if (!school) throw new NotFoundError(`'${schoolId}' school was not found!`);
+    await this.validateSectionInLicense(school, grade, courses);
+    if (students.length > 0) await this.validateStudentsInSchool(students, schoolId);
+    const sectionId = section._id || newSectionId(schoolId, grade, locales);
+    let createCourses;
+    if (courses) {
+      const joinDate = new Date();
+      const academicTerm = CoursesService.validateAndGetAcademicTerm(school);
+      createCourses = courses.map(({ subject, curriculum, enroll }) => <ICourse>{
+        _id: newCourseId(sectionId, subject, academicTerm.year),
+        schoolId, sectionId, curriculum, grade, subject, academicTerm,
+        defaultLocale: Object.keys(locales)[0] || 'en',
+        locales: { en: { name: subject, description: `${subject} course` } },
+        students: enroll ? students.map(s => <IUserCourseInfo>{ _id: s, isEnabled: true, joinDate }) : [],
+        teachers: [], isEnabled: true
+      });
     }
-    await this.validateWithSchoolLicense(grade, schoolId);
     return this._commandsProcessor.sendCommand(Service.sections, this.doCreate, <ISection>{
-      _id: section._id || newSectionId(schoolId, grade, locales),
+      _id: sectionId,
       locales, schoolId, grade,
       students: students || []
-    });
+    }, createCourses);
   }
 
-  private async doCreate(section: ISection) {
-    return this.sectionsRepo.add(section);
+  private async doCreate(section: ISection, courses?: ICourse[]) {
+    const result = await this.sectionsRepo.add(section);
+    if (courses) {
+      await this._commandsProcessor.sendManyCommandsAsync(Service.courses, <any>{ name: 'doCreate' }, courses.map(c => [c]));
+    }
+    return result;
   }
 
   async get(schoolId: string, sectionId: string, byUser: IUserToken) {
@@ -129,10 +149,14 @@ export class SectionsService {
     validateAllObjectsExist(dbStudents, studentIds, schoolId, Role.student);
   }
 
-  protected async validateWithSchoolLicense(grade: string, schoolId: string) {
-    const school: ISchool | undefined = await this.schoolsRepo.findById(schoolId);
-    if (!school || !school.license || !school.license.package || !(grade in school.license.package.grades)) {
-      throw new InvalidLicenseError(`'${schoolId}' school doesn't have a valid license for grade '${grade}'`);
+  protected async validateSectionInLicense(school: ISchool, grade: string, courses?: ICreateSectionCourse[]) {
+    if (!school.license || !school.license.package || !(grade in school.license.package.grades)) {
+      throw new InvalidLicenseError(`'${school._id}' school doesn't have a valid license for grade '${grade}'`);
+    }
+    if (courses) {
+      for (const course of courses) {
+        CoursesService.validateCourseInPackage(school.license.package, grade, course.subject, course.curriculum);
+      }
     }
   }
 }
