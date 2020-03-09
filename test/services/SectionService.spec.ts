@@ -53,12 +53,12 @@ describe('Sections Service', () => {
         await tryAndExpect(() => sectionsService.create(createSectionWithNoStudents, { ...token, role: [Role.student] }), UnauthorizedError);
     });
 
-    it('should fail to create section as there is no students', async () => {
+    it('should fail to create section if school not exist', async () => {
         repositoryReturns(Repo.schools, { findById: () => undefined });
-        await tryAndExpect(() => sectionsService.create(createSectionWithNoStudents, token), InvalidLicenseError);
+        await tryAndExpect(() => sectionsService.create(createSectionWithNoStudents, token), NotFoundError);
     });
 
-    it('should fail to create section with students', async () => {
+    it('should fail to create section with students if school not exist', async () => {
         repositoryReturns(Repo.schools, { findById: () => undefined });
         repositoryReturns(Repo.users, { findMany: () => [{ _id: 1 }] });
         await tryAndExpect(() => sectionsService.create(createSectionWithStudents, token), NotFoundError);
