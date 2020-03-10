@@ -102,14 +102,14 @@ export class SchoolsService {
   }
 
   async getUsers(filter: { schoolId: string, role: Role, status: 'all' | Status }, paging: IPaging, byUser: IUserToken) {
-    this.authorize(byUser);
+    this.authorize(byUser, filter.schoolId);
     const _filter: any = {
       role: filter.role
     };
     if (filter.status === 'all') {
       _filter.$or = [
-        { ['school._id']: filter.schoolId },
-        { ['registration.schoolId']: filter.schoolId },
+        { 'school._id': filter.schoolId },
+        { 'registration.schoolId': filter.schoolId },
       ];
     } else if (filter.status === Status.active) {
       _filter['school._id'] = filter.schoolId;
@@ -355,12 +355,14 @@ export class SchoolsService {
     return this.schoolsRepo.patch({ _id: schoolId }, { license: updateObj });
   }
 
-  protected authorize(byUser: IUserToken) {
-    if (!byUser) throw new ForbiddenError('access token is required!');
-    if (byUser.role.includes(config.authorizedRole)) return true;
-    throw new UnauthorizedError('you are not authorized to do this action');
-  }
   async doAddMany(schools: ISchool[]) {
     return this.schoolsRepo.addMany(schools, false);
+  }
+
+  protected authorize(byUser: IUserToken, schoolId?: string) {
+    if (!byUser) throw new ForbiddenError('access token is required!');
+    if (byUser.role.includes(config.authorizedRole)) return true;
+    if (byUser.role.includes(Role.principal) && byUser.schooluuid === schoolId) return true;
+    throw new UnauthorizedError('you are not authorized to do this action');
   }
 }
