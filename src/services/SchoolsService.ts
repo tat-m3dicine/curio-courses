@@ -2,7 +2,7 @@ import config from '../config';
 import validators from '../utils/validators';
 import { IUser, Status, IUserWithCourses } from '../models/entities/IUser';
 import { IUserToken } from '../models/IUserToken';
-import { IAcademicTerm } from '../models/entities/Common';
+import { IAcademicTerm, ILocales } from '../models/entities/Common';
 import { ILicenseRequest } from '../models/requests/ILicenseRequest';
 import { ISchool, ISchoolUserPermissions, ILicense } from '../models/entities/ISchool';
 import { ICreateSchoolRequest, IUpdateSchoolRequest, ICreateLicenseRequest, IDeleteAcademicTermRequest, IUpdateUserRequest, IUpdateAcademicTermRequest } from '../models/requests/ISchoolRequests';
@@ -25,7 +25,7 @@ import { Repo } from '../models/RepoNames';
 import { CommandsProcessor, KafkaService } from '@saal-oryx/event-sourcing';
 import { Events } from './processors/UpdatesProcessor';
 import { Service } from '../models/ServiceName';
-import { ICourse, IUserCourseInfo } from '../models/entities/ICourse';
+import { IUserCourseInfo, ICourseInfo } from '../models/entities/ICourse';
 
 const logger = loggerFactory.getLogger('SchoolsService');
 
@@ -36,6 +36,10 @@ export class SchoolsService {
 
   protected get schoolsRepo() {
     return this._uow.getRepository(Repo.schools) as SchoolsRepository;
+  }
+
+  protected get sectionsRepo() {
+    return this._uow.getRepository(Repo.sections) as SectionsRepository;
   }
 
   protected get coursesRepo() {
@@ -124,9 +128,11 @@ export class SchoolsService {
     if (filter.courses === 'true') {
       const usersWithCourses: { [id: string]: IUserWithCourses } = users.items.reduce((map, user) => ({ ...map, [user._id]: { ...user, courses: [] } }), {});
       const courses = await this.coursesRepo.getActiveCoursesForUsers(filter.role, Object.keys(usersWithCourses));
+      const sections = await this.sectionsRepo.findMany({ _id: { $in: courses.map(c => c.sectionId) } });
+      const sectionLocalesMap: { [id: string]: ILocales } = sections.reduce((map, section) => ({ ...map, [section._id]: section.locales }), {});
       for (const course of courses) {
         const { _id, grade, curriculum, subject, sectionId } = course;
-        const courseInfo: Partial<ICourse> = { _id, grade, curriculum, subject, sectionId };
+        const courseInfo: ICourseInfo = { _id, grade, curriculum, subject, section: { _id: sectionId, locales: sectionLocalesMap[sectionId] } };
         for (const user of course[`${filter.role}s`] as IUserCourseInfo[]) {
           const userWithCourses = usersWithCourses[user._id];
           if (userWithCourses) userWithCourses.courses.push(courseInfo);
