@@ -81,15 +81,15 @@ export class SchoolsController {
     ctx.type = 'json';
   }
   async getStudents(ctx: Context, next: () => void) {
-    const status: Status = ctx.query.status || 'all';
-    const result = await this.schoolService.getUsers({ schoolId: ctx.params.schoolId, role: Role.student, status }, this.extractPaging(ctx.request.query), ctx.user);
+    const { query: { status = 'all' }, params: { schoolId } } = ctx;
+    const result = await this.schoolService.getUsers({ schoolId, role: Role.student, status }, this.extractPaging(ctx.request.query), ctx.user);
     ctx.status = 200;
     ctx.body = result;
     ctx.type = 'json';
   }
   async getTeachers(ctx: Context, next: () => void) {
-    const status: Status = ctx.query.status;
-    const result = await this.schoolService.getUsers({ schoolId: ctx.params.schoolId, role: Role.teacher, status }, this.extractPaging(ctx.request.query), ctx.user);
+    const { query: { status = 'all' }, params: { schoolId } } = ctx;
+    const result = await this.schoolService.getUsers({ schoolId, role: Role.teacher, status }, this.extractPaging(ctx.request.query), ctx.user);
     ctx.status = 200;
     ctx.body = result;
     ctx.type = 'json';
