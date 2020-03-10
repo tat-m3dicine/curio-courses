@@ -1,12 +1,12 @@
 import config from '../config';
 import validators from '../utils/validators';
-import { IUser, Status } from '../models/entities/IUser';
+import { IUser, Status, IUserWithCourses } from '../models/entities/IUser';
 import { IUserToken } from '../models/IUserToken';
 import { IAcademicTerm } from '../models/entities/Common';
 import { ILicenseRequest } from '../models/requests/ILicenseRequest';
 import { ISchool, ISchoolUserPermissions, ILicense } from '../models/entities/ISchool';
 import { ICreateSchoolRequest, IUpdateSchoolRequest, ICreateLicenseRequest, IDeleteAcademicTermRequest, IUpdateUserRequest, IUpdateAcademicTermRequest } from '../models/requests/ISchoolRequests';
-import { IUnitOfWork, defaultPaging, IPaging } from '@saal-oryx/unit-of-work';
+import { IUnitOfWork, defaultPaging, IPaging, IPage } from '@saal-oryx/unit-of-work';
 import { SchoolsRepository } from '../repositories/SchoolsRepository';
 import { SectionsRepository } from '../repositories/SectionsRepository';
 import { CoursesRepository } from '../repositories/CoursesRepository';
@@ -25,6 +25,7 @@ import { Repo } from '../models/RepoNames';
 import { CommandsProcessor, KafkaService } from '@saal-oryx/event-sourcing';
 import { Events } from './processors/UpdatesProcessor';
 import { Service } from '../models/ServiceName';
+import { ICourse, IUserCourseInfo } from '../models/entities/ICourse';
 
 const logger = loggerFactory.getLogger('SchoolsService');
 
@@ -101,11 +102,9 @@ export class SchoolsService {
     return this._commandsProcessor.sendCommand(Service.schools, this.doUpdateUsers, schoolId, updateObjs.users);
   }
 
-  async getUsers(filter: { schoolId: string, role: Role, status: 'all' | Status }, paging: IPaging, byUser: IUserToken) {
+  async getUsers(filter: { schoolId: string, role: Role.student | Role.teacher, status: 'all' | Status, courses?: string }, paging: IPaging, byUser: IUserToken): Promise<IPage<IUser | IUserWithCourses>> {
     this.authorize(byUser, filter.schoolId);
-    const _filter: any = {
-      role: filter.role
-    };
+    const _filter: any = { role: filter.role };
     if (filter.status === 'all') {
       _filter.$or = [
         { 'school._id': filter.schoolId },
@@ -121,7 +120,21 @@ export class SchoolsService {
       _filter['registration.school._id'] = filter.schoolId;
     }
     logger.debug('getUsers filter:', _filter);
-    return this.usersRepo.findManyPage(_filter, paging);
+    const users = await this.usersRepo.findManyPage(_filter, paging);
+    if (filter.courses === 'true') {
+      const usersWithCourses: { [id: string]: IUserWithCourses } = users.items.reduce((map, user) => ({ ...map, [user._id]: { ...user, courses: [] } }), {});
+      const courses = await this.coursesRepo.getActiveCoursesForUsers(filter.role, Object.keys(usersWithCourses));
+      for (const course of courses) {
+        const { _id, grade, curriculum, subject, sectionId } = course;
+        const courseInfo: Partial<ICourse> = { _id, grade, curriculum, subject, sectionId };
+        for (const user of course[`${filter.role}s`] as IUserCourseInfo[]) {
+          const userWithCourses = usersWithCourses[user._id];
+          if (userWithCourses) userWithCourses.courses.push(courseInfo);
+        }
+      }
+      return { ...users, items: Object.values(usersWithCourses) };
+    }
+    return users;
   }
 
   async validateUsersInSchool(request: IRegistrationAction) {

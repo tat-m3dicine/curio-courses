@@ -1,4 +1,5 @@
 import { IProfile, IAuditable } from './Common';
+import { ICourse } from './ICourse';
 
 export interface IUser extends IAuditable {
   profile: IProfile;
@@ -12,6 +13,10 @@ export interface IUser extends IAuditable {
 
 export interface IUserWithRegistration extends IUser {
   registration: IRegistration;
+}
+
+export interface IUserWithCourses extends IUser {
+  courses: Partial<ICourse>[];
 }
 
 export interface IRegistration {
