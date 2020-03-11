@@ -11,7 +11,6 @@ import { SectionsService } from '../../src/services/SectionsService';
 import { getTestData, Test } from '../mockData/getSectionsTestData';
 import { IUserToken } from '../../src/models/IUserToken';
 import { ICreateSectionRequest } from '../../src/models/requests/ISectionRequests';
-import { InvalidLicenseError } from '../../src/exceptions/InvalidLicenseError';
 import { NotFoundError } from '../../src/exceptions/NotFoundError';
 import { ISchool } from '../../src/models/entities/ISchool';
 import { IUser } from '../../src/models/entities/IUser';
@@ -31,6 +30,8 @@ const createSectionWithStudents: ICreateSectionRequest = getTestData(Test.create
 const unitOfWorkStub = sinon.spy(() => sinon.createStubInstance(UnitOfWork));
 const updatesProcessorStub = sinon.spy(() => sinon.createStubInstance(UpdatesProcessor));
 const commandsProcessorStub = sinon.spy(() => sinon.createStubInstance(CommandsProcessor));
+
+
 describe('Sections Service', () => {
     let _unitOfWorkStub: any;
     let _updatesProcessorStub: any;
@@ -41,7 +42,7 @@ describe('Sections Service', () => {
         _unitOfWorkStub = new unitOfWorkStub();
         _updatesProcessorStub = new updatesProcessorStub();
         _commandsProcessorStub = new commandsProcessorStub();
-        _sectionsService = new SectionsService(_unitOfWorkStub, _commandsProcessorStub);
+        _sectionsService = new SectionsService(_unitOfWorkStub, _commandsProcessorStub, updatesProcessorStub);
         _commandsProcessorStub.sendCommand = (service, method, ...args) => _sectionsService[method.name](...args);
     });
 
