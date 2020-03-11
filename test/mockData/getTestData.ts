@@ -64,7 +64,8 @@ const dataMap = {
     },
     enrollment: {
       sectionId: '4_section1_aldar_ba526',
-      type: 'auto'
+      type: 'auto',
+      courses: ['1', '2']
     }
   },
   [Test.school]: {

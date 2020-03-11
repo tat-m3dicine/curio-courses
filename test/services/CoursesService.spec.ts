@@ -47,7 +47,8 @@ const request: ICreateCourseRequest = {
   curriculum: 'moe',
   grade: '4',
   students: [],
-  teachers: []
+  teachers: [],
+  isEnabled: true
 };
 
 // tslint:disable-next-line: no-big-function
@@ -257,7 +258,7 @@ describe('Courses Service', () => {
       repositoryReturns(Repo.courses, { getActiveCoursesForUser: () => [{ ...course, students: [user], teachers: [user] }] });
       repositoryReturns(Repo.sections, { findMany: () => [{}] });
       repositoryReturns(Repo.users, { findMany: () => [{ role: Role.student }, { role: Role.teacher }] });
-      repositoryReturns(Repo.inviteCodes, { findForCourses: () => [] });
+      repositoryReturns(Repo.inviteCodes, { findForCourses: () => [{ id: 'id', courses: '' }] });
       const result = await coursesService.getActiveCourses('teacher1', Role.teacher);
       expect(result.courses).to.have.lengthOf(1);
       expect(result.students).to.have.lengthOf(1);

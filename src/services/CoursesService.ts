@@ -341,8 +341,7 @@ export class CoursesService {
     const now = new Date();
     // TODO: change this to transaction commands by sending all commands in one go to kafka
     if (byUser.schooluuid === config.guestSchoolId) {
-      const doSwitch = async () => { return; }; // stub
-      await this._commandsProcessor.sendCommand(Service.schools, doSwitch, <ISwitchRegistrationAction>{
+      await this._commandsProcessor.sendCommand(Service.schools, <any>{ name: 'doSwitch' }, <ISwitchRegistrationAction>{
         role: Role.student,
         action: RegistrationAction.switch,
         fromSchoolId: config.guestSchoolId,

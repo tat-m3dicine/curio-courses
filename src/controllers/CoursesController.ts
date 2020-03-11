@@ -16,7 +16,7 @@ export class CoursesController {
   constructor(protected coursesService: CoursesService) {
   }
 
-  async create(ctx: Context, next: () => void) {
+  async create(ctx: Context) {
     const { schoolId, sectionId } = ctx.params;
     const createObject = { ...ctx.request.body, schoolId, sectionId };
     const result = await this.coursesService.create(createObject, ctx.user);
@@ -25,7 +25,7 @@ export class CoursesController {
     ctx.type = 'json';
   }
 
-  async listWithSections(ctx: Context, next: () => void) {
+  async listWithSections(ctx: Context) {
     const { schoolId } = ctx.params;
     const result = await this.coursesService.listWithSections(schoolId, ctx.user);
     ctx.status = 200;
@@ -33,7 +33,7 @@ export class CoursesController {
     ctx.type = 'json';
   }
 
-  async list(ctx: Context, next: () => void) {
+  async list(ctx: Context) {
     const { schoolId, sectionId } = ctx.params;
     const result = await this.coursesService.list(schoolId, sectionId, this.extractPaging(ctx.query), ctx.user);
     ctx.status = 200;
@@ -41,7 +41,7 @@ export class CoursesController {
     ctx.type = 'json';
   }
 
-  async get(ctx: Context, next: () => void) {
+  async get(ctx: Context) {
     const { schoolId, sectionId, courseId } = ctx.params;
     const result = await this.coursesService.get(schoolId, sectionId, courseId, ctx.user);
     if (!result) throw new NotFoundError(`Couldn't find course '${courseId}' in section '${sectionId}'`);
@@ -50,7 +50,7 @@ export class CoursesController {
     ctx.type = 'json';
   }
 
-  async getById(ctx: Context, next: () => void) {
+  async getById(ctx: Context) {
     const { schoolId, courseId } = ctx.params;
     const { profiles } = ctx.query;
     const result = await this.coursesService.getById(schoolId, courseId, profiles, ctx.user);
@@ -60,14 +60,14 @@ export class CoursesController {
     ctx.type = 'json';
   }
 
-  async join(ctx: Context, next: () => void) {
+  async join(ctx: Context) {
     const result = await this.coursesService.join(ctx.params.codeId, ctx.user);
     ctx.status = 200;
     ctx.body = result;
     ctx.type = 'json';
   }
 
-  async update(ctx: Context, next: () => void) {
+  async update(ctx: Context) {
     const { schoolId, sectionId, courseId } = ctx.params;
     const result = await this.coursesService.update(schoolId, sectionId, courseId, ctx.request.body, ctx.user);
     ctx.status = result.done ? 201 : 202;
@@ -75,7 +75,7 @@ export class CoursesController {
     ctx.type = 'json';
   }
 
-  async delete(ctx: Context, next: () => void) {
+  async delete(ctx: Context) {
     const { schoolId, sectionId, courseId } = ctx.params;
     await this.coursesService.delete(schoolId, sectionId, courseId, ctx.user);
     ctx.status = 200;
@@ -83,7 +83,7 @@ export class CoursesController {
     ctx.type = 'json';
   }
 
-  async enrollStudent(ctx: Context, next: () => void) {
+  async enrollStudent(ctx: Context) {
     const { schoolId, sectionId, courseId, userId } = ctx.params;
     const requestParams = { schoolId, sectionId, courseId, usersIds: [userId], role: Role.student };
     const result = await this.coursesService.enrollStudents(requestParams, ctx.user);
@@ -92,7 +92,7 @@ export class CoursesController {
     ctx.type = 'json';
   }
 
-  async enrollStudents(ctx: Context, next: () => void) {
+  async enrollStudents(ctx: Context) {
     validators.validateStudentsList(ctx.request.body);
     const { schoolId, sectionId, courseId } = ctx.params;
     const requestParams = { schoolId, sectionId, courseId, usersIds: ctx.request.body.students, role: Role.student };
@@ -102,7 +102,7 @@ export class CoursesController {
     ctx.type = 'json';
   }
 
-  async dropStudent(ctx: Context, next: () => void) {
+  async dropStudent(ctx: Context) {
     const { schoolId, sectionId, courseId, userId } = ctx.params;
     const requestParams = { schoolId, sectionId, courseId, usersIds: [userId], role: Role.student };
     const result = await this.coursesService.dropStudents(requestParams, ctx.user);
@@ -111,7 +111,7 @@ export class CoursesController {
     ctx.type = 'json';
   }
 
-  async dropStudents(ctx: Context, next: () => void) {
+  async dropStudents(ctx: Context) {
     validators.validateStudentsList(ctx.request.body);
     const { schoolId, sectionId, courseId } = ctx.params;
     const requestParams = { schoolId, sectionId, courseId, usersIds: ctx.request.body.students, role: Role.student };
@@ -121,7 +121,7 @@ export class CoursesController {
     ctx.type = 'json';
   }
 
-  async enrollTeacher(ctx: Context, next: () => void) {
+  async enrollTeacher(ctx: Context) {
     const { schoolId, sectionId, courseId, userId } = ctx.params;
     const requestParams = { schoolId, sectionId, courseId, usersIds: [userId], role: Role.teacher };
     const result = await this.coursesService.enrollTeachers(requestParams, ctx.user);
@@ -130,7 +130,7 @@ export class CoursesController {
     ctx.type = 'json';
   }
 
-  async enrollTeachers(ctx: Context, next: () => void) {
+  async enrollTeachers(ctx: Context) {
     validators.validateTeachersList(ctx.request.body);
     const { schoolId, sectionId, courseId } = ctx.params;
     const requestParams = { schoolId, sectionId, courseId, usersIds: ctx.request.body.teachers, role: Role.teacher };
@@ -140,7 +140,7 @@ export class CoursesController {
     ctx.type = 'json';
   }
 
-  async dropTeacher(ctx: Context, next: () => void) {
+  async dropTeacher(ctx: Context) {
     const { schoolId, sectionId, courseId, userId } = ctx.params;
     const requestParams = { schoolId, sectionId, courseId, usersIds: [userId], role: Role.teacher };
     const result = await this.coursesService.dropTeachers(requestParams, ctx.user);
@@ -149,7 +149,7 @@ export class CoursesController {
     ctx.type = 'json';
   }
 
-  async dropTeachers(ctx: Context, next: () => void) {
+  async dropTeachers(ctx: Context) {
     validators.validateTeachersList(ctx.request.body);
     const { schoolId, sectionId, courseId } = ctx.params;
     const requestParams = { schoolId, sectionId, courseId, usersIds: ctx.request.body.teachers, role: Role.teacher };
@@ -159,7 +159,7 @@ export class CoursesController {
     ctx.type = 'json';
   }
 
-  async enrollStudentsInCourses(ctx: Context, next: () => void) {
+  async enrollStudentsInCourses(ctx: Context) {
     validators.validateStudentsObjects(ctx.request.body);
     const { schoolId, sectionId } = ctx.params;
     const requestParamsArray = this.getParamsArray(ctx.request.body.students, schoolId, sectionId, Role.student);
@@ -169,7 +169,7 @@ export class CoursesController {
     ctx.type = 'json';
   }
 
-  async dropStudentsInCourses(ctx: Context, next: () => void) {
+  async dropStudentsInCourses(ctx: Context) {
     validators.validateStudentsObjects(ctx.request.body);
     const { schoolId, sectionId } = ctx.params;
     const requestParamsArray = this.getParamsArray(ctx.request.body.students, schoolId, sectionId, Role.student);
@@ -179,7 +179,7 @@ export class CoursesController {
     ctx.type = 'json';
   }
 
-  async switchStudentsCourses(ctx: Context, next: () => void) {
+  async switchStudentsCourses(ctx: Context) {
     validators.validateStudentsSwitch(ctx.request.body);
     const { schoolId, sectionId } = ctx.params;
     const [enrollStudents, dropStudents] = this.separateEnrollAndDrop(ctx.request.body.students);
@@ -194,7 +194,7 @@ export class CoursesController {
     ctx.type = 'json';
   }
 
-  async enrollTeachersInCourses(ctx: Context, next: () => void) {
+  async enrollTeachersInCourses(ctx: Context) {
     validators.validateTeachersObjects(ctx.request.body);
     const { schoolId, sectionId } = ctx.params;
     const requestParamsArray = this.getParamsArray(ctx.request.body.teachers, schoolId, sectionId, Role.teacher);
@@ -204,7 +204,7 @@ export class CoursesController {
     ctx.type = 'json';
   }
 
-  async dropTeachersInCourses(ctx: Context, next: () => void) {
+  async dropTeachersInCourses(ctx: Context) {
     validators.validateTeachersObjects(ctx.request.body);
     const { schoolId, sectionId } = ctx.params;
     const requestParamsArray = this.getParamsArray(ctx.request.body.teachers, schoolId, sectionId, Role.teacher);
@@ -214,7 +214,7 @@ export class CoursesController {
     ctx.type = 'json';
   }
 
-  async switchTeachersCourses(ctx: Context, next: () => void) {
+  async switchTeachersCourses(ctx: Context) {
     validators.validateTeachersSwitch(ctx.request.body);
     const { schoolId, sectionId } = ctx.params;
     const [enrollTeachers, dropTeachers] = this.separateEnrollAndDrop(ctx.request.body.teachers);
@@ -229,7 +229,7 @@ export class CoursesController {
     ctx.type = 'json';
   }
 
-  async enableStudent(ctx: Context, next: () => void) {
+  async enableStudent(ctx: Context) {
     const { schoolId, sectionId, courseId, userId } = ctx.params;
     const requestParams = { schoolId, sectionId, courseId, usersIds: [userId], role: Role.student };
     const result = await this.coursesService.enableStudent(requestParams, ctx.user);
@@ -238,7 +238,7 @@ export class CoursesController {
     ctx.type = 'json';
   }
 
-  async disableStudent(ctx: Context, next: () => void) {
+  async disableStudent(ctx: Context) {
     const { schoolId, sectionId, courseId, userId } = ctx.params;
     const requestParams = { schoolId, sectionId, courseId, usersIds: [userId], role: Role.student };
     const result = await this.coursesService.disableStudent(requestParams, ctx.user);
@@ -247,7 +247,7 @@ export class CoursesController {
     ctx.type = 'json';
   }
 
-  async getActiveCourses(ctx: Context, next: () => void) {
+  async getActiveCourses(ctx: Context) {
     const { sub, role } = ctx.user;
     const result = await this.coursesService.getActiveCourses(sub, this.getUserType(role));
     ctx.status = 200;
@@ -255,7 +255,7 @@ export class CoursesController {
     ctx.type = 'json';
   }
 
-  async repairUsers(ctx: Context, next: () => void) {
+  async repairUsers(ctx: Context) {
     const { role } = ctx.params;
     const { userIds } = ctx.request.body;
     await this.coursesService.repairUsers(role, userIds, ctx.user);
@@ -263,6 +263,7 @@ export class CoursesController {
     ctx.body = { ok: true };
     ctx.type = 'json';
   }
+
   protected transformUsersToCourses(query: { _id: string, courses: string[] }[]): { [courseId: string]: string[] } {
     const courses = {};
     for (const student of query) {
@@ -277,9 +278,9 @@ export class CoursesController {
     return courses;
   }
 
-  protected getUserType(role: string | string[] | undefined) {
-    let userType: Role | undefined;
+  protected getUserType(role: string | string[]) {
     if (!role) return undefined;
+    let userType: Role | undefined;
     if (role.includes('teacher')) {
       userType = Role.teacher;
     } else if (role.includes('student')) {
@@ -291,7 +292,7 @@ export class CoursesController {
   protected getParamsArray(query: any, schoolId: string, sectionId: string, role: Role): IUserRequest[] {
     const courses = Object.entries(this.transformUsersToCourses(query));
     if (courses.length > 100) {
-      throw new InvalidRequestError('Exeeded allowed courses limit in request!');
+      throw new InvalidRequestError('Exceeded allowed courses limit in request!');
     }
     return courses.map(([courseId, usersIds]) => ({ schoolId, sectionId, courseId, usersIds, role }));
   }

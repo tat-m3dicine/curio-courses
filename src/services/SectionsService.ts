@@ -22,6 +22,7 @@ import { Service } from '../models/ServiceName';
 import { CoursesService } from './CoursesService';
 import { ICourse, IUserCourseInfo } from '../models/entities/ICourse';
 import { ISchool } from '../models/entities/ISchool';
+import validators from '../utils/validators';
 
 export class SectionsService {
 
@@ -42,6 +43,7 @@ export class SectionsService {
 
   async create(section: ICreateSectionRequest, byUser: IUserToken) {
     this.authorize(byUser);
+    validators.validateCreateSection(section);
     const { schoolId, locales, grade, students = [], courses } = section;
     const school = await this.schoolsRepo.findById(schoolId);
     if (!school) throw new NotFoundError(`'${schoolId}' school was not found!`);
@@ -100,7 +102,7 @@ export class SectionsService {
   async getStudents(schoolId: string, sectionId: string, byUser: IUserToken) {
     this.authorize(byUser, schoolId);
     const section = await this.sectionsRepo.findOne({ _id: sectionId, schoolId });
-    return section ? section.students : undefined;
+    return section && section.students;
   }
 
   async registerStudents(schoolId: string, sectionId: string, studentIds: string[], byUser: IUserToken) {
@@ -108,8 +110,6 @@ export class SectionsService {
     if (!studentIds || studentIds.length === 0) throw new InvalidRequestError('No students were provided!');
     const section: ISection | undefined = await this.sectionsRepo.findOne({ _id: sectionId, schoolId });
     if (!section) throw new NotFoundError(`Couldn't find section '${sectionId}' in school '${schoolId}'`);
-
-    // studentIds = studentIds.filter(studentId => !section.students.includes(studentId));
     const studentsDifference = section.students.filter(studentId => !studentIds.includes(studentId));
     if (studentsDifference.length === 0) throw new InvalidRequestError(`All students are already registered in section ${sectionId}`);
     await this.validateStudentsInSchool(studentIds, schoolId);

@@ -14,15 +14,20 @@ import { Role } from '../../src/models/Role';
 import { UnauthorizedError } from '../../src/exceptions/UnauthorizedError';
 import { NotFoundError } from '../../src/exceptions/NotFoundError';
 import { ICreateInviteCodeRequest } from '../../src/models/requests/IInviteCodeRequests';
-import { EnrollmentType } from '../../src/models/entities/IInviteCode';
+import { EnrollmentType, IInviteCode } from '../../src/models/entities/IInviteCode';
 import { InvalidRequestError } from '../../src/exceptions/InvalidRequestError';
 import { getTestData, Test } from '../mockdata/getTestData';
 import { InvalidLicenseError } from '../../src/exceptions/InvalidLicenseError';
-import { SignupMethods } from '../../src/models/entities/ISchool';
+import { SignupMethods, ISchool } from '../../src/models/entities/ISchool';
 import { CommandsProcessor } from '@saal-oryx/event-sourcing';
 
 const unitOfWorkStub = sinon.spy(() => sinon.createStubInstance(UnitOfWork));
 const commandsProcessorStub = sinon.spy(() => sinon.createStubInstance(CommandsProcessor));
+
+const clone = (object: any) => JSON.parse(JSON.stringify(object));
+const inviteCodeMockData: IInviteCode = clone(getTestData(Test.inviteCode));
+const schoolMockData: ISchool = clone(getTestData(Test.school));
+
 
 const token = <IUserToken>{ role: [config.authorizedRole] };
 const request: ICreateInviteCodeRequest = {
@@ -91,9 +96,18 @@ describe('Invite Codes Service', () => {
     await tryAndExpect(() => inviteCodesService.create(request, token), InvalidLicenseError);
   });
 
-  it('should succeed to create an invite code with "auto" enrollment type', async () => {
+  it(`should fail to create an invite code if the enrollment type is 'auto'`, async () => {
     const school = getTestData(Test.school);
     repositoryReturns(Repo.schools, { findById: () => school });
+    repositoryReturns(Repo.sections, { findOne: () => ({}) });
+    repositoryReturns(Repo.inviteCodes, { add: () => true });
+    await tryAndExpect(async () => inviteCodesService.create(request, token), InvalidLicenseError);
+
+  });
+
+  it(`should succeed to create an invite code with 'invite code' enrollment type`, async () => {
+    schoolMockData.license!.package!.signupMethods = [SignupMethods.inviteCodes];
+    repositoryReturns(Repo.schools, { findById: () => schoolMockData });
     repositoryReturns(Repo.sections, { findOne: () => ({}) });
     repositoryReturns(Repo.inviteCodes, { add: () => true });
     const result = await inviteCodesService.create(request, token);
@@ -130,4 +144,50 @@ describe('Invite Codes Service', () => {
     const result = await inviteCodesService.delete('school1', 'code1', token);
     expect(result).equal(true);
   });
+
+  it(`should fail to return all info of the invite code because token is missing/invalid`, async () => {
+    await tryAndExpect(async () => inviteCodesService.getWithAllInfo('codeid', <any>undefined), ForbiddenError);
+  });
+
+  it(`should fail to return all info of the invite code (Not found)`, async () => {
+    repositoryReturns(Repo.inviteCodes, { getValidCode: () => undefined });
+    await tryAndExpect(async () => inviteCodesService.getWithAllInfo('codeid', token), NotFoundError);
+  });
+
+  it(`should fail to return all info of the invite code because invite code is out of quota`, async () => {
+    repositoryReturns(Repo.inviteCodes, { getValidCode: () => ({ ...inviteCodeMockData, quota: { consumed: 15, max: 10 } }) });
+    await tryAndExpect(async () => inviteCodesService.getWithAllInfo('codeid', token), InvalidRequestError);
+  });
+
+  it(`should fail to return all info of the invite code because school/section doesn't exist`, async () => {
+    repositoryReturns(Repo.inviteCodes, { getValidCode: () => inviteCodeMockData });
+    repositoryReturns(Repo.schools, { findById: () => ({}) });
+    repositoryReturns(Repo.sections, { findById: () => undefined });
+    await tryAndExpect(async () => inviteCodesService.getWithAllInfo('codeid', token), NotFoundError);
+  });
+
+  it(`should succeed in returning all info of the invite code`, async () => {
+    repositoryReturns(Repo.inviteCodes, { getValidCode: () => ({ ...inviteCodeMockData, enrollment: { ...inviteCodeMockData.enrollment, type: EnrollmentType.courses } }) });
+    repositoryReturns(Repo.schools, { findById: () => schoolMockData });
+    repositoryReturns(Repo.sections, { findById: () => ({ section: '1' }) });
+    const courses = ['course1'];
+    repositoryReturns(Repo.courses, { findMany: () => courses });
+    const result = await inviteCodesService.getWithAllInfo('codeid', token);
+    expect(result.courses).to.deep.equal(courses);
+  });
+
+  it(`should fail to list invite codes because token is missing/invalid`, async () => {
+    await tryAndExpect(async () => inviteCodesService.list({ schoolId: 'schoolId' }, <any>{}, <any>undefined), ForbiddenError);
+  });
+
+  it(`should succeed in lisitng invite codes (as principal)`, async () => {
+    const schoolId = 'schoolId';
+    const modifiedToken = <IUserToken>{ role: [Role.principal], schooluuid: schoolId };
+    let called = false;
+    repositoryReturns(Repo.inviteCodes, { findManyPage: () => { called = true; } });
+    await inviteCodesService.list({ schoolId: 'schoolId' }, <any>{}, modifiedToken);
+    expect(called).equal(true);
+  });
+
+
 });

@@ -11,7 +11,6 @@ import { SectionsService } from '../../src/services/SectionsService';
 import { getTestData, Test } from '../mockData/getSectionsTestData';
 import { IUserToken } from '../../src/models/IUserToken';
 import { ICreateSectionRequest } from '../../src/models/requests/ISectionRequests';
-import { InvalidLicenseError } from '../../src/exceptions/InvalidLicenseError';
 import { NotFoundError } from '../../src/exceptions/NotFoundError';
 import { ISchool } from '../../src/models/entities/ISchool';
 import { IUser } from '../../src/models/entities/IUser';
@@ -23,8 +22,21 @@ import { ForbiddenError } from '../../src/exceptions/ForbiddenError';
 import { InvalidRequestError } from '../../src/exceptions/InvalidRequestError';
 import { Role } from '../../src/models/Role';
 import { UnauthorizedError } from '../../src/exceptions/UnauthorizedError';
+import { InvalidLicenseError } from '../../src/exceptions/InvalidLicenseError';
 
+const createSectionRequest: ICreateSectionRequest = {
+    grade: '5',
+    locales: {
+        en: {
+            name: 'english',
+            description: 'english'
+        }
+    },
+    schoolId: 'schoolId',
 
+}
+
+const clone = (object: any) => JSON.parse(JSON.stringify(object));
 const token = <IUserToken>{ role: [config.authorizedRole] };
 const usersResponse: IUser[] = getTestData(Test.usersResponse, {}, false);
 const sectionResponse: any = getTestData(Test.sectionResponse, {}, false);
@@ -64,16 +76,29 @@ describe('Sections Service', () => {
         await tryAndExpect(() => sectionsService.create(createSectionWithStudents, token), NotFoundError);
     });
 
+    it(`should fail to create a section because the license is invalid`, async () => {
+        repositoryReturns(Repo.schools, { findById: () => getTestData(Test.schoolResponse) });
+        await tryAndExpect(async () => sectionsService.create(createSectionRequest, token), InvalidLicenseError);
+    });
+
+    // it(`should fail to create a section because students' failed validation`, async () => {
+    //     const request: ICreateSectionRequest = clone(createSectionRequest);
+    //     request.grade = '4';
+    //     request.courses = [{ subject: 'subject', curriculum: 'curr' }];
+    //     request.students = ['student']
+    //     repositoryReturns(Repo.schools, { findById: () => getTestData(Test.schoolResponse) });
+    //     await tryAndExpect(async () => sectionsService.create(request, token), InvalidLicenseError);
+    // });
+
     it('should create section with success response', async () => {
         repositoryReturns(Repo.schools, { findById: () => schoolResponse });
         repositoryReturns(Repo.users, { findMany: () => usersResponse });
         repositoryReturns(Repo.sections, { add: () => sectionResponse });
-        const modifiedSection = JSON.parse(JSON.stringify(createSectionWithStudents));
-        delete modifiedSection.students; // TODO: check if section needs to have students on create
+        const modifiedSection = clone(createSectionWithStudents);
+        delete modifiedSection.students; // doesn't need to have students
         const result = await sectionsService.create(modifiedSection, token);
         expect(result).equal(sectionResponse);
     });
-
 
     it('should get section info with success response', async () => {
         repositoryReturns(Repo.sections, { findOne: () => sectionResponse });
@@ -164,9 +189,9 @@ describe('Sections Service', () => {
     it(`should succeed in removing students`, async () => {
         repositoryReturns(Repo.sections, { findOne: () => ({ students: ['abu sameer', 'abu abdo'] }), removeStudents: () => { } });
         repositoryReturns(Repo.courses, { finishUsersInCourses: () => { } });
-        let change = false;
-        _unitOfWorkStub.commit = () => { change = true; };
+        let called = false;
+        _unitOfWorkStub.commit = () => { called = true; };
         await sectionsService.removeStudents('schoolId', 'sectionId', <string[]>['abu sameer'], token);
-        expect(change).equal(true);
+        expect(called).equal(true);
     });
 });

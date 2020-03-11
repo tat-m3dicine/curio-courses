@@ -13,7 +13,7 @@ export class InviteCodesController {
   constructor(protected inviteCodesService: InviteCodesService) {
   }
 
-  async create(ctx: Context, next: () => void) {
+  async create(ctx: Context) {
     const { validity = {}, ...body } = ctx.request.body;
     const createObject = {
       ...body, schoolId: ctx.params.schoolId, validity: {
@@ -27,7 +27,7 @@ export class InviteCodesController {
     ctx.type = 'json';
   }
 
-  async list(ctx: Context, next: () => void) {
+  async list(ctx: Context) {
     const { schoolId } = ctx.params;
     const { type } = ctx.query;
     const result = await this.inviteCodesService.list({ schoolId, type }, this.extractPaging(ctx.query), ctx.user);
@@ -36,7 +36,7 @@ export class InviteCodesController {
     ctx.type = 'json';
   }
 
-  async getForSchool(ctx: Context, next: () => void) {
+  async getForSchool(ctx: Context) {
     const { schoolId, codeId } = ctx.params;
     const result = await this.inviteCodesService.getForSchool(schoolId, codeId, ctx.user);
     if (!result) throw new NotFoundError(`Couldn't find invite code '${codeId}' in school '${schoolId}'`);
@@ -45,7 +45,7 @@ export class InviteCodesController {
     ctx.type = 'json';
   }
 
-  async get(ctx: Context, next: () => void) {
+  async get(ctx: Context) {
     const { codeId } = ctx.params;
     const result = await this.inviteCodesService.getWithAllInfo(codeId, ctx.user);
     ctx.status = 200;
@@ -53,7 +53,7 @@ export class InviteCodesController {
     ctx.type = 'json';
   }
 
-  async delete(ctx: Context, next: () => void) {
+  async delete(ctx: Context) {
     const { schoolId, codeId } = ctx.params;
     const result = await this.inviteCodesService.delete(schoolId, codeId, ctx.user);
     ctx.status = result.done ? 200 : 202;
