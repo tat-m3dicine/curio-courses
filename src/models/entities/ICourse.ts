@@ -20,3 +20,14 @@ export interface IUserCourseInfo {
   finishDate?: Date;
   isEnabled: boolean;
 }
+
+export interface ICourseInfo {
+  _id: string;
+  grade: string;
+  curriculum: string;
+  subject: string;
+  section: {
+    _id: string;
+    locales: ILocales;
+  };
+}
