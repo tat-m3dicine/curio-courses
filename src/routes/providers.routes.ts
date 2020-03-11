@@ -7,25 +7,25 @@ import { CommandsProcessor } from '@saal-oryx/event-sourcing';
 export default (commandsProccessor: CommandsProcessor) => {
   const providerRoutes = new KoaRoute();
   providerRoutes
-    .post('/', (ctx: Koa.Context, next: () => void) => {
+    .post('/', (ctx: Koa.Context) => {
       const controller = new ProvidersController(new ProvidersService(ctx.uow, commandsProccessor));
-      return controller.create(ctx, next);
+      return controller.create(ctx);
     })
-    .post('/:providerId/academics', (ctx: Koa.Context, next: () => void) => {
+    .post('/:providerId/academics', (ctx: Koa.Context) => {
       const controller = new ProvidersController(new ProvidersService(ctx.uow, commandsProccessor));
-      return controller.updateAcademics(ctx, next);
+      return controller.updateAcademics(ctx);
     })
-    .delete('/:providerId/academics/:academicTermId', (ctx: Koa.Context, next: () => void) => {
+    .delete('/:providerId/academics/:academicTermId', (ctx: Koa.Context) => {
       const controller = new ProvidersController(new ProvidersService(ctx.uow, commandsProccessor));
-      return controller.deleteAcademicProviders(ctx, next);
+      return controller.deleteAcademicProviders(ctx);
     })
-    .delete('/:providerId', (ctx: Koa.Context, next: () => void) => {
+    .delete('/:providerId', (ctx: Koa.Context) => {
       const controller = new ProvidersController(new ProvidersService(ctx.uow, commandsProccessor));
-      return controller.deleteProvider(ctx, next);
+      return controller.deleteProvider(ctx);
     })
-    .get('/:providerId', (ctx: Koa.Context, next: () => void) => {
+    .get('/:providerId', (ctx: Koa.Context) => {
       const controller = new ProvidersController(new ProvidersService(ctx.uow, commandsProccessor));
-      return controller.get(ctx, next);
+      return controller.get(ctx);
     });
   return providerRoutes;
 };

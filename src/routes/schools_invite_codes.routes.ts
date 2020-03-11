@@ -10,21 +10,21 @@ export default (commandsProccessor: CommandsProcessor) => {
   const schoolsInviteCodesRoutes = new KoaRoute();
 
   schoolsInviteCodesRoutes
-    .get('/:schoolId/invite_codes', (ctx: Koa.Context, next: () => void) => {
+    .get('/:schoolId/invite_codes', (ctx: Koa.Context) => {
       const controller = new InviteCodesController(new InviteCodesService(ctx.uow, commandsProccessor));
-      return controller.list(ctx, next);
+      return controller.list(ctx);
     })
-    .post('/:schoolId/invite_codes', (ctx: Koa.Context, next: () => void) => {
+    .post('/:schoolId/invite_codes', (ctx: Koa.Context) => {
       const controller = new InviteCodesController(new InviteCodesService(ctx.uow, commandsProccessor));
-      return controller.create(ctx, next);
+      return controller.create(ctx);
     })
-    .get('/:schoolId/invite_codes/:codeId', (ctx: Koa.Context, next: () => void) => {
+    .get('/:schoolId/invite_codes/:codeId', (ctx: Koa.Context) => {
       const controller = new InviteCodesController(new InviteCodesService(ctx.uow, commandsProccessor));
-      return controller.getForSchool(ctx, next);
+      return controller.getForSchool(ctx);
     })
-    .delete('/:schoolId/invite_codes/:codeId', (ctx: Koa.Context, next: () => void) => {
+    .delete('/:schoolId/invite_codes/:codeId', (ctx: Koa.Context) => {
       const controller = new InviteCodesController(new InviteCodesService(ctx.uow, commandsProccessor));
-      return controller.delete(ctx, next);
+      return controller.delete(ctx);
     });
   return schoolsInviteCodesRoutes;
 };

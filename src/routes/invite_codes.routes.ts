@@ -13,13 +13,13 @@ export default (commandsProccessor: CommandsProcessor, updatesProcessor: Updates
   const inviteCodesRoutes = new KoaRoute();
 
   inviteCodesRoutes
-    .get('/:codeId', (ctx: Koa.Context, next: () => void) => {
+    .get('/:codeId', (ctx: Koa.Context) => {
       const controller = new InviteCodesController(new InviteCodesService(ctx.uow, commandsProccessor));
-      return controller.get(ctx, next);
+      return controller.get(ctx);
     })
-    .post('/:codeId/join', (ctx: Koa.Context, next: () => void) => {
+    .post('/:codeId/join', (ctx: Koa.Context) => {
       const controller = new CoursesController(new CoursesService(ctx.uow, commandsProccessor, updatesProcessor));
-      return controller.join(ctx, next);
+      return controller.join(ctx);
     });
   return inviteCodesRoutes;
 };

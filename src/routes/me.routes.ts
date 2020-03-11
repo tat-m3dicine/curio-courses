@@ -12,20 +12,20 @@ export default (commandsProccessor: CommandsProcessor, updatesProcessor: Updates
   const meRoutes = new KoaRoute();
 
   meRoutes
-    .get('/courses', (ctx: Koa.Context, next: () => void) => {
+    .get('/courses', (ctx: Koa.Context) => {
       if (!ctx.user) throw new UnauthorizedError();
       const controller = new CoursesController(new CoursesService(ctx.uow, commandsProccessor, updatesProcessor));
-      return controller.getActiveCourses(ctx, next);
+      return controller.getActiveCourses(ctx);
     })
-    .post('/students/repair', (ctx: Koa.Context, next: () => void) => {
+    .post('/students/repair', (ctx: Koa.Context) => {
       const controller = new CoursesController(new CoursesService(ctx.uow, commandsProccessor, updatesProcessor));
       ctx.params.role = Role.student;
-      return controller.repairUsers(ctx, next);
+      return controller.repairUsers(ctx);
     })
-    .post('/teachers/repair', (ctx: Koa.Context, next: () => void) => {
+    .post('/teachers/repair', (ctx: Koa.Context) => {
       const controller = new CoursesController(new CoursesService(ctx.uow, commandsProccessor, updatesProcessor));
       ctx.params.role = Role.teacher;
-      return controller.repairUsers(ctx, next);
+      return controller.repairUsers(ctx);
     });
   return meRoutes;
 };

@@ -10,33 +10,33 @@ export default (commandsProccessor: CommandsProcessor) => {
   const sectionsRoutes = new KoaRoute();
 
   sectionsRoutes
-    .post('/:schoolId/sections', (ctx: Koa.Context, next: () => void) => {
+    .post('/:schoolId/sections', (ctx: Koa.Context) => {
       const controller = new SectionsController(new SectionsService(ctx.uow, commandsProccessor));
-      return controller.create(ctx, next);
+      return controller.create(ctx);
     })
-    .get('/:schoolId/sections', (ctx: Koa.Context, next: () => void) => {
+    .get('/:schoolId/sections', (ctx: Koa.Context) => {
       const controller = new SectionsController(new SectionsService(ctx.uow, commandsProccessor));
-      return controller.list(ctx, next);
+      return controller.list(ctx);
     })
-    .get('/:schoolId/sections/:sectionId', (ctx: Koa.Context, next: () => void) => {
+    .get('/:schoolId/sections/:sectionId', (ctx: Koa.Context) => {
       const controller = new SectionsController(new SectionsService(ctx.uow, commandsProccessor));
-      return controller.get(ctx, next);
+      return controller.get(ctx);
     })
-    .delete('/:schoolId/sections/:sectionId', (ctx: Koa.Context, next: () => void) => {
+    .delete('/:schoolId/sections/:sectionId', (ctx: Koa.Context) => {
       const controller = new SectionsController(new SectionsService(ctx.uow, commandsProccessor));
-      return controller.delete(ctx, next);
+      return controller.delete(ctx);
     })
-    .get('/:schoolId/sections/:sectionId/students', (ctx: Koa.Context, next: () => void) => {
+    .get('/:schoolId/sections/:sectionId/students', (ctx: Koa.Context) => {
       const controller = new SectionsController(new SectionsService(ctx.uow, commandsProccessor));
-      return controller.getStudents(ctx, next);
+      return controller.getStudents(ctx);
     })
-    .post('/:schoolId/sections/:sectionId/students/register', (ctx: Koa.Context, next: () => void) => {
+    .post('/:schoolId/sections/:sectionId/students/register', (ctx: Koa.Context) => {
       const controller = new SectionsController(new SectionsService(ctx.uow, commandsProccessor));
-      return controller.registerStudents(ctx, next);
+      return controller.registerStudents(ctx);
     })
-    .post('/:schoolId/sections/:sectionId/students/remove', (ctx: Koa.Context, next: () => void) => {
+    .post('/:schoolId/sections/:sectionId/students/remove', (ctx: Koa.Context) => {
       const controller = new SectionsController(new SectionsService(ctx.uow, commandsProccessor));
-      return controller.removeStudents(ctx, next);
+      return controller.removeStudents(ctx);
     });
   return sectionsRoutes;
 };
