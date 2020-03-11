@@ -20,7 +20,7 @@ export const getFactory = (
     const service: any = (() => {
       switch (serviceName) {
         case Service.schools: return new SchoolsService(uow, commandsProcessor, kafkaService);
-        case Service.sections: return new SectionsService(uow, commandsProcessor);
+        case Service.sections: return new SectionsService(uow, commandsProcessor, updatesProcessor);
         case Service.courses: return new CoursesService(uow, commandsProcessor, updatesProcessor);
         case Service.inviteCodes: return new InviteCodesService(uow, commandsProcessor);
         case Service.providers: return new ProvidersService(uow, commandsProcessor);

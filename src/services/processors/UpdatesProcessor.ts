@@ -49,17 +49,18 @@ export class UpdatesProcessor {
     await this._kafkaService.sendMany(config.kafkaUpdatesTopic, events);
   }
 
-  async notifyCourseEvents(event: Events.course_created | Events.course_updated, data: Partial<ICourse>);
+  async notifyCourseEvents(event: Events.course_created | Events.course_updated, data: Partial<ICourse | ICourse[]>);
   async notifyCourseEvents(event: Events.course_deleted, data: { _id: string });
   async notifyCourseEvents(event: Events, data: any) {
+    if (!(data instanceof Array)) data = [data];
     const now = Date.now();
-    await this._kafkaService.send(config.kafkaUpdatesTopic, {
-      key: data._id,
+    await this._kafkaService.sendMany(config.kafkaUpdatesTopic, data.map(d => ({
+      key: d._id,
       event,
-      data,
+      data: d,
       timestamp: now,
       v: '1.0.0'
-    });
+    })));
   }
 }
 
