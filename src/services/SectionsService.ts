@@ -22,10 +22,15 @@ import { Service } from '../models/ServiceName';
 import { CoursesService } from './CoursesService';
 import { ICourse, IUserCourseInfo } from '../models/entities/ICourse';
 import { ISchool } from '../models/entities/ISchool';
+import { Events, UpdatesProcessor } from './processors/UpdatesProcessor';
 
 export class SectionsService {
 
-  constructor(protected _uow: IUnitOfWork, protected _commandsProcessor: CommandsProcessor) {
+  constructor(
+    protected _uow: IUnitOfWork,
+    protected _commandsProcessor: CommandsProcessor,
+    protected _updatesProcessor: UpdatesProcessor
+  ) {
   }
 
   protected get schoolsRepo() {
@@ -69,10 +74,20 @@ export class SectionsService {
   }
 
   private async doCreate(section: ISection, courses?: ICourse[]) {
-    const result = await this.sectionsRepo.add(section);
+    const sectionsRepo = this._uow.getRepository(Repo.sections, true) as SectionsRepository;
+    let result: ISection & { courses?: ICourse[] } = section;
+    try {
+      result = await sectionsRepo.add(section);
+    } catch (err) {
+      if (err && err.code !== 11000) throw err;
+    }
     if (courses) {
       await this._commandsProcessor.sendManyCommandsAsync(Service.courses, <any>{ name: 'doCreate' }, courses.map(c => [c]));
+      const coursesRepo = this._uow.getRepository(Repo.courses, true) as CoursesRepository;
+      result.courses = await coursesRepo.addMany(courses, true);
+      await this._updatesProcessor.notifyCourseEvents(Events.course_created, courses);
     }
+    await this._uow.commit();
     return result;
   }
 

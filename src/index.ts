@@ -83,7 +83,7 @@ let server: Server;
   // Routes ...
   app.use(meRoutes(commandsProcessor, updatesProcessor).mount('/me'));
   app.use(schoolRoutes(commandsProcessor, kafkaService).mount('/schools'));
-  app.use(sectionsRoutes(commandsProcessor).mount('/schools'));
+  app.use(sectionsRoutes(commandsProcessor, updatesProcessor).mount('/schools'));
   app.use(coursesRoutes(commandsProcessor, updatesProcessor).mount('/schools'));
   app.use(schoolsInviteCodesRoutes(commandsProcessor).mount('/schools'));
   app.use(inviteCodesRoutes(commandsProcessor, updatesProcessor).mount('/invite_codes'));

@@ -45,7 +45,7 @@ export class FakeCommandsProcessor extends CommandsProcessor {
   }
 
   public async handleEvent<T extends any[]>(appEvent: IKafkaEvent<T>) {
-    logger.debug('handleEvent', appEvent);
+    logger.debug('handleEvent', JSON.stringify(appEvent));
     let service: { dispose: () => void; } | undefined;
     try {
       const resolver = await this.resolveFunction(appEvent.event);
