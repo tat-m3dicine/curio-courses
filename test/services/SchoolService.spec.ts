@@ -379,12 +379,11 @@ describe('School Service', () => {
 
   it(`should succeed in getting users if status is none of the above (out of quota)`, async () => {
     repositoryReturns(Repo.users, { findManyPage: () => ({ test: 1 }) });
-    const filter = {
+    const result = await schoolsService.getUsers({
       status: Status.outOfQuota,
       role: Role.student,
       schoolId: 'schoolId'
-    };
-    const result = await schoolsService.getUsers(filter, <any>{}, <IUserToken>{ role: [config.authorizedRole] });
+    }, <any>{}, <IUserToken>{ role: [config.authorizedRole] });
     expect(result).to.deep.equal({ test: 1 });
   });
 
