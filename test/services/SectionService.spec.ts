@@ -147,51 +147,51 @@ describe('Sections Service', () => {
     });
 
     it(`should fail to register students because token is missing/invalid`, async () => {
-        await tryAndExpect(async () => sectionsService.registerStudents('schoolId', 'sectionId', <string[]>[], <any>undefined), ForbiddenError);
+        await tryAndExpect(async () => sectionsService.registerStudents('schoolId', 'sectionId', [], <any>undefined), ForbiddenError);
     });
 
     it(`should fail to register students because no students ids were provided`, async () => {
-        await tryAndExpect(async () => sectionsService.registerStudents('schoolId', 'sectionId', <string[]>[], token), InvalidRequestError);
+        await tryAndExpect(async () => sectionsService.registerStudents('schoolId', 'sectionId', [], token), InvalidRequestError);
     });
 
     it(`should fail to register students because the section was not found in that school`, async () => {
         repositoryReturns(Repo.sections, { findOne: () => undefined });
-        await tryAndExpect(async () => sectionsService.registerStudents('schoolId', 'sectionId', <string[]>['abu sameer'], token), NotFoundError);
+        await tryAndExpect(async () => sectionsService.registerStudents('schoolId', 'sectionId', ['abu sameer'], token), NotFoundError);
     });
 
     it(`should fail to register students because all students are already registered in the section`, async () => {
         repositoryReturns(Repo.sections, { findOne: () => ({ students: ['abu sameer'] }) });
-        await tryAndExpect(async () => sectionsService.registerStudents('schoolId', 'sectionId', <string[]>['abu sameer'], token), InvalidRequestError);
+        await tryAndExpect(async () => sectionsService.registerStudents('schoolId', 'sectionId', ['abu sameer'], token), InvalidRequestError);
     });
 
-    it(`should fail to register students because number of students in db is not equal to sent students for validation`, async () => {
-        repositoryReturns(Repo.sections, { findOne: () => ({ students: ['abu sameer', 'abu abdo'] }) });
+    it(`should fail to register students because students were not found in db`, async () => {
+        repositoryReturns(Repo.sections, { findOne: () => ({ students: ['abu abdo'] }) });
         repositoryReturns(Repo.users, { findMany: () => [] });
-        await tryAndExpect(async () => sectionsService.registerStudents('schoolId', 'sectionId', <string[]>['abu sameer'], token), NotFoundError);
+        await tryAndExpect(async () => sectionsService.registerStudents('schoolId', 'sectionId', ['abu sameer'], token), NotFoundError);
     });
-    it(`should succeed in registering students`, async () => {
-        const schoolId = 'schoolId';
-        let called = false;
-        repositoryReturns(Repo.sections, { findOne: () => ({ students: ['abu sameer', 'abu abdo'] }), addStudents: () => { called = true; } });
-        repositoryReturns(Repo.users, { findMany: () => ['student'] });
-        await sectionsService.registerStudents(schoolId, 'sectionId', <string[]>['abu sameer'], { ...token, role: [Role.principal], schooluuid: schoolId });
+
+    it(`should succeed to register students in section`, async () => {
+        repositoryReturns(Repo.sections, { findOne: () => ({ students: ['abu abdo'] }), addStudents: () => true });
+        repositoryReturns(Repo.users, { findMany: () => [{ _id: 'abu sameer' }] });
+        const result = await sectionsService.registerStudents('schoolId', 'sectionId', ['abu sameer'], token);
+        expect(result).equal(true);
     });
 
     it(`should fail to remove students because token is missing/invalid`, async () => {
-        await tryAndExpect(() => sectionsService.removeStudents('schoolId', 'sectionId', <string[]>['abu sameer'], <any>undefined), ForbiddenError);
+        await tryAndExpect(() => sectionsService.removeStudents('schoolId', 'sectionId', ['abu sameer'], <any>undefined), ForbiddenError);
     });
 
     it(`should fail to remove students because section Id is invalid`, async () => {
         repositoryReturns(Repo.sections, { findOne: () => undefined })
-        await tryAndExpect(() => sectionsService.removeStudents('schoolId', 'sectionId', <string[]>['abu sameer'], token), NotFoundError);
+        await tryAndExpect(() => sectionsService.removeStudents('schoolId', 'sectionId', ['abu sameer'], token), NotFoundError);
     });
 
     it(`should succeed in removing students`, async () => {
         repositoryReturns(Repo.sections, { findOne: () => ({ students: ['abu sameer', 'abu abdo'] }), removeStudents: () => { } });
-        repositoryReturns(Repo.courses, { finishUsersInCourses: () => { } });
+        repositoryReturns(Repo.courses, { finishUsersInCourses: () => undefined });
         let called = false;
         _unitOfWorkStub.commit = () => { called = true; };
-        await sectionsService.removeStudents('schoolId', 'sectionId', <string[]>['abu sameer'], token);
+        await sectionsService.removeStudents('schoolId', 'sectionId', ['abu sameer'], token);
         expect(called).equal(true);
     });
 });

@@ -145,10 +145,6 @@ describe('Invite Codes Service', () => {
     expect(result).equal(true);
   });
 
-  it(`should fail to return all info of the invite code because token is missing/invalid`, async () => {
-    await tryAndExpect(async () => inviteCodesService.getWithAllInfo('codeid', <any>undefined), ForbiddenError);
-  });
-
   it(`should fail to return all info of the invite code (Not found)`, async () => {
     repositoryReturns(Repo.inviteCodes, { getValidCode: () => undefined });
     await tryAndExpect(async () => inviteCodesService.getWithAllInfo('codeid', token), NotFoundError);
@@ -188,6 +184,4 @@ describe('Invite Codes Service', () => {
     await inviteCodesService.list({ schoolId: 'schoolId' }, <any>{}, modifiedToken);
     expect(called).equal(true);
   });
-
-
 });

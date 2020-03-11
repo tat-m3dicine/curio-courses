@@ -35,7 +35,6 @@ const teachersSwitchValidateor = validator.compile({ teachers: objectsSchema(['e
 
 const validateRequest = (request: any, validate: (request: any) => any) => {
   const isValidationPassed = validate(request);
-  console.log('isValidationPassed', isValidationPassed)
   if (typeof isValidationPassed === 'boolean') {
     return isValidationPassed;
   } else {

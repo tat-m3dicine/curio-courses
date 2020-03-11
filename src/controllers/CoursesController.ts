@@ -249,7 +249,8 @@ export class CoursesController {
 
   async getActiveCourses(ctx: Context) {
     const { sub, role } = ctx.user;
-    const result = await this.coursesService.getActiveCourses(sub, this.getUserType(role));
+    const userRole: Role = role && role.includes(Role.student) ? Role.student : Role.teacher;
+    const result = await this.coursesService.getActiveCourses(sub, userRole);
     ctx.status = 200;
     ctx.body = result;
     ctx.type = 'json';
@@ -276,17 +277,6 @@ export class CoursesController {
       }
     }
     return courses;
-  }
-
-  protected getUserType(role: string | string[]) {
-    if (!role) return undefined;
-    let userType: Role | undefined;
-    if (role.includes('teacher')) {
-      userType = Role.teacher;
-    } else if (role.includes('student')) {
-      userType = Role.student;
-    }
-    return userType;
   }
 
   protected getParamsArray(query: any, schoolId: string, sectionId: string, role: Role): IUserRequest[] {

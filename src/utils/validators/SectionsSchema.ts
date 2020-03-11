@@ -8,7 +8,7 @@ const sectionsSchema = {
     type: 'string',
     optional: true
   },
-  locales: localesSchema('en'),
+  locales: localesSchema(),
   schoolId: 'string',
   grade: 'string',
   students: {

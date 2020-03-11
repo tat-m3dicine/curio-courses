@@ -19,11 +19,9 @@ export const localesSchema = (...requiredLangs: string[]) => {
       const errors: ValidationError[] = [];
       const langs = Object.keys(locales);
       if (langs.length === 0) errors.push(validator.makeError('At least one language is required!'));
-      if (requiredLangs.length) {
-        for (const lang of requiredLangs) {
-          if (!langs.includes(lang)) {
-            errors.push(validator.makeError(`'${lang}' language is required!`));
-          }
+      for (const lang of requiredLangs) {
+        if (!langs.includes(lang)) {
+          errors.push(validator.makeError(`'${lang}' language is required!`));
         }
       }
       for (const lang of langs) {

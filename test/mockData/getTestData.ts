@@ -1,11 +1,11 @@
 import { SignupMethods } from '../../src/models/entities/ISchool';
+import { mapToProperJSON } from '../../src/utils/mapToProperJSON';
 import { ICreateSchoolRequest } from '../../src/models/requests/ISchoolRequests';
 
 export const getTestData = (type: Test, override = {}, inviteCode = true) => {
-  let data = <any>{ ...dataMap[type], ...override };
-  if (type === Test.signupRequest) {
-    data = JSON.parse(JSON.stringify(data));
-    if (!inviteCode) data.new_user_data.inviteCode = undefined;
+  const data = mapToProperJSON(JSON.stringify({ ...dataMap[type], ...override }));
+  if (type === Test.signupRequest && !inviteCode) {
+    data.new_user_data.inviteCode = undefined;
   }
   return data;
 };

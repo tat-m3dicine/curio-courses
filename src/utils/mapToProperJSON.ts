@@ -1,16 +1,15 @@
-export function mapToProperJSON(message: any) {
+export function mapToProperJSON(jsonString: string) {
   try {
-    const newValue = JSON.parse(message.value, reviver);
-    const newMessage = { ...message, value: newValue };
-    return newMessage;
+    return JSON.parse(jsonString, reviver);
   } catch (err) {
+    console.error(err);
     return {};
   }
 }
 
 const dateFormat = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{3}Z$/;
 
-function reviver(key: string, value: any) {
+function reviver(key: string, value: string) {
   if (typeof value === 'string' && dateFormat.test(value)) {
     return new Date(value);
   }

@@ -120,7 +120,7 @@ export class SchoolsService {
       _filter['registration.schoolId'] = filter.schoolId;
     }
     else {
-      if (filter.status) _filter['registration.status'] = filter.status; //? has to be string for mongo
+      if (filter.status) _filter['registration.status'] = filter.status;
       _filter['registration.school._id'] = filter.schoolId;
     }
     logger.debug('getUsers filter:', _filter);

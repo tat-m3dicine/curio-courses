@@ -329,12 +329,16 @@ describe('Users Service', () => {
     it('should accept student in school with valid invite code (Auto Courses)', async () => {
       const testSchoolId = 'test_school_id';
       const request = getTestData(Test.signupRequest);
-      const school = getTestData(Test.school);
+      const school: ISchool = getTestData(Test.school);
+      school.license!.package.signupMethods = [SignupMethods.inviteCodes];
       const inviteCode: IInviteCode = getTestData(Test.inviteCode, {
         schoolId: testSchoolId,
         enrollment: { sectionId: 'section', type: 'auto' }
       });
-      repositoryReturns(Repo.users, { assignSchool: () => undefined });
+      repositoryReturns(Repo.users, {
+        assignSchool: () => undefined,
+        addRegisteration: () => undefined
+      });
       repositoryReturns(Repo.sections, {
         findMany: () => [{ _id: inviteCode.enrollment.sectionId }],
         addStudents: () => undefined
@@ -364,6 +368,7 @@ describe('Users Service', () => {
       const testCoursesIds = ['test_course_id_1', 'test_course_id_2'];
       const request = getTestData(Test.signupRequest);
       const school = getTestData(Test.school);
+      school.license!.package.signupMethods = [SignupMethods.inviteCodes];
       const inviteCode: IInviteCode = getTestData(Test.inviteCode, {
         schoolId: testSchoolId,
         enrollment: {
@@ -372,7 +377,10 @@ describe('Users Service', () => {
           courses: testCoursesIds
         }
       });
-      repositoryReturns(Repo.users, { assignSchool: () => undefined });
+      repositoryReturns(Repo.users, {
+        assignSchool: () => undefined,
+        addRegisteration: () => undefined
+      });
       repositoryReturns(Repo.sections, {
         findMany: () => [{ _id: inviteCode.enrollment.sectionId }],
         addStudents: () => undefined

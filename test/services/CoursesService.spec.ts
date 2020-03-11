@@ -258,7 +258,7 @@ describe('Courses Service', () => {
       repositoryReturns(Repo.courses, { getActiveCoursesForUser: () => [{ ...course, students: [user], teachers: [user] }] });
       repositoryReturns(Repo.sections, { findMany: () => [{}] });
       repositoryReturns(Repo.users, { findMany: () => [{ role: Role.student }, { role: Role.teacher }] });
-      repositoryReturns(Repo.inviteCodes, { findForCourses: () => [{ id: 'id', courses: '' }] });
+      repositoryReturns(Repo.inviteCodes, { findForCourses: () => [{ id: 'id', enrollment: { courses: [] } }] });
       const result = await coursesService.getActiveCourses('teacher1', Role.teacher);
       expect(result.courses).to.have.lengthOf(1);
       expect(result.students).to.have.lengthOf(1);
@@ -381,89 +381,90 @@ describe('Courses Service', () => {
     await tryAndExpect(async () => coursesService.repairUsers(Role.student, <string[]>[], <any>undefined), ForbiddenError);
   });
 
-  // it.only(`should succeed in repairing users`, async () => {
-  //   repositoryReturns(Repo.courses, { getActiveCoursesForUsers: () => [{ ...course, students: [] }] });
-  //   repositoryReturns(Repo.users, { findMany: () => [{ school: {} }, { registration: {} }] });
-  //   let called = false;
-  //   _updatesProcessorStub.sendEnrollmentUpdates = () => called = true;
-  //   await coursesService.repairUsers(Role.principal, ['user1'], <IUserToken>{ role: [Role.principal] });
-  //   expect(called).equal(true);
-  // })
+  it(`should succeed in repairing users`, async () => {
+    repositoryReturns(Repo.courses, { getActiveCoursesForUsers: () => [{ ...course, students: [] }] });
+    repositoryReturns(Repo.users, { findMany: () => [{ school: {} }, { registration: {} }] });
+    let called = false;
+    _updatesProcessorStub.sendEnrollmentUpdates = () => called = true;
+    await coursesService.repairUsers(Role.student, ['user1'], <IUserToken>{ role: ['root'] });
+    expect(called).equal(true);
+  });
 
   it(`should fail to join a course because the token is missing/invalid`, async () => {
-    const token = {
-      role: ['teacher']
-    };
+    const token = { role: ['teacher'] };
     await tryAndExpect(async () => coursesService.join('', <any>token), ForbiddenError);
   });
 
   it(`should fail to join a course because there is no invite code`, async () => {
-    const token = {
-      role: ['student']
-    };
+    const token = { role: ['student'] };
     repositoryReturns(Repo.inviteCodes, { getValidCode: () => undefined });
     await tryAndExpect(async () => coursesService.join('', <any>token), NotFoundError);
   });
 
   it(`should fail to join a course because invite code is invalid`, async () => {
-    const token = {
-      role: ['student']
-    };
-
+    const token = { role: ['student'] };
     const invCode = {
-      enrollment: {
-        courses: []
-      },
-      quota: {
-        consumed: 10,
-        max: 5
-      }
+      enrollment: { courses: [] },
+      quota: { consumed: 10, max: 5 }
     };
     repositoryReturns(Repo.inviteCodes, { getValidCode: () => invCode });
     await tryAndExpect(async () => coursesService.join('', <any>token), InvalidRequestError);
   });
 
   it(`should fail to join a course because invite code is not for this school`, async () => {
-    const token = {
-      role: ['student'],
-      schooluuid: 'schoolId1'
-
-    };
-
+    const token = { role: ['student'], schooluuid: 'schoolId1' };
     const invCode = {
-      enrollment: {
-        courses: []
-      },
-      quota: {
-        consumed: 10,
-        max: 20
-      },
+      enrollment: { courses: [] },
+      quota: { consumed: 10, max: 20 },
       schoolId: 'schoolId'
     };
     repositoryReturns(Repo.inviteCodes, { getValidCode: () => invCode });
     await tryAndExpect(async () => coursesService.join('', <any>token), InvalidRequestError);
-  })
+  });
 
-  it(`should ...`, async () => {
-    const token = {
-      role: ['student'],
-      schooluuid: 'FREE_SCHOOL'
-
-    };
-
+  it(`should succeed to join new school by switching user schools`, async () => {
+    const token = { role: ['student'], schooluuid: 'FREE_SCHOOL' };
     const invCode = {
-      enrollment: {
-        courses: []
-      },
-      quota: {
-        consumed: 10,
-        max: 20
-      },
+      enrollment: { courses: ['course1'] },
+      quota: { consumed: 10, max: 20 },
       schoolId: 'FREE_SCHOOL'
     };
     repositoryReturns(Repo.inviteCodes, { getValidCode: () => invCode });
-    await coursesService.join('', <any>token);
-    expect(1).equal(1);
-  })
+    coursesService['doSwitch'] = () => undefined;
+    coursesService['doEnrollUsers'] = function doEnrollUsers() { return <any>true; };
+    const result = await coursesService.join('', <any>token);
+    expect(result).equal(true);
+  });
 
+  it(`should succeed to join courses in school without droping anything`, async () => {
+    const token = { role: ['student'], schooluuid: 'school' };
+    const invCode = {
+      enrollment: { courses: ['course1'] },
+      quota: { consumed: 10, max: 20 },
+      schoolId: 'school'
+    };
+    repositoryReturns(Repo.inviteCodes, { getValidCode: () => invCode });
+    repositoryReturns(Repo.courses, { getActiveCoursesForUser: () => [], findMany: () => [] });
+    coursesService['doEnrollUsers'] = function doEnrollUsers() { return <any>true; };
+    const result = await coursesService.join('', <any>token);
+    expect(result).equal(true);
+  });
+
+  it(`should succeed to join courses in school after dropping courses of same subject`, async () => {
+    const token = { role: ['student'], schooluuid: 'school' };
+    const invCode = {
+      enrollment: { courses: ['course1'] },
+      quota: { consumed: 10, max: 20 },
+      schoolId: 'school'
+    };
+    repositoryReturns(Repo.inviteCodes, { getValidCode: () => invCode });
+    repositoryReturns(Repo.courses, {
+      getActiveCoursesForUser: () => [{ _id: 'course1', subject: 'math' }],
+      findMany: () => [{ _id: 'course2', subject: 'math' }]
+    });
+    coursesService['doDropUsers'] = function doDropUsers() { return <any>undefined; };
+    coursesService['doEnrollUsers'] = function doEnrollUsers() { return <any>true; };
+    const result = await coursesService.join('', <any>token);
+    expect(result).equal(true);
+  });
 });

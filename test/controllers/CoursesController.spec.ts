@@ -296,25 +296,6 @@ describe(`Courses Controller`, () => {
     expect(ctx.status).equal(200);
   });
 
-  it(`should fail to get user type because role is undefined`, () => {
-    const role = 'undefined';
-    const result = coursesController['getUserType'](role);
-    expect(result).to.equal(undefined);
-  });
-
-  it(`should succeed in getting user type (role: student)`, () => {
-    const role = 'student';
-    const result = coursesController['getUserType'](role);
-    expect(result).equal(role);
-  });
-
-  it(`should succeed in getting user type (role: teacher)`, () => {
-    const role = 'teacher';
-    const result = coursesController['getUserType'](role);
-    expect(result).equal(role);
-  });
-
-
   it(`should succeed in joining a course`, async () => {
     _coursesServiceStub.join = async () => <any>{};
     await coursesController.join(ctx);

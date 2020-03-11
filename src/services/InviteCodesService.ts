@@ -81,7 +81,6 @@ export class InviteCodesService {
   }
 
   async getWithAllInfo(codeId: string, byUser: IUserToken) {
-    this.authorize(byUser);
     const inviteCode = await this.inviteCodesRepo.getValidCode(codeId);
     if (!inviteCode) throw new NotFoundError('invite code was not found');
     const { validity, quota, _id, enrollment: { sectionId, type, courses: coursesIds }, schoolId } = inviteCode;
