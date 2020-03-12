@@ -91,7 +91,7 @@ export class UserRegisteration {
     }
     this._requirements = {
       status: Status.active,
-      school: this._user.registration.school,
+      school: isProvider && this._dbSchool ? { _id: this._dbSchool._id, name: this._dbSchool.locales.en.name } : this._user.registration.school,
       sections: this._user.registration.sections,
       enrollmentType: isProvider ? EnrollmentType.courses : EnrollmentType.auto,
       courses: isProvider ? this.getCoursesFromSchool() : undefined
