@@ -191,7 +191,8 @@ describe('Users Service', () => {
             signupMethods: [SignupMethods.provider],
             grades: { ['4']: {} }
           }
-        }
+        },
+        locales: { en: { name: 'Alef' } }
       });
       repositoryReturns(Repo.users, { assignSchool: () => undefined });
       repositoryReturns(Repo.courses, {
@@ -241,7 +242,8 @@ describe('Users Service', () => {
       const request: ISignupRequest = getTestData(Test.signupRequest, { provider: 'Alef' }, false);
       const school: ISchool = getTestData(Test.school, {
         academicTerms: [], provider: { _id: 'Alef' },
-        license: provider.license
+        license: provider.license,
+        locales: { en: { name: 'Alef' } }
       });
       repositoryReturns(Repo.providers, { findById: () => provider });
       repositoryReturns(Repo.schools, { findOne: () => school, add: () => undefined });
