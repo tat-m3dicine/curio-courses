@@ -67,7 +67,7 @@ rs.initiate({
   _id: "rs0",
   protocolVersion: 1,
   members: [
-    { _id: 0, host : "courses-mongodb:27017" }
+    { _id: 0, host : "curio-courses-mongo:27017" }
   ]
 })
 ```
@@ -77,7 +77,7 @@ rs.reconfig({
   _id: "rs0",
   protocolVersion: 1,
   members: [
-    { _id: 0, host : "courses-mongodb:27017" }
+    { _id: 0, host : "curio-courses-mongo:27017" }
   ]
 }, {force: true})
 ```

@@ -6,12 +6,14 @@
     "build": "./node_modules/.bin/tsc --p tsconfig.json",
     "start": "node dist",
     "pretest": "npm install --registry https://npr.saal.ai",
+    "prebuild": "npm install --registry https://npr.saal.ai",
     "test": "NODE_ENV=test ./node_modules/.bin/nyc ./node_modules/.bin/mocha 'test/**/*.spec.ts'",
     "lint": "./node_modules/.bin/tslint src/*/*.ts --format codeframe --project ./tsconfig.json",
     "fix-lint": "./node_modules/.bin/tslint src/*/*.ts --fix",
     "type-check": "./node_modules/.bin/tsc --noEmit"
   },
   "dependencies": {
+    "@saal-oryx/event-sourcing": "^0.1.1",
     "@saal-oryx/distributed-cache": "^1.0.0",
     "@saal-oryx/message-bus": "^0.0.4",
     "@saal-oryx/unit-of-work": "^0.5.4",
@@ -40,7 +42,6 @@
     "@types/mocha": "^5.2.5",
     "@types/mongodb": "^3.1.17",
     "@types/nanoid": "^2.0.0",
-    "@types/node": "^12.0.10",
     "@types/request": "^2.48.1",
     "@types/semver": "^6.0.2",
     "chai": "^4.2.0",

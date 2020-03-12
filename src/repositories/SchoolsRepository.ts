@@ -3,7 +3,7 @@ import { ISchool, ISchoolUserPermissions } from '../models/entities/ISchool';
 import { IUpdateAcademicTermRequest } from '../models/requests/ISchoolRequests';
 import { AduitableRepository } from './AduitableRepository';
 import { IAcademicTerm } from '../models/entities/Common';
-import { Repo } from './RepoNames';
+import { Repo } from '../models/RepoNames';
 
 export class SchoolsRepository extends AduitableRepository<ISchool> {
   constructor(collection: Collection, session?: ClientSession) {

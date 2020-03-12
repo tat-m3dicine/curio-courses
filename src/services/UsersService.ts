@@ -20,10 +20,10 @@ import { newSchoolId, newSectionId } from '../utils/IdGenerator';
 import { getNotMatchingObjects } from '../utils/validators/AllObjectsExist';
 import { ISection } from '../models/entities/ISection';
 import config from '../config';
-import { Repo } from '../repositories/RepoNames';
+import { Repo } from '../models/RepoNames';
 import { IUserUpdatedData } from '../models/events/IUserUpdatedEvent';
 import { NotFoundError } from '../exceptions/NotFoundError';
-import { KafkaService } from './processors/KafkaService';
+import { KafkaService } from '@saal-oryx/event-sourcing';
 import { Events } from './processors/UpdatesProcessor';
 const logger = loggerFactory.getLogger('UserSchema');
 
@@ -204,7 +204,13 @@ export class UsersService {
   }
 
   private getRole(user: IUser): Role {
-    return user.role.includes(Role.teacher) ? Role.teacher : Role.student;
+    if (user.role.includes(Role.teacher)) {
+      return Role.teacher;
+    }
+    if (user.role.includes(Role.principal)) {
+      return Role.teacher;
+    }
+    return Role.student;
   }
 
   private async validateProvider(providerId: string, entity: 'School' | 'Section' | 'Course') {
@@ -234,6 +240,13 @@ export class UsersService {
 
   private transformToUser(request: ISignupRequest): IUserWithRegistration {
     const { user_id, new_user_data: data, provider } = request;
+    let sections: { _id: string; name: string }[] = [];
+    if (data.section instanceof Array) {
+      sections = data.section.map(section => ({
+        _id: section.uuid,
+        name: section.name
+      }));
+    }
     return {
       _id: user_id,
       role: data.role,
@@ -249,10 +262,7 @@ export class UsersService {
           _id: data.school.uuid,
           name: data.school.name
         },
-        sections: data.inviteCode ? undefined : data.section && data.section.map(section => ({
-          _id: section.uuid,
-          name: section.name
-        })),
+        sections: data.inviteCode ? undefined : sections,
         provider: provider || 'curio',
         inviteCode: data.inviteCode
       }

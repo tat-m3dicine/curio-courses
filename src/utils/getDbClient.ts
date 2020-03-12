@@ -1,7 +1,7 @@
 import { MongoClient } from 'mongodb';
 import config from '../config';
 import loggerFactory from './logging';
-import { Repo } from '../repositories/RepoNames';
+import { Repo } from '../models/RepoNames';
 
 
 const logger = loggerFactory.getLogger('getDbClient');
@@ -30,13 +30,32 @@ export const getDbClient = async () => {
         await result.db().createCollection(Repo.providers);
 
         // Indices..
-        // await result.db().collection(Repo.schools).createIndex({ user_id: 1 });
+        await result.db().collection(Repo.schools).createIndexes([
+          { key: { 'provider.links': 1 } },
+          { key: { 'academicTerms._id': 1 } },
+          { key: { 'academicTerms.startDate': 1 } },
+          { key: { 'users._id': 1 } }
+        ]);
+        await result.db().collection(Repo.sections).createIndexes([
+          { key: { schoolId: 1 } },
+          { key: { 'students._id': 1 } }
+        ]);
+        await result.db().collection(Repo.courses).createIndexes([
+          { key: { sectionId: 1 } },
+          { key: { 'academicTerm._id': 1 } },
+          { key: { 'academicTerm.startDate': -1 } },
+          { key: { 'students._id': 1 } },
+          { key: { 'teachers._id': 1 } }
+        ]);
+        await result.db().collection(Repo.users).createIndex({ schoolId: 1 });
+        await result.db().collection(Repo.inviteCodes).createIndex({ schoolId: 1 });
+        await result.db().collection(Repo.providers).createIndex({ 'academicTerms.startDate': -1 });
 
         logger.info('Database is ready...');
         return result;
       })
       .catch(err => {
-        logger.error('Database connection was not estalished...', err);
+        logger.error('Database connection was not estalished...', JSON.stringify(err));
       });
   }
   return _dbClient;

@@ -1,11 +1,18 @@
 import { Collection, ClientSession } from 'mongodb';
 import { AduitableRepository } from './AduitableRepository';
 import { IUser } from '../models/entities/IUser';
-import { Repo } from './RepoNames';
+import { Repo } from '../models/RepoNames';
+import { validateAllObjectsExist } from '../utils/validators/AllObjectsExist';
 
 export class UsersRepository extends AduitableRepository<IUser> {
   constructor(collection: Collection, session?: ClientSession) {
     super(Repo.users, collection, session);
+  }
+
+  async getUsersInSchool(schoolId: string, usersIds: string[]) {
+    const dbUsers: IUser[] = await this.findMany({ 'school._id': schoolId, '_id': { $in: usersIds } });
+    validateAllObjectsExist(dbUsers, usersIds, schoolId);
+    return dbUsers;
   }
 
   async addRegisteration(user: IUser) {

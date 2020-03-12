@@ -1,15 +1,13 @@
 import 'mocha';
 import sinon from 'sinon';
-import chai from 'chai';
+import chai, { expect } from 'chai';
 chai.use(require('sinon-chai'));
 
 import { StreamsProcessor } from '../../../src/services/streams/StreamsProcessor';
 import { KafkaStreams } from 'kafka-streams';
 import { UnitOfWork } from '@saal-oryx/unit-of-work';
-import { getKStreamMock } from './KStreamMock';
-import { KafkaService } from '../../../src/services/processors/KafkaService';
 import { UpdatesProcessor } from '../../../src/services/processors/UpdatesProcessor';
-import { CommandsProcessor } from '../../../src/services/processors/CommandsProcessor';
+import { CommandsProcessor, KafkaService } from '@saal-oryx/event-sourcing';
 
 const unitOfWorkStub = sinon.spy(() => sinon.createStubInstance(UnitOfWork));
 const kafkaServiceStub = sinon.spy(() => sinon.createStubInstance(KafkaService));
@@ -18,20 +16,39 @@ const updatesProcessorStub = sinon.spy(() => sinon.createStubInstance(UpdatesPro
 const commandsProcessorStub = sinon.spy(() => sinon.createStubInstance(CommandsProcessor));
 
 describe('Stream Processor', () => {
-  it('Start Stream Processor', async () => {
-    const _unitOfWorkStub = new unitOfWorkStub();
-    const _kafkaServiceStub = new kafkaServiceStub();
-    const _kafkaStreamsStub = new kafkaStreamsStub();
-    const _updatesProcessorStub = new updatesProcessorStub();
-    const _commandsProcessorStub = new commandsProcessorStub();
-    const streamsProcessor = new StreamsProcessor(
-      _updatesProcessorStub,
+  let _unitOfWorkStub: any;
+  let _kafkaServiceStub: any;
+  let _kafkaStreamsStub: any;
+  let _updatesProcessorStub: any;
+  let _commandsProcessorStub: any;
+  let streamsProcessor: StreamsProcessor;
+
+  beforeEach(() => {
+    _unitOfWorkStub = new unitOfWorkStub();
+    _kafkaServiceStub = new kafkaServiceStub();
+    _kafkaStreamsStub = new kafkaStreamsStub();
+    _updatesProcessorStub = new updatesProcessorStub();
+    _commandsProcessorStub = new commandsProcessorStub();
+    streamsProcessor = new StreamsProcessor(
       _commandsProcessorStub,
-      _kafkaServiceStub,
-      _kafkaStreamsStub,
-      () => _unitOfWorkStub
+      () => _unitOfWorkStub,
+      _updatesProcessorStub,
+      _kafkaServiceStub
     );
-    _kafkaStreamsStub.getKStream = getKStreamMock([], []);
-    streamsProcessor.start();
+  });
+
+  it('should succeed to start streams', async () => {
+    // tslint:disable-next-line: no-string-literal
+    streamsProcessor['_getStreams'] = () => [{ start: () => true }];
+    const result = await streamsProcessor.start();
+    expect(result).deep.equal([true]);
+  });
+
+  it('should succeed to instantiate stream objects', () => {
+    // tslint:disable-next-line: no-string-literal
+    const result = streamsProcessor['_getStreams']();
+    // tslint:disable-next-line: no-string-literal
+    streamsProcessor['_getUsersService']();
+    expect(result).to.have.lengthOf(1);
   });
 });

@@ -6,19 +6,18 @@ chai.use(require('sinon-chai'));
 const expect = chai.expect;
 
 import config from '../../src/config';
-import { Repo } from '../../src/repositories/RepoNames';
+import { Repo } from '../../src/models/RepoNames';
 import { SectionsService } from '../../src/services/SectionsService';
 import { getTestData, Test } from '../mockData/getSectionsTestData';
 import { IUserToken } from '../../src/models/IUserToken';
 import { ICreateSectionRequest } from '../../src/models/requests/ISectionRequests';
-import { InvalidLicenseError } from '../../src/exceptions/InvalidLicenseError';
 import { NotFoundError } from '../../src/exceptions/NotFoundError';
 import { ISchool } from '../../src/models/entities/ISchool';
 import { IUser } from '../../src/models/entities/IUser';
 import { ISection } from '../../src/models/entities/ISection';
 import { tryAndExpect } from '../tryAndExpect';
 import { UpdatesProcessor } from '../../src/services/processors/UpdatesProcessor';
-import { CommandsProcessor } from '../../src/services/processors/CommandsProcessor';
+import { CommandsProcessor } from '@saal-oryx/event-sourcing';
 
 
 const token = <IUserToken>{ role: [config.authorizedRole] };
@@ -31,6 +30,8 @@ const createSectionWithStudents: ICreateSectionRequest = getTestData(Test.create
 const unitOfWorkStub = sinon.spy(() => sinon.createStubInstance(UnitOfWork));
 const updatesProcessorStub = sinon.spy(() => sinon.createStubInstance(UpdatesProcessor));
 const commandsProcessorStub = sinon.spy(() => sinon.createStubInstance(CommandsProcessor));
+
+
 describe('Sections Service', () => {
     let _unitOfWorkStub: any;
     let _updatesProcessorStub: any;
@@ -41,16 +42,16 @@ describe('Sections Service', () => {
         _unitOfWorkStub = new unitOfWorkStub();
         _updatesProcessorStub = new updatesProcessorStub();
         _commandsProcessorStub = new commandsProcessorStub();
-        _sectionsService = new SectionsService(_unitOfWorkStub, _commandsProcessorStub);
+        _sectionsService = new SectionsService(_unitOfWorkStub, _commandsProcessorStub, updatesProcessorStub);
         _commandsProcessorStub.sendCommand = (service, method, ...args) => _sectionsService[method.name](...args);
     });
 
-    it('should fail to create section as there is no students', async () => {
+    it('should fail to create section if school not exist', async () => {
         repositoryReturns(Repo.schools, { findById: () => undefined });
-        await tryAndExpect(() => _sectionsService.create(createSectionWithNoStudents, token), InvalidLicenseError);
+        await tryAndExpect(() => _sectionsService.create(createSectionWithNoStudents, token), NotFoundError);
     });
 
-    it('should fail to create section with students', async () => {
+    it('should fail to create section with students if school not exist', async () => {
         repositoryReturns(Repo.schools, { findById: () => undefined });
         repositoryReturns(Repo.users, { findMany: () => [{ _id: 1 }] });
         await tryAndExpect(() => _sectionsService.create(createSectionWithStudents, token), NotFoundError);
@@ -73,10 +74,7 @@ describe('Sections Service', () => {
 
     it('should list sections by schoolId with success response', async () => {
         repositoryReturns(Repo.sections, { findManyPage: () => allSectionsResponse });
-        const result = await _sectionsService.list('aldar_ba526', {
-            index: 1,
-            size: 1
-        }, token);
+        const result = await _sectionsService.list({ schoolId: 'aldar_ba526' }, { index: 1, size: 1 }, token);
         expect(result).equal(allSectionsResponse);
     });
 

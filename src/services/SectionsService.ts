@@ -4,25 +4,33 @@ import config from '../config';
 import { IUserToken } from '../models/IUserToken';
 import { SectionsRepository } from '../repositories/SectionsRepository';
 import { UsersRepository } from '../repositories/UsersRepository';
-import { ICreateSectionRequest } from '../models/requests/ISectionRequests';
+import { ICreateSectionRequest, ICreateSectionCourse } from '../models/requests/ISectionRequests';
 import { NotFoundError } from '../exceptions/NotFoundError';
 import { ISection } from '../models/entities/ISection';
 import { CoursesRepository } from '../repositories/CoursesRepository';
 import { SchoolsRepository } from '../repositories/SchoolsRepository';
-import { ISchool } from '../models/entities/ISchool';
 import { InvalidLicenseError } from '../exceptions/InvalidLicenseError';
 import { ForbiddenError } from '../exceptions/ForbiddenError';
 import { InvalidRequestError } from '../exceptions/InvalidRequestError';
 import { Role } from '../models/Role';
 import { IUser } from '../models/entities/IUser';
 import { validateAllObjectsExist } from '../utils/validators/AllObjectsExist';
-import { newSectionId } from '../utils/IdGenerator';
-import { Repo } from '../repositories/RepoNames';
-import { CommandsProcessor } from './processors/CommandsProcessor';
+import { newSectionId, newCourseId } from '../utils/IdGenerator';
+import { Repo } from '../models/RepoNames';
+import { CommandsProcessor } from '@saal-oryx/event-sourcing';
+import { Service } from '../models/ServiceName';
+import { CoursesService } from './CoursesService';
+import { ICourse, IUserCourseInfo } from '../models/entities/ICourse';
+import { ISchool } from '../models/entities/ISchool';
+import { Events, UpdatesProcessor } from './processors/UpdatesProcessor';
 
 export class SectionsService {
 
-  constructor(protected _uow: IUnitOfWork, protected _commandsProcessor: CommandsProcessor) {
+  constructor(
+    protected _uow: IUnitOfWork,
+    protected _commandsProcessor: CommandsProcessor,
+    protected _updatesProcessor: UpdatesProcessor
+  ) {
   }
 
   protected get schoolsRepo() {
@@ -39,37 +47,65 @@ export class SectionsService {
 
   async create(section: ICreateSectionRequest, byUser: IUserToken) {
     this.authorize(byUser);
-    const { schoolId, locales, grade, students } = section;
-    if (students) {
-      await this.validateStudentsInSchool(students, schoolId);
+    const { schoolId, locales, grade, students = [], courses } = section;
+    const school = await this.schoolsRepo.findById(schoolId);
+    if (!school) throw new NotFoundError(`'${schoolId}' school was not found!`);
+    await this.validateSectionInLicense(school, grade, courses);
+    if (students.length > 0) await this.validateStudentsInSchool(students, schoolId);
+    const sectionId = section._id || newSectionId(schoolId, grade, locales);
+    let createCourses;
+    if (courses) {
+      const joinDate = new Date();
+      const academicTerm = CoursesService.validateAndGetAcademicTerm(school);
+      createCourses = courses.map(({ subject, curriculum, enroll }) => <ICourse>{
+        _id: newCourseId(sectionId, subject, academicTerm.year),
+        schoolId, sectionId, curriculum, grade, subject, academicTerm,
+        defaultLocale: Object.keys(locales)[0] || 'en',
+        locales: { en: { name: subject, description: `${subject} course` } },
+        students: enroll ? students.map(s => <IUserCourseInfo>{ _id: s, isEnabled: true, joinDate }) : [],
+        teachers: [], isEnabled: true
+      });
     }
-    await this.validateWithSchoolLicense(grade, schoolId);
-    return this._commandsProcessor.sendCommand('sections', this.doCreate, <ISection>{
-      _id: section._id || newSectionId(schoolId, grade, locales),
+    return this._commandsProcessor.sendCommand(Service.sections, this.doCreate, <ISection>{
+      _id: sectionId,
       locales, schoolId, grade,
       students: students || []
-    });
+    }, createCourses);
   }
 
-  private async doCreate(section: ISection) {
-    return this.sectionsRepo.add(section);
+  private async doCreate(section: ISection, courses?: ICourse[]) {
+    const sectionsRepo = this._uow.getRepository(Repo.sections, true) as SectionsRepository;
+    let result: ISection & { courses?: ICourse[] } = section;
+    try {
+      result = await sectionsRepo.add(section);
+    } catch (err) {
+      if (err && err.code !== 11000) throw err;
+    }
+    if (courses) {
+      await this._commandsProcessor.sendManyCommandsAsync(Service.courses, <any>{ name: 'doCreate' }, courses.map(c => [c]));
+      const coursesRepo = this._uow.getRepository(Repo.courses, true) as CoursesRepository;
+      result.courses = await coursesRepo.addMany(courses, true);
+      await this._updatesProcessor.notifyCourseEvents(Events.course_created, courses);
+    }
+    await this._uow.commit();
+    return result;
   }
 
   async get(schoolId: string, sectionId: string, byUser: IUserToken) {
-    this.authorize(byUser);
+    this.authorize(byUser, schoolId);
     return this.sectionsRepo.findOne({ _id: sectionId, schoolId });
   }
 
-  async list(schoolId: string, paging: IPaging, byUser: IUserToken) {
-    this.authorize(byUser);
-    return this.sectionsRepo.findManyPage({ schoolId }, paging);
+  async list(filter: { schoolId: string, grade?: string }, paging: IPaging, byUser: IUserToken) {
+    this.authorize(byUser, filter.schoolId);
+    return this.sectionsRepo.findManyPage({ schoolId: filter.schoolId, ...(filter.grade ? { grade: filter.grade } : {}) }, paging);
   }
 
   async delete(schoolId: string, sectionId: string, byUser: IUserToken) {
-    this.authorize(byUser);
+    this.authorize(byUser, schoolId);
     const section = await this.sectionsRepo.findOne({ _id: sectionId, schoolId });
     if (!section) throw new NotFoundError(`Couldn't find section '${sectionId}' in school '${schoolId}'`);
-    return this._commandsProcessor.sendCommand('sections', this.doDelete, sectionId);
+    return this._commandsProcessor.sendCommand(Service.sections, this.doDelete, sectionId);
   }
 
   private async doDelete(sectionId: string) {
@@ -77,13 +113,13 @@ export class SectionsService {
   }
 
   async getStudents(schoolId: string, sectionId: string, byUser: IUserToken) {
-    this.authorize(byUser);
+    this.authorize(byUser, schoolId);
     const section = await this.sectionsRepo.findOne({ _id: sectionId, schoolId });
     return section ? section.students : undefined;
   }
 
   async registerStudents(schoolId: string, sectionId: string, studentIds: string[], byUser: IUserToken) {
-    this.authorize(byUser);
+    this.authorize(byUser, schoolId);
     if (!studentIds || studentIds.length === 0) return new InvalidRequestError('No students were provided!');
     const section: ISection | undefined = await this.sectionsRepo.findOne({ _id: sectionId, schoolId });
     if (!section) throw new NotFoundError(`Couldn't find section '${sectionId}' in school '${schoolId}'`);
@@ -91,7 +127,7 @@ export class SectionsService {
     studentIds = studentIds.filter(studentId => !section.students.includes(studentId));
     if (studentIds.length === 0) return new InvalidRequestError(`All students were already registered in section ${sectionId}`);
     await this.validateStudentsInSchool(studentIds, schoolId);
-    return this._commandsProcessor.sendCommand('sections', this.doRegisterStudents, schoolId, sectionId, studentIds);
+    return this._commandsProcessor.sendCommand(Service.sections, this.doRegisterStudents, schoolId, sectionId, studentIds);
   }
 
   private async doRegisterStudents(schoolId: string, sectionId: string, studentIds: string[]) {
@@ -99,10 +135,10 @@ export class SectionsService {
   }
 
   async removeStudents(schoolId: string, sectionId: string, studentIds: string[], byUser: IUserToken) {
-    this.authorize(byUser);
+    this.authorize(byUser, schoolId);
     const section: ISection | undefined = await this.sectionsRepo.findOne({ _id: sectionId, schoolId });
     if (!section) throw new NotFoundError(`Couldn't find section '${sectionId}' in school '${schoolId}'`);
-    return this._commandsProcessor.sendCommand('sections', this.doRemoveStudents, schoolId, sectionId, studentIds, new Date());
+    return this._commandsProcessor.sendCommand(Service.sections, this.doRemoveStudents, schoolId, sectionId, studentIds, new Date());
   }
 
   private async doRemoveStudents(schoolId: string, sectionId: string, studentIds: string[], finishDate: Date) {
@@ -116,9 +152,10 @@ export class SectionsService {
     return updatedSection;
   }
 
-  protected authorize(byUser: IUserToken) {
+  protected authorize(byUser: IUserToken, schoolId?: string) {
     if (!byUser) throw new ForbiddenError('access token is required!');
     if (byUser.role.includes(config.authorizedRole)) return true;
+    if (byUser.role.includes(Role.principal) && byUser.schooluuid === schoolId) return true;
     throw new UnauthorizedError('you are not authorized to do this action');
   }
 
@@ -127,10 +164,14 @@ export class SectionsService {
     validateAllObjectsExist(dbStudents, studentIds, schoolId, Role.student);
   }
 
-  protected async validateWithSchoolLicense(grade: string, schoolId: string) {
-    const school: ISchool | undefined = await this.schoolsRepo.findById(schoolId);
-    if (!school || !school.license || !school.license.package || !(grade in school.license.package.grades)) {
-      throw new InvalidLicenseError(`'${schoolId}' school doesn't have a valid license for grade '${grade}'`);
+  protected async validateSectionInLicense(school: ISchool, grade: string, courses?: ICreateSectionCourse[]) {
+    if (!school.license || !school.license.package || !(grade in school.license.package.grades)) {
+      throw new InvalidLicenseError(`'${school._id}' school doesn't have a valid license for grade '${grade}'`);
+    }
+    if (courses) {
+      for (const course of courses) {
+        CoursesService.validateCourseInPackage(school.license.package, grade, course.subject, course.curriculum);
+      }
     }
   }
 }

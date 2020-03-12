@@ -1,13 +1,14 @@
 import config from '../config';
 import validators from '../utils/validators';
-import { IUser, Status } from '../models/entities/IUser';
+import { IUser, Status, IUserWithCourses } from '../models/entities/IUser';
 import { IUserToken } from '../models/IUserToken';
-import { IAcademicTerm } from '../models/entities/Common';
+import { IAcademicTerm, ILocales } from '../models/entities/Common';
 import { ILicenseRequest } from '../models/requests/ILicenseRequest';
 import { ISchool, ISchoolUserPermissions, ILicense } from '../models/entities/ISchool';
 import { ICreateSchoolRequest, IUpdateSchoolRequest, ICreateLicenseRequest, IDeleteAcademicTermRequest, IUpdateUserRequest, IUpdateAcademicTermRequest } from '../models/requests/ISchoolRequests';
-import { IUnitOfWork, defaultPaging, IPaging } from '@saal-oryx/unit-of-work';
+import { IUnitOfWork, defaultPaging, IPaging, IPage } from '@saal-oryx/unit-of-work';
 import { SchoolsRepository } from '../repositories/SchoolsRepository';
+import { SectionsRepository } from '../repositories/SectionsRepository';
 import { CoursesRepository } from '../repositories/CoursesRepository';
 import { ForbiddenError } from '../exceptions/ForbiddenError';
 import { UnauthorizedError } from '../exceptions/UnauthorizedError';
@@ -17,13 +18,15 @@ import { UsersRepository } from '../repositories/UsersRepository';
 import { validateAllObjectsExist } from '../utils/validators/AllObjectsExist';
 import { Role } from '../models/Role';
 import loggerFactory from '../utils/logging';
-import { IRegistrationAction } from '../models/requests/IRegistrationAction';
+import { IRegistrationAction, ISwitchRegistrationAction } from '../models/requests/IRegistrationAction';
 import { InvalidLicenseError } from '../exceptions/InvalidLicenseError';
 import { newSchoolId, newAcademicTermId } from '../utils/IdGenerator';
-import { Repo } from '../repositories/RepoNames';
-import { CommandsProcessor } from './processors/CommandsProcessor';
-import { KafkaService } from './processors/KafkaService';
+import { Repo } from '../models/RepoNames';
+import { CommandsProcessor, KafkaService } from '@saal-oryx/event-sourcing';
 import { Events } from './processors/UpdatesProcessor';
+import { Service } from '../models/ServiceName';
+import { IUserCourseInfo, ICourseInfo } from '../models/entities/ICourse';
+
 const logger = loggerFactory.getLogger('SchoolsService');
 
 export class SchoolsService {
@@ -33,6 +36,10 @@ export class SchoolsService {
 
   protected get schoolsRepo() {
     return this._uow.getRepository(Repo.schools) as SchoolsRepository;
+  }
+
+  protected get sectionsRepo() {
+    return this._uow.getRepository(Repo.sections) as SectionsRepository;
   }
 
   protected get coursesRepo() {
@@ -50,7 +57,7 @@ export class SchoolsService {
 
   async delete(schoolId: string, byUser: IUserToken) {
     this.authorize(byUser);
-    return this._commandsProcessor.sendCommand('schools', this.doDelete, schoolId);
+    return this._commandsProcessor.sendCommand(Service.schools, this.doDelete, schoolId);
   }
 
   private async doDelete(schoolId: string) {
@@ -73,7 +80,7 @@ export class SchoolsService {
       academicTerms: [],
       users: []
     };
-    return this._commandsProcessor.sendCommand('schools', this.doAdd, school);
+    return this._commandsProcessor.sendCommand(Service.schools, this.doAdd, school);
   }
 
   private async doAdd(school: ISchool) {
@@ -83,7 +90,7 @@ export class SchoolsService {
   async update(updateObj: IUpdateSchoolRequest, schoolId: string, byUser: IUserToken) {
     this.authorize(byUser);
     validators.validateUpdateSchool(updateObj);
-    return this._commandsProcessor.sendCommand('schools', this.doUpdate, schoolId, updateObj);
+    return this._commandsProcessor.sendCommand(Service.schools, this.doUpdate, schoolId, updateObj);
   }
 
   private async doUpdate(schoolId: string, updateObj: IUpdateSchoolRequest) {
@@ -96,18 +103,16 @@ export class SchoolsService {
     const usersIds: string[] = updateObjs.users.map(user => user._id);
     const usersObjs: IUser[] = await this.usersRepo.findMany({ '_id': { $in: usersIds }, 'school._id': schoolId });
     validateAllObjectsExist(usersObjs, usersIds, schoolId);
-    return this._commandsProcessor.sendCommand('schools', this.doUpdateUsers, schoolId, updateObjs.users);
+    return this._commandsProcessor.sendCommand(Service.schools, this.doUpdateUsers, schoolId, updateObjs.users);
   }
 
-  async getUsers(filter: { schoolId: string, role: Role, status: 'all' | Status }, paging: IPaging, byUser: IUserToken) {
-    this.authorize(byUser);
-    const _filter: any = {
-      role: filter.role
-    };
+  async getUsers(filter: { schoolId: string, role: Role.student | Role.teacher, status: 'all' | Status, courses?: string }, paging: IPaging, byUser: IUserToken): Promise<IPage<IUser | IUserWithCourses>> {
+    this.authorize(byUser, filter.schoolId);
+    const _filter: any = { role: filter.role };
     if (filter.status === 'all') {
       _filter.$or = [
-        { ['school._id']: filter.schoolId },
-        { ['registration.schoolId']: filter.schoolId },
+        { 'school._id': filter.schoolId },
+        { 'registration.schoolId': filter.schoolId },
       ];
     } else if (filter.status === Status.active) {
       _filter['school._id'] = filter.schoolId;
@@ -119,7 +124,23 @@ export class SchoolsService {
       _filter['registration.school._id'] = filter.schoolId;
     }
     logger.debug('getUsers filter:', _filter);
-    return this.usersRepo.findManyPage(_filter, paging);
+    const users = await this.usersRepo.findManyPage(_filter, paging);
+    if (filter.courses === 'true') {
+      const usersWithCourses: { [id: string]: IUserWithCourses } = users.items.reduce((map, user) => ({ ...map, [user._id]: { ...user, courses: [] } }), {});
+      const courses = await this.coursesRepo.getActiveCoursesForUsers(filter.role, Object.keys(usersWithCourses));
+      const sections = await this.sectionsRepo.findMany({ _id: { $in: courses.map(c => c.sectionId) } });
+      const sectionLocalesMap: { [id: string]: ILocales } = sections.reduce((map, section) => ({ ...map, [section._id]: section.locales }), {});
+      for (const course of courses) {
+        const { _id, grade, curriculum, subject, sectionId } = course;
+        const courseInfo: ICourseInfo = { _id, grade, curriculum, subject, section: { _id: sectionId, locales: sectionLocalesMap[sectionId] } };
+        for (const user of course[`${filter.role}s`] as IUserCourseInfo[]) {
+          const userWithCourses = usersWithCourses[user._id];
+          if (userWithCourses) userWithCourses.courses.push(courseInfo);
+        }
+      }
+      return { ...users, items: Object.values(usersWithCourses) };
+    }
+    return users;
   }
 
   async validateUsersInSchool(request: IRegistrationAction) {
@@ -145,9 +166,9 @@ export class SchoolsService {
       case 'approve':
         return this.approve(dbSchool, request);
       case 'reject':
-        return this._commandsProcessor.sendCommand('schools', this.doReject, request);
+        return this._commandsProcessor.sendCommand(Service.schools, this.doReject, request);
       case 'withdraw':
-        return this._commandsProcessor.sendCommand('schools', this.doWithdraw, request);
+        return this._commandsProcessor.sendCommand(Service.schools, this.doWithdraw, request);
       default:
         throw new InvalidRequestError(`Unrecognized action ${request.action}!`);
     }
@@ -168,13 +189,16 @@ export class SchoolsService {
     const isQuotaAvailable = (school.license[usersKey].max - school.license[usersKey].consumed) > usersCount;
     if (!isQuotaAvailable) throw new InvalidLicenseError(`License quota is over for school ${school._id}`);
 
-    return this._commandsProcessor.sendCommand('schools', this.doApprove, request);
+    return this._commandsProcessor.sendCommand(Service.schools, this.doApprove, request);
   }
 
   private async doApprove(request: IRegistrationAction) {
-    await this.schoolsRepo.consumeLicense(request.schoolId, request.role, request.users.length);
+    const schoolsRepo = this._uow.getRepository(Repo.schools, true) as SchoolsRepository;
+    const usersRepo = this._uow.getRepository(Repo.users, true) as UsersRepository;
 
-    await this.usersRepo.approveRegistrations(request.schoolId, request.users);
+    await schoolsRepo.consumeLicense(request.schoolId, request.role, request.users.length);
+    await usersRepo.approveRegistrations(request.schoolId, request.users);
+
     await this._kafkaService.sendMany(config.kafkaUpdatesTopic, request.users.map(userId => ({
       event: Events.enrollment,
       data: {
@@ -195,12 +219,22 @@ export class SchoolsService {
   }
 
   private async doWithdraw(request: IRegistrationAction) {
-    const schoolRepo = this._uow.getRepository(Repo.schools, true) as SchoolsRepository;
-    const userRepo = this._uow.getRepository(Repo.users, true) as UsersRepository;
+    const schoolsRepo = this._uow.getRepository(Repo.schools, true) as SchoolsRepository;
+    const sectionsRepo = this._uow.getRepository(Repo.sections, true) as SectionsRepository;
+    const coursesRepo = this._uow.getRepository(Repo.courses, true) as CoursesRepository;
+    const usersRepo = this._uow.getRepository(Repo.users, true) as UsersRepository;
 
-    await schoolRepo.releaseLicense(request.schoolId, request.role, request.users.length);
+    await schoolsRepo.releaseLicense(request.schoolId, request.role, request.users.length);
+    await sectionsRepo.removeStudents({ schoolId: request.schoolId }, request.users);
 
-    await userRepo.withdraw(request.schoolId, request.users);
+    const now = new Date();
+    const courses = await coursesRepo.getActiveCoursesForUsers(request.role, request.users);
+    await coursesRepo.finishUsersInCourses(courses.map(course => ({
+      filter: { _id: course._id, schoolId: request.schoolId },
+      usersIds: request.users
+    })), request.role, now);
+
+    await usersRepo.withdraw(request.schoolId, request.users);
 
     await this._kafkaService.sendMany(config.kafkaUpdatesTopic, request.users.map(userId => ({
       event: Events.enrollment,
@@ -217,6 +251,42 @@ export class SchoolsService {
     await this._uow.commit();
   }
 
+  async doSwitch(request: ISwitchRegistrationAction) {
+    const schoolsRepo = this._uow.getRepository(Repo.schools, true) as SchoolsRepository;
+    const sectionsRepo = this._uow.getRepository(Repo.sections, true) as SectionsRepository;
+    const coursesRepo = this._uow.getRepository(Repo.courses, true) as CoursesRepository;
+    const usersRepo = this._uow.getRepository(Repo.users, true) as UsersRepository;
+
+    await schoolsRepo.releaseLicense(request.fromSchoolId, request.role, request.users.length);
+    await sectionsRepo.removeStudents({ schoolId: request.fromSchoolId }, request.users);
+
+    const now = new Date();
+    const courses = await coursesRepo.getActiveCoursesForUsers(request.role, request.users);
+    await coursesRepo.finishUsersInCourses(courses.map(course => ({
+      filter: { _id: course._id, schoolId: request.fromSchoolId },
+      usersIds: request.users
+    })), request.role, now);
+
+    await usersRepo.withdraw(request.fromSchoolId, request.users);
+
+    await schoolsRepo.consumeLicense(request.toSchoolId, request.role, request.users.length);
+    await usersRepo.approveRegistrations(request.toSchoolId, request.users);
+
+    await this._kafkaService.sendMany(config.kafkaUpdatesTopic, request.users.map(userId => ({
+      event: Events.enrollment,
+      data: {
+        _id: userId,
+        status: Status.active,
+        // tslint:disable-next-line: no-null-keyword
+        schoolId: request.toSchoolId,
+        courses: []
+      },
+      timestamp: Date.now(),
+      v: '1.0.0'
+    })));
+    await this._uow.commit();
+  }
+
   private async doUpdateUsers(schoolId: string, users: ISchoolUserPermissions[]) {
     return this.schoolsRepo.updateUsersPermission(schoolId, users);
   }
@@ -224,14 +294,14 @@ export class SchoolsService {
   async deleteUsers(updateObjs: { users: string[] }, schoolId: string, byUser: IUserToken) {
     this.authorize(byUser);
     validators.validateDeleteSchoolUsers(updateObjs);
-    return this._commandsProcessor.sendCommand('schools', this.doDeleteUsers, schoolId, updateObjs.users);
+    return this._commandsProcessor.sendCommand(Service.schools, this.doDeleteUsers, schoolId, updateObjs.users);
   }
 
   private async doDeleteUsers(schoolId: string, usersIds: string[]) {
     return this.schoolsRepo.deleteUsersPermission(schoolId, usersIds);
   }
 
-  async updateAcademicTerm(updateObj: IUpdateAcademicTermRequest, scoolId: string, byUser: IUserToken) {
+  async updateAcademicTerm(updateObj: IUpdateAcademicTermRequest, schoolId: string, byUser: IUserToken) {
     this.authorize(byUser);
     const academicTerm: IAcademicTerm = {
       _id: newAcademicTermId(),
@@ -242,9 +312,10 @@ export class SchoolsService {
       gracePeriod: updateObj.gracePeriod,
       isEnabled: updateObj.isEnabled
     };
-    // ToDo: validation school before moving forward
     validators.validateUpdateSchoolAcademicTerm({ academicTerm });
-    return this._commandsProcessor.sendCommand('schools', this.doUpdateAcademicTerm, scoolId, updateObj, academicTerm);
+    const school = await this.schoolsRepo.findOne({ _id: schoolId });
+    if (!school) throw new InvalidRequestError(`Invalid schoolId ${schoolId}`);
+    return this._commandsProcessor.sendCommand(Service.schools, this.doUpdateAcademicTerm, schoolId, updateObj, academicTerm);
   }
 
   private async doUpdateAcademicTerm(schoolId: string, updateObj: IUpdateAcademicTermRequest, academicTerm: IAcademicTerm) {
@@ -259,7 +330,7 @@ export class SchoolsService {
       const coursesIds = activeCourses.map(course => course._id).join("', '");
       throw new ConditionalBadRequest(`Unable to delete the Academic Term because ['${coursesIds}'] are active within.`);
     }
-    return this._commandsProcessor.sendCommand('schools', this.doDeleteAcademicTerm, schoolId, academicTermId);
+    return this._commandsProcessor.sendCommand(Service.schools, this.doDeleteAcademicTerm, schoolId, academicTermId);
   }
 
   private async doDeleteAcademicTerm(schoolId: string, academicTermId: string) {
@@ -270,7 +341,7 @@ export class SchoolsService {
     this.authorize(byUser);
     if (!updateObj) throw new InvalidRequestError('Request should not be empty!');
     validators.validateUpdateSchool(updateObj);
-    return this._commandsProcessor.sendCommand('schools', this.doPatch, schoolId, updateObj);
+    return this._commandsProcessor.sendCommand(Service.schools, this.doPatch, schoolId, updateObj);
   }
 
   private async doPatch(schoolId: string, updateObj: IUpdateSchoolRequest) {
@@ -293,21 +364,24 @@ export class SchoolsService {
     /**
      * If validTo is less than existing license validTo
      */
-    const isLicenseConflicts = await this.schoolsRepo.findOne({ '_id': schoolId, 'license.validTo': { $gt: license.validTo } });
-    if (isLicenseConflicts) throw new InvalidRequestError('ValidTo conflicts with existing license validTo date, validTo should be greater');
-    return this._commandsProcessor.sendCommand('schools', this.doPatchLicense, schoolId, license);
+    const school = await this.schoolsRepo.findOne({ _id: schoolId });
+    if (!school) throw new InvalidRequestError(`Invalid schoolId ${schoolId}`);
+    if (school.license && school.license.validTo > license.validTo) throw new InvalidRequestError('ValidTo conflicts with existing license validTo date, validTo should be greater');
+    return this._commandsProcessor.sendCommand(Service.schools, this.doPatchLicense, schoolId, license);
   }
 
   private async doPatchLicense(schoolId: string, updateObj: ILicense) {
     return this.schoolsRepo.patch({ _id: schoolId }, { license: updateObj });
   }
 
-  protected authorize(byUser: IUserToken) {
-    if (!byUser) throw new ForbiddenError('access token is required!');
-    if (byUser.role.includes(config.authorizedRole)) return true;
-    throw new UnauthorizedError('you are not authorized to do this action');
-  }
   async doAddMany(schools: ISchool[]) {
     return this.schoolsRepo.addMany(schools, false);
+  }
+
+  protected authorize(byUser: IUserToken, schoolId?: string) {
+    if (!byUser) throw new ForbiddenError('access token is required!');
+    if (byUser.role.includes(config.authorizedRole)) return true;
+    if (byUser.role.includes(Role.principal) && byUser.schooluuid === schoolId) return true;
+    throw new UnauthorizedError('you are not authorized to do this action');
   }
 }

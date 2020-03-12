@@ -12,10 +12,11 @@ import { IUserToken } from '../models/IUserToken';
 import { ConditionalBadRequest } from '../exceptions/ConditionalBadRequest';
 import { IUpdateAcademicTermRequest } from '../models/requests/ISchoolRequests';
 import { newProviderId, newAcademicTermId } from '../utils/IdGenerator';
-import { Repo } from '../repositories/RepoNames';
+import { Repo } from '../models/RepoNames';
 import { CoursesRepository } from '../repositories/CoursesRepository';
 import { NotFoundError } from '../exceptions/NotFoundError';
-import { CommandsProcessor } from './processors/CommandsProcessor';
+import { CommandsProcessor } from '@saal-oryx/event-sourcing';
+import { Service } from '../models/ServiceName';
 
 export class ProvidersService {
 
@@ -47,7 +48,7 @@ export class ProvidersService {
       location: createObj.location,
       academicTerms
     };
-    return this._commandsProcessor.sendCommand('providers', this.doAdd, provider);
+    return this._commandsProcessor.sendCommand(Service.providers, this.doAdd, provider);
   }
 
   private async doAdd(provider: IProvider) {
@@ -67,7 +68,7 @@ export class ProvidersService {
     };
     validators.validateUpdateProviderAcademicTerm({ academicTerm });
     if (academicTerm.startDate > academicTerm.endDate) throw new InvalidRequestError('Start Date should be less than End Date');
-    return this._commandsProcessor.sendCommand('providers', this.doUpdateAcademicTerm, providerId, updateObj, academicTerm);
+    return this._commandsProcessor.sendCommand(Service.providers, this.doUpdateAcademicTerm, providerId, updateObj, academicTerm);
   }
 
   private async doUpdateAcademicTerm(providerId: string, updateObj: IAcademicTermRequest, academicTerm: IAcademicTerm) {
@@ -83,7 +84,7 @@ export class ProvidersService {
       const coursesIds = activeCourses.map(course => course._id).join("', '");
       throw new ConditionalBadRequest(`Unable to delete the Academic Term because ['${coursesIds}'] are active within.`);
     }
-    return this._commandsProcessor.sendCommand('providers', this.doDeleteAcademicTermProvider, providerId, academicTermId);
+    return this._commandsProcessor.sendCommand(Service.providers, this.doDeleteAcademicTermProvider, providerId, academicTermId);
   }
 
   async deleteProvider(providerId: string, byUser: IUserToken) {
@@ -98,7 +99,7 @@ export class ProvidersService {
         throw new ConditionalBadRequest(`Unable to delete the Academic Term because ['${coursesIds}'] are active within.`);
       }
     }
-    return this._commandsProcessor.sendCommand('providers', this.doDelete, providerId);
+    return this._commandsProcessor.sendCommand(Service.providers, this.doDelete, providerId);
   }
 
   private async doDeleteAcademicTermProvider(_id: string, academicTermId: string) {

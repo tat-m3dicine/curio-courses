@@ -21,7 +21,6 @@ export class InviteCodesController {
         toDate: new Date(validity.toDate)
       }
     };
-    validators.validateCreateInviteCode(createObject);
     const result = await this.inviteCodesService.create(createObject, ctx.user);
     ctx.status = result.done ? 201 : 202;
     ctx.body = { ok: true, result: result.data };
@@ -29,16 +28,26 @@ export class InviteCodesController {
   }
 
   async list(ctx: Context, next: () => void) {
-    const result = await this.inviteCodesService.list(ctx.params.schoolId, this.extractPaging(ctx.query), ctx.user);
+    const { schoolId } = ctx.params;
+    const { type } = ctx.query;
+    const result = await this.inviteCodesService.list({ schoolId, type }, this.extractPaging(ctx.query), ctx.user);
+    ctx.status = 200;
+    ctx.body = result;
+    ctx.type = 'json';
+  }
+
+  async getForSchool(ctx: Context, next: () => void) {
+    const { schoolId, codeId } = ctx.params;
+    const result = await this.inviteCodesService.getForSchool(schoolId, codeId, ctx.user);
+    if (!result) throw new NotFoundError(`Couldn't find invite code '${codeId}' in school '${schoolId}'`);
     ctx.status = 200;
     ctx.body = result;
     ctx.type = 'json';
   }
 
   async get(ctx: Context, next: () => void) {
-    const { schoolId, codeId } = ctx.params;
-    const result = await this.inviteCodesService.get(schoolId, codeId, ctx.user);
-    if (!result) throw new NotFoundError(`Couldn't find invite code '${codeId}' in school '${schoolId}'`);
+    const { codeId } = ctx.params;
+    const result = await this.inviteCodesService.getWithAllInfo(codeId, ctx.user);
     ctx.status = 200;
     ctx.body = result;
     ctx.type = 'json';
@@ -56,13 +65,16 @@ export class InviteCodesController {
     const { index, size } = query;
     let parsedIndex = parseInt(index);
     let parsedSize = parseInt(size);
+    const createdAt = query['sorter.createdAt'] === '-1' ? -1 : 1;
+
     if (!parsedIndex || parsedIndex < 1 || isNaN(parsedIndex)) parsedIndex = 0;
     else parsedIndex -= 1;
     if (!parsedSize || parsedSize < 1 || isNaN(parsedSize)) parsedSize = 10;
 
     return <IPaging>{
       index: parsedIndex,
-      size: parsedSize
+      size: parsedSize,
+      sorter: { createdAt }
     };
   }
 }

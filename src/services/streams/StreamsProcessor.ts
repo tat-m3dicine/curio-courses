@@ -1,32 +1,47 @@
 import { KafkaStreams } from 'kafka-streams';
-import { CommandsStream } from './CommandsStream';
 import { IRPStream } from './IRPStream';
-import { KafkaService } from '../processors/KafkaService';
 import { UnitOfWork } from '@saal-oryx/unit-of-work';
-import { UsersService } from '../UsersService';
+import { CommandsProcessor, KafkaService, CommandsStream } from '@saal-oryx/event-sourcing';
+import config from '../../config';
 import { UpdatesProcessor } from '../processors/UpdatesProcessor';
-import { CommandsProcessor } from '../processors/CommandsProcessor';
+import { getFactory } from '../ServiceFactory';
+import { Service } from '../../models/ServiceName';
+import { UsersService } from '../UsersService';
+import { getNativeConfig } from '../../config/native';
 
 export class StreamsProcessor {
+  private _serviceFactory: (name: string) => any;
+  private _getUsersService: () => Promise<UsersService>;
 
-  private _streams: any[] = [];
   constructor(
-    protected _updatesProcessor: UpdatesProcessor,
     protected _commandsProcessor: CommandsProcessor,
-    protected _kafkaService: KafkaService,
-    protected _kafkaStreams: KafkaStreams,
-    protected _unitOfWorkFactory: (options: any) => Promise<UnitOfWork>
+    unitOfWorkFactory: (options: any) => Promise<UnitOfWork>,
+    updatesProcessor: UpdatesProcessor,
+    kafkaService: KafkaService
   ) {
+    this._serviceFactory = getFactory(unitOfWorkFactory, _commandsProcessor, kafkaService, updatesProcessor);
+    this._getUsersService = () => this._serviceFactory(Service.users);
+  }
 
+  private _getStreams(): { start: () => any }[] {
+    const kafkaStreams = new KafkaStreams(
+      <any>getNativeConfig('CoursesCommandsStreams', 'CoursesCommandsStreams')
+    );
+    const irpStream = new IRPStream(kafkaStreams, this._getUsersService);
+    // .. const commandsStream = new CommandsStream(
+    //   kafkaStreams,
+    //   this._serviceFactory,
+    //   this._commandsProcessor,
+    //   {
+    //     streamTopic: config.kafkaCommandsTopic,
+    //     failuresStreamTopic: `${config.kafkaCommandsTopic}_db_failed`
+    //   }
+    // );
+    return [irpStream];
   }
 
   async start() {
-    const promises: any[] = [];
-    const getUsersService = (uow: UnitOfWork, kafka: KafkaService) => new UsersService(uow, kafka);
-    const commandsStream = new CommandsStream(this._kafkaStreams, this._updatesProcessor, this._commandsProcessor, this._unitOfWorkFactory);
-    const irpStream = new IRPStream(this._kafkaStreams, this._kafkaService, this._unitOfWorkFactory, getUsersService);
-    promises.push(commandsStream.start(), irpStream.start());
-    this._streams.push(commandsStream, irpStream);
-    return Promise.all(promises);
+    const streams = this._getStreams();
+    return Promise.all(streams.map(stream => stream.start()));
   }
 }

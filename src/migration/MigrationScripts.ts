@@ -16,11 +16,12 @@ import { ICourse } from '../models/entities/ICourse';
 import config from '../config';
 import { IUserToken } from '../models/IUserToken';
 import { Role } from '../models/Role';
-import { Repo } from '../repositories/RepoNames';
+import { Repo } from '../models/RepoNames';
 import { CoursesService } from '../services/CoursesService';
 import { IRPRequests } from './IRPRequests';
 import { UpdatesProcessor } from '../services/processors/UpdatesProcessor';
-import { CommandsProcessor } from '../services/processors/CommandsProcessor';
+import { CommandsProcessor } from '@saal-oryx/event-sourcing';
+import { SectionsRepository } from '../repositories/SectionsRepository';
 
 const logger = loggerFactory.getLogger('MigrationScripts');
 
@@ -30,6 +31,7 @@ export class MigrationScripts {
   }
 
   async migrateIRPSchools() {
+    logger.info('Migrating Schools ... ');
     const client = await getDbClient();
     const uow = new UnitOfWork(client, getFactory(), { useTransactions: false });
     const irpRequests = new IRPRequests();
@@ -39,33 +41,62 @@ export class MigrationScripts {
     const listOfUsers = await usersRepo.findMany({});
     const allSchools = await irpRequests.getAllSchools();
     let schoolList: ISchool[] = [];
-    await Promise.all(allSchools.map(async school => {
+    for (const school of allSchools) {
       const results = await this.mapIRPSchoolsToDbSchools(school, listOfUsers);
       schoolList = schoolList.concat(results);
-    }));
-    const response = await schoolsRepo.addMany(schoolList, false);
-    logger.info('Count of schools Migrated', response.length);
+    }
+    schoolsRepo.addMany(schoolList, false).catch(err => {
+      if (err && err.code === 11000) return undefined;
+      throw err;
+    });
   }
 
-  async migrateIRPUsersAndSections() {
-    logger.info('migrateIRPUsers invoked');
-
-    const irpRequests = new IRPRequests();
-    const allSections = await irpRequests.getAllSections();
-    let usersList: IIRPUserMigrationRequest[] = [];
-    await Promise.all(allSections.map(async section => {
-      const results = await irpRequests.getAllUsersBySection(section.uuid);
-      usersList = usersList.concat(results);
-    }));
-    const [users, sections] = await Promise.all([this.migrate(usersList), this.migrateSections(usersList)]);
-    logger.info('Count of Users Migrated', users && users.length);
-    logger.info('Count of Sections Migrated', sections && sections.length);
-    const userIds = usersList.map(x => x._id);
+  async migrateIRPSections() {
+    logger.info('Migrating Sections ... ');
 
     const client = await getDbClient();
     const uow = new UnitOfWork(client, getFactory(), { useTransactions: false });
-    const courseService = new CoursesService(uow, this._commandsProcessor, this._updatesProcessor);
-    await courseService.notifyForUserEnrollment(Role.student, userIds);
+
+    const irpRequests = new IRPRequests();
+    const irpSections = await irpRequests.getAllSections();
+
+    const sections: ISection[] = irpSections.map(section => ({
+      _id: section.uuid,
+      locales: {
+        en: {
+          name: section.name
+        }
+      },
+      schoolId: section.schoolUuid,
+      grade: section.grade,
+      students: [],
+      providerLinks: []
+    }));
+    uow.getRepository(Repo.sections).addMany(sections, false).catch(err => {
+      if (err && err.code === 11000) return undefined;
+      throw err;
+    });
+
+  }
+
+  private async usersList() {
+    const irpRequests = new IRPRequests();
+    const allSections = await irpRequests.getAllSections();
+    let usersList: IIRPUserMigrationRequest[] = [];
+    for (const section of allSections) {
+      const results = await irpRequests.getAllUsersBySection(section.uuid);
+      usersList = usersList.concat(results);
+    }
+    return usersList;
+  }
+
+  async migrateIRPUsers() {
+    logger.info('migrateIRPUsers invoked');
+
+    const usersList = await this.usersList();
+    const users = await this.migrateUsers(usersList);
+    await this.migrateUsersInSections(usersList);
+    logger.info('Count of Users Migrated', users && users.length);
   }
 
 
@@ -75,10 +106,11 @@ export class MigrationScripts {
     const irpRequests = new IRPRequests();
     const schoolsRepo: SchoolsRepository = uow.getRepository('Schools');
     const coursesRepo: CoursesRepository = uow.getRepository('Courses');
+    const courseService = new CoursesService(uow, this._commandsProcessor, this._updatesProcessor);
 
     const userIds: string[] = [];
     const schools = await schoolsRepo.findMany({});
-    await Promise.all(schools.map(async school => {
+    for (const school of schools) {
       const irpTeachers = await irpRequests.getTeachersByPrefrences(school._id);
       irpTeachers.forEach(t => userIds.push(t._id));
       await this.registerTeachers(school._id, irpTeachers.map(t => ({ _id: t._id, name: t.name, avatar: t.avatar })));
@@ -93,9 +125,8 @@ export class MigrationScripts {
           }
         }
       }
-    }));
+    }
 
-    const courseService = new CoursesService(uow, this._commandsProcessor, this._updatesProcessor);
     await courseService.notifyForUserEnrollment(Role.teacher, userIds);
   }
 
@@ -127,13 +158,13 @@ export class MigrationScripts {
   }
 
 
-  async migrate(requests: IIRPUserMigrationRequest[]) {
+  async migrateUsers(requests: IIRPUserMigrationRequest[]) {
     const now = new Date();
 
     const client = await getDbClient();
     const uow = new UnitOfWork(client, getFactory(), { useTransactions: false });
 
-    const users: IUser[] = requests.map(user => ({
+    const users: IUser[] = requests.filter(user => user.schooluuid).map(user => ({
       _id: user._id,
       role: [Role.student],
       profile: {
@@ -156,10 +187,30 @@ export class MigrationScripts {
       });
   }
 
-  async migrateSections(requests: IIRPUserMigrationRequest[]) {
+  async migrateUsersInSections(requests: IIRPUserMigrationRequest[]) {
     const client = await getDbClient();
     const uow = new UnitOfWork(client, getFactory(), { useTransactions: false });
-    const sections: ISection[] = Object.values(requests.reduce((section: ICreateSectionRequest, curVal: IIRPUserMigrationRequest) => {
+    const sectionRepo: SectionsRepository = uow.getRepository(Repo.sections);
+    const sections = Object.values(requests.reduce((updates: { filter: object, usersIds: string[] }[], curVal: IIRPUserMigrationRequest) => {
+      if (!updates[curVal.sectionuuid]) {
+        updates[curVal.sectionuuid] = {
+          filter: { _id: curVal.sectionuuid }
+        };
+      }
+      if (!updates[curVal.sectionuuid].usersIds) updates[curVal.sectionuuid].usersIds = [];
+      updates[curVal.sectionuuid].usersIds.push(curVal.username);
+
+      return updates;
+    }, {} as { filter: object, usersIds: string[] }[]));
+    // Update With BulkWrite
+    return sectionRepo.addStudentsToSections(sections);
+  }
+
+  async prepareCourses() {
+    const client = await getDbClient();
+    const uow = new UnitOfWork(client, getFactory(), { useTransactions: false });
+    const usersList = await this.usersList();
+    const sections: ISection[] = Object.values(usersList.filter(user => user.schooluuid).reduce((section: ICreateSectionRequest, curVal: IIRPUserMigrationRequest) => {
       if (!section[curVal.sectionuuid]) {
         section[curVal.sectionuuid] = {
           _id: curVal.sectionuuid,
@@ -177,9 +228,11 @@ export class MigrationScripts {
       section[curVal.sectionuuid].students.push(curVal.username);
       return section;
     }, {} as ICreateSectionRequest));
-    const response = await uow.getRepository(Repo.sections).addMany(sections, false);
     await this.createCourses(sections, uow);
-    return response;
+    const userIds = usersList.map(x => x._id);
+
+    const courseService = new CoursesService(uow, this._commandsProcessor, this._updatesProcessor);
+    await courseService.notifyForUserEnrollment(Role.student, userIds);
   }
 
   async createCourses(sections: ISection[], uow: IUnitOfWork) {
@@ -187,15 +240,25 @@ export class MigrationScripts {
     const courseRepo = uow.getRepository(Repo.courses) as CoursesRepository;
     const [schools, courses] = await Promise.all([
       schoolRepo.findMany({ _id: { $in: sections.map(section => section.schoolId) } }),
-      courseRepo.findMany({ sectionId: { $in: sections.map(section => section._id) } }, { sectionId: 1 })
+      courseRepo.findMany({ sectionId: { $in: sections.map(section => section._id) } }, { sectionId: 1, subject: 1 })
     ]);
+    const courseService = new CoursesService(uow, this._commandsProcessor, this._updatesProcessor);
 
-    return Promise.all(sections.map(section => {
+    for (const section of sections) {
       const school: ISchool | undefined = schools.find(school => school._id === section.schoolId);
-      const course: ICourse | undefined = courses.find(course => course.sectionId === section._id);
-      if (!course && school && school.license && school.license.package && school.license.package.grades && school.license.package.grades[section.grade]) {
-        const subjects = school.license.package.grades[section.grade];
-        return Promise.all(Object.keys(subjects).map(subject => {
+      if (!section || !school || !school.license || !school.license.package || !school.license.package.grades || !school.license.package.grades[String(section.grade)]) {
+        logger.warn(`section ${JSON.stringify(section)} was not migrated because its not included in the school.license.package`);
+        continue;
+      }
+      const subjects = school.license.package.grades[String(section.grade)];
+      for (const subject in subjects) {
+        const course: ICourse | undefined = courses.find(c => c.sectionId === section._id && c.subject === subject);
+        if (course) {
+          await courseRepo.addUsersToCourses([{
+            filter: { _id: course._id },
+            usersObjs: section.students.map(studentId => ({ _id: studentId, joinDate: new Date(), isEnabled: true }))
+          }], Role.student);
+        } else {
           const req: ICreateCourseRequest = {
             schoolId: school._id,
             sectionId: section._id,
@@ -206,15 +269,18 @@ export class MigrationScripts {
               }
             },
             curriculum: subjects[subject][0],
-            grade: section.grade,
+            grade: String(section.grade),
             students: section.students
           };
-          const courseService = new CoursesService(uow, this._commandsProcessor, this._updatesProcessor);
-          return courseService.create(req, <IUserToken>{ role: [config.authorizedRole] });
-        }));
+          try {
+            await courseService.create(req, <IUserToken>{ role: [config.authorizedRole] });
+          } catch (err) {
+            logger.info(`course creation error `, JSON.stringify(req));
+            logger.error(`course '${school._id}-${section._id}-${subject}-${section.grade}' was not migrated properly`, err);
+          }
+        }
       }
-      return;
-    }).filter(x => x));
+    }
   }
 
   public mapIRPSchoolsToDbSchools(irpSchool: IIRPSchool, listOfUsers: IUser[]) {

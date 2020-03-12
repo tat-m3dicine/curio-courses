@@ -3,17 +3,18 @@ import { ILocales } from '../models/entities/Common';
 
 const hexCharacters = '0123456789abcdef';
 const newId = (length: number) => generate(hexCharacters, length);
+const normalizeString = (str: string) => str.replace(/[^a-zA-Z0-9]/g, '').replace(/\s/g, '');
 
 export const newSchoolId = (name: string) => {
-  return `${name.replace(/\s/g, '')}_${newId(5)}`.toUpperCase();
+  return `${normalizeString(name)}_${newId(5)}`.toUpperCase();
 };
 
 export const newSectionId = (schoolId: string, grade: string, locales: ILocales) => {
-  return `${schoolId}_${locales.en.name}_${grade}`.replace(/\s/g, '').toUpperCase();
+  return `${schoolId}_${normalizeString(locales.en.name)}_${grade}`.toUpperCase();
 };
 
 export const newCourseId = (sectionId: string, subject: string, year: string) => {
-  return `${sectionId}_${subject}_${year}_${newId(3)}`.replace(/\s/g, '').toUpperCase();
+  return `${sectionId}_${subject}_${year}_${newId(3)}`.toUpperCase();
 };
 
 export const newInviteCodeId = () => newId(8);

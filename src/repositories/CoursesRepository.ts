@@ -2,7 +2,7 @@ import { Collection, ClientSession } from 'mongodb';
 import { AduitableRepository } from './AduitableRepository';
 import { ICourse, IUserCourseInfo } from '../models/entities/ICourse';
 import { Role } from '../models/Role';
-import { Repo } from './RepoNames';
+import { Repo } from '../models/RepoNames';
 import loggerFactory from '../utils/logging';
 const logger = loggerFactory.getLogger('CoursesRepository');
 
@@ -24,6 +24,7 @@ export class CoursesRepository extends AduitableRepository<ICourse> {
       }
     }));
     logger.debug('bulkWrite', JSON.stringify(command));
+    if (command.length === 0) return { modifiedCount: 0 };
     return this._collection.bulkWrite(command, { session: this._session });
   }
 
@@ -74,6 +75,7 @@ export class CoursesRepository extends AduitableRepository<ICourse> {
       }
     }));
     logger.debug('bulkWrite', JSON.stringify(command));
+    if (command.length === 0) return { modifiedCount: 0 };
     return this._collection.bulkWrite(command, { session: this._session });
   }
 
@@ -154,7 +156,7 @@ export class CoursesRepository extends AduitableRepository<ICourse> {
         }
       );
     }
-    return this._collection.aggregate(pipeline, { session: this._session }).toArray();
+    return this._collection.aggregate<ICourse>(pipeline, { session: this._session }).toArray();
   }
 
   async getActiveCoursesUnderSections(sectionsIds: string[]) {
@@ -167,4 +169,65 @@ export class CoursesRepository extends AduitableRepository<ICourse> {
     });
   }
 
+  async getById(schoolId: string, courseId: string, includeProfiles: boolean) {
+    const pipeline: any[] = [
+      {
+        $match: { _id: courseId, schoolId }
+      },
+      {
+        $addFields: {
+          students: {
+            $filter: {
+              input: '$students',
+              as: 'student',
+              cond: {
+                $and: [
+                  { $eq: ['$$student.isEnabled', true] },
+                  { $not: '$$student.finishDate' }
+                ]
+              }
+            }
+          },
+          teachers: {
+            $filter: {
+              input: '$teachers',
+              as: 'teacher',
+              cond: {
+                $and: [
+                  { $eq: ['$$teacher.isEnabled', true] },
+                  { $not: '$$teacher.finishDate' }
+                ]
+              }
+            }
+          }
+        }
+      }
+    ];
+    if (includeProfiles) {
+      pipeline.push({
+        $lookup:
+        {
+          from: 'Users',
+          let: { students: '$students' },
+          pipeline: [
+            { $match: { $expr: { $in: ['$_id', '$$students._id'] } } },
+            { $project: { profile: 1, _id: 1 } }
+          ],
+          as: 'students'
+        }
+      }, {
+        $lookup:
+        {
+          from: 'Users',
+          let: { teachers: '$teachers' },
+          pipeline: [
+            { $match: { $expr: { $in: ['$_id', '$$teachers._id'] } } },
+            { $project: { profile: 1, _id: 1 } }
+          ],
+          as: 'teachers'
+        }
+      });
+    }
+    return this._collection.aggregate<ICourse>(pipeline, { session: this._session }).toArray().then(a => a[0]);
+  }
 }
