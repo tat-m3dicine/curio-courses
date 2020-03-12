@@ -223,7 +223,11 @@ export class UsersService {
     }
   }
 
-  async update(request: { user_id: string, new_user_data: Partial<IUserData> }) {
+  async update(request: ISignupRequest) {
+    if (request.provider !== 'curio' && (request.old_user_data && !request.old_user_data.school)) {
+      // New Signup using provider ...
+      return this.signup(request);
+    }
     const user = request.new_user_data;
     const userObj: Partial<IUser> = {};
     if (user.role) userObj.role = user.role;

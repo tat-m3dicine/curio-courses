@@ -30,6 +30,7 @@ export interface ISignupRequest {
   user_id: string;
   provider?: string;
   new_user_data: IUserData;
+  old_user_data?: IUserData;
 }
 
 export interface IUserData {
