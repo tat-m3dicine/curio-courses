@@ -287,7 +287,7 @@ export class CoursesService {
     return this._commandsProcessor.sendCommand(Service.courses, this.doEnrollUsers, requestParams, role, joinDate);
   }
 
-  private async doEnrollUsers(requests: IUserRequest[], role: Role, joinDate: Date) {
+  private async doEnrollUsers(requests: IUserRequest[], role: Role, joinDate: Date, commit = true) {
     const coursesUpdates = requests.map(({ schoolId, sectionId, courseId, usersIds }) => ({
       filter: { _id: courseId, schoolId, ...(role === Role.student ? { sectionId } : {}) },
       usersObjs: usersIds.map(_id => <IUserCourseInfo>{ _id, joinDate, isEnabled: true })
@@ -304,8 +304,10 @@ export class CoursesService {
       await sectionsRepoWithTransactions.addStudentsToSections(sectionsUpdates);
     }
 
-    await this._uow.commit();
-    if (result.modifiedCount !== 0) await this.sendUsersChangesUpdates('enroll', requests);
+    if (commit) {
+      if (result.modifiedCount !== 0) await this.sendUsersChangesUpdates('enroll', requests);
+      await this._uow.commit();
+    }
     return result;
   }
 
@@ -317,13 +319,42 @@ export class CoursesService {
     return this._commandsProcessor.sendCommand(Service.courses, this.doDropUsers, requestParams, role, finishDate);
   }
 
-  private async doDropUsers(requests: IUserRequest[], role: Role, finishDate: Date) {
+  private async doDropUsers(requests: IUserRequest[], role: Role, finishDate: Date, commit = true) {
     const coursesUpdates = requests.map(({ schoolId, sectionId, courseId, usersIds }) => ({
       filter: { _id: courseId, schoolId, ...(role === Role.student ? { sectionId } : {}) }, usersIds
     }));
-    const result = await this.coursesRepo.finishUsersInCourses(coursesUpdates, role, finishDate);
-    if (result.modifiedCount !== 0) await this.sendUsersChangesUpdates('drop', requests);
+
+    const coursesRepoWithTransactions = this._uow.getRepository(Repo.courses, true) as CoursesRepository;
+    const result = await coursesRepoWithTransactions.finishUsersInCourses(coursesUpdates, role, finishDate);
+
+    if (commit) {
+      if (result.modifiedCount !== 0) await this.sendUsersChangesUpdates('drop', requests);
+      await this._uow.commit();
+    }
     return result;
+  }
+
+  async switchUsers(enrollRequests: IUserRequest[], dropRequests: IUserRequest[], role: Role, byUser: IUserToken) {
+    const requestParams = [...enrollRequests, ...dropRequests];
+    if (role !== Role.teacher) this.authorize(byUser);
+    else this.authorizeTeacherRequest(byUser, requestParams);
+    await this.validateCoursesAndUsers(requestParams, role);
+    return this._commandsProcessor.sendCommand(Service.courses, this.doSwitchUsers, enrollRequests, dropRequests, role, new Date());
+  }
+
+  private async doSwitchUsers(enrollRequests: IUserRequest[], dropRequests: IUserRequest[], role: Role, date: Date) {
+    const results = [
+      await this.doDropUsers(dropRequests, role, date, false),
+      await this.doEnrollUsers(enrollRequests, role, date, false)
+    ];
+    if (results.some(result => result.modifiedCount !== 0)) {
+      const enrollUpdates = await this.getUserChangesUpdates('enroll', enrollRequests);
+      const dropUpdates = await this.getUserChangesUpdates('drop', dropRequests);
+      const coursesIds = [...enrollRequests, ...dropRequests].map(r => r.courseId);
+      await this._updatesProcessor.sendEnrollmentUpdatesWithActions([...enrollUpdates, ...dropUpdates], coursesIds);
+    }
+    await this._uow.commit();
+    return results;
   }
 
   async join(codeId: string, byUser: IUserToken) {
@@ -375,6 +406,11 @@ export class CoursesService {
   private async sendUsersChangesUpdates(action: 'enroll' | 'drop', requests: IUserRequest[]) {
     logger.debug(`Sending user changes for action: ${action} with request`, requests);
     const coursesIds = requests.map(request => request.courseId);
+    const events = await this.getUserChangesUpdates(action, requests);
+    return this._updatesProcessor.sendEnrollmentUpdatesWithActions(events, coursesIds);
+  }
+
+  private async getUserChangesUpdates(action: 'enroll' | 'drop', requests: IUserRequest[]) {
     const events: IUserUpdatedEvent[] = [];
     for (const request of requests) {
       const usersIds = Array.from(new Set(request.usersIds));
@@ -394,7 +430,7 @@ export class CoursesService {
         }
       }));
     }
-    return this._updatesProcessor.sendEnrollmentUpdatesWithActions(events, coursesIds);
+    return events;
   }
 
   private transformCoursesToUpdates(courses: ICourse[], role: Role): { [_id: string]: IUserCourseUpdates[] } {
