@@ -6,7 +6,7 @@ const validator = new Validator();
 const listSchema = {
   type: 'array',
   items: 'string',
-  min: 1,
+  min: 0,
   $$strict: true
 };
 
