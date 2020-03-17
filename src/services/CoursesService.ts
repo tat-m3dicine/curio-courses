@@ -347,8 +347,8 @@ export class CoursesService {
     const updates: IUserUpdatedEvent[] = [];
     if (enrollResults.modifiedCount !== 0) updates.push(...await this.getUserChangesUpdates('enroll', enrollRequests));
     if (dropResults.modifiedCount !== 0) updates.push(...await this.getUserChangesUpdates('drop', dropRequests, false));
-    if (updates.length > 0) await this._updatesProcessor.sendEnrollmentUpdatesWithActions(updates, enrollRequests.map(r => r.courseId), dropRequests.map(r => r.courseId));
     await this._uow.commit();
+    if (updates.length > 0) await this._updatesProcessor.sendEnrollmentUpdatesWithActions(updates, enrollRequests.map(r => r.courseId), dropRequests.map(r => r.courseId));
     return { dropResults, enrollResults };
   }
 
