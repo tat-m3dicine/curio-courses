@@ -2,7 +2,7 @@ import { ISchool, SignupMethods } from '../entities/ISchool';
 import { Role } from '../Role';
 import { Status, IUserWithRegistration } from '../entities/IUser';
 import { IInviteCode, EnrollmentType } from '../entities/IInviteCode';
-import { ICourse, IUserCourseInfo } from '../entities/ICourse';
+import { ICourse } from '../entities/ICourse';
 import { newCourseId } from '../../utils/IdGenerator';
 import { InvalidRequestError } from '../../exceptions/InvalidRequestError';
 
@@ -165,8 +165,8 @@ export class UserRegisteration {
           locales: { en: { name: section.name } },
           curriculum: subjects[subject][0],
           isEnabled: true,
-          teachers: <IUserCourseInfo[]>[],
-          students: [{ _id: this._user._id, joinDate: now, isEnabled: true }]
+          teachers: [],
+          students: []
         });
       }
     }
