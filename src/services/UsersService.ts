@@ -157,7 +157,7 @@ export class UsersService {
       if (courses) {
         this.validateProvider(providerId, 'Course');
         const coursesToAdd = courses.filter(c => !activeCourses.some(a => a.grade === c.grade && a.subject === c.subject));
-        await this.coursesRepo.addMany(coursesToAdd);
+        if (coursesToAdd.length > 0) await this.coursesRepo.addMany(coursesToAdd);
         courses = courses.map(c => c._id);
       } else {
         courses = activeCourses.map(c => c._id);
