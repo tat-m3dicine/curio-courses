@@ -143,27 +143,32 @@ export class UsersService {
     const role = this.getRole(user);
     if (providerId !== 'curio') {
       const dbSections = await this.sectionsRepo.findMany({ providerLinks: { $in: sections } });
+      let sectionsIds = dbSections.map(s => s._id);
       if (dbSections.length !== sections.length) {
         this.validateProvider(providerId, 'Section');
-        const newSections: string[] = sections.filter(s => dbSections.every(x => !x.providerLinks.includes(s)));
-        const result = await this.createSections(newSections, user);
-        sections = Array.from(new Set(result.map(s => s._id).concat(dbSections.map(s => s._id))));
+        const newSections = sections.filter(s => dbSections.every(x => !x.providerLinks.includes(s)));
+        if (newSections.length > 0) {
+          const newDbSections = await this.createSections(newSections, user);
+          sectionsIds = Array.from(new Set(sectionsIds.concat(newDbSections.map(s => s._id))));
+        }
       }
+      sections = sectionsIds;
     }
     if (role === Role.student) {
       await this.sectionsRepo.addStudents({ _id: { $in: sections } }, [user._id]);
     }
     if (!courses || (courses && courses.length > 0 && providerId !== 'curio')) {
       const activeCourses = await this.coursesRepo.getActiveCoursesUnderSections(sections);
+      let coursesIds = activeCourses.map(c => c._id);
       if (courses && providerId !== 'curio') {
-        courses = courses as ICourse[];
         this.validateProvider(providerId, 'Course');
-        const coursesToAdd = courses.filter(c => !activeCourses.some(a => a.grade === c.grade && a.subject === c.subject));
-        if (coursesToAdd.length > 0) await this.coursesRepo.addMany(coursesToAdd);
-        courses = courses.map(c => c._id);
-      } else {
-        courses = activeCourses.map(c => c._id);
+        const newCourses = (<ICourse[]>courses).filter(c => !activeCourses.some(a => a.grade === c.grade && a.subject === c.subject));
+        if (newCourses.length > 0) {
+          const newDbCourses = await this.coursesRepo.addMany(newCourses);
+          coursesIds = Array.from(new Set(coursesIds.concat(newDbCourses.map(s => s._id))));
+        }
       }
+      courses = coursesIds;
     }
     const now = new Date();
     await this.coursesRepo.addUsersToCourses([{

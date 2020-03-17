@@ -3,7 +3,7 @@ import { Role } from '../Role';
 import { Status, IUserWithRegistration } from '../entities/IUser';
 import { IInviteCode, EnrollmentType } from '../entities/IInviteCode';
 import { ICourse } from '../entities/ICourse';
-import { newCourseId } from '../../utils/IdGenerator';
+import { newCourseId, newSectionId } from '../../utils/IdGenerator';
 import { InvalidRequestError } from '../../exceptions/InvalidRequestError';
 
 interface IRequirements {
@@ -157,12 +157,12 @@ export class UserRegisteration {
     const courses: ICourse[] = [];
     for (const section of sections) {
       for (const subject in subjects) {
+        const locales = { en: { name: section.name } };
+        const sectionId = newSectionId(schoolId, grade, locales);
         courses.push({
-          _id: newCourseId(section._id, subject, academicTerm.year),
-          grade, academicTerm, schoolId, subject,
-          sectionId: section._id,
+          _id: newCourseId(sectionId, subject, academicTerm.year),
+          grade, academicTerm, schoolId, subject, locales, sectionId,
           defaultLocale: 'en',
-          locales: { en: { name: section.name } },
           curriculum: subjects[subject][0],
           isEnabled: true,
           teachers: [],
