@@ -133,11 +133,9 @@ export class UsersService {
   }
 
   async doRegisterUser(user: IUserWithRegistration, schoolId: string, inviteCodeId: string | undefined) {
-    return Promise.all([
-      this.usersRepo.assignSchool(user),
-      this.schoolsRepo.consumeLicense(schoolId, this.getRole(user), +1),
-      inviteCodeId ? this.inviteCodesRepo.incrementConsumedCount(inviteCodeId) : Promise.resolve()
-    ]);
+    await this.usersRepo.assignSchool(user);
+    await this.schoolsRepo.consumeLicense(schoolId, this.getRole(user), +1);
+    if (inviteCodeId) await this.inviteCodesRepo.incrementConsumedCount(inviteCodeId);
   }
 
   async doEnrollCourses(user: IUserWithRegistration, sections: string[], courses?: any[]) {
