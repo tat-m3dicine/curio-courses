@@ -3,7 +3,7 @@ import { IUnitOfWork } from '@saal-oryx/unit-of-work';
 import { UsersRepository } from '../repositories/UsersRepository';
 import { IUser, Status, IUserWithRegistration } from '../models/entities/IUser';
 import { IProfile } from '../models/entities/Common';
-import { ISignupRequest, IUserData } from '../models/entities/IIRP';
+import { ISignupRequest } from '../models/entities/IIRP';
 import loggerFactory from '../utils/logging';
 import { InviteCodesRepository } from '../repositories/InviteCodesRepository';
 import { IInviteCode, EnrollmentType } from '../models/entities/IInviteCode';
@@ -17,7 +17,6 @@ import { IProvider } from '../models/entities/IProvider';
 import { InvalidRequestError } from '../exceptions/InvalidRequestError';
 import { ISchool } from '../models/entities/ISchool';
 import { newSchoolId, newSectionId } from '../utils/IdGenerator';
-import { getNotMatchingObjects } from '../utils/validators/AllObjectsExist';
 import { ISection } from '../models/entities/ISection';
 import config from '../config';
 import { Repo } from '../models/RepoNames';
@@ -25,6 +24,7 @@ import { IUserUpdatedData } from '../models/events/IUserUpdatedEvent';
 import { NotFoundError } from '../exceptions/NotFoundError';
 import { KafkaService } from '@saal-oryx/event-sourcing';
 import { Events } from './processors/UpdatesProcessor';
+import { ICourse } from '../models/entities/ICourse';
 const logger = loggerFactory.getLogger('UserSchema');
 
 export class UsersService {
@@ -138,30 +138,37 @@ export class UsersService {
     if (inviteCodeId) await this.inviteCodesRepo.incrementConsumedCount(inviteCodeId);
   }
 
-  async doEnrollCourses(user: IUserWithRegistration, sections: string[], courses?: any[]) {
+  async doEnrollCourses(user: IUserWithRegistration, sections: string[], courses?: ICourse[] | string[]) {
     const providerId = user.registration.provider;
     const role = this.getRole(user);
-    if (role === Role.student) {
-      if (providerId !== 'curio') {
-        const dbSections = await this.sectionsRepo.findMany({ _id: { $in: sections } });
-        if (dbSections.length !== sections.length) {
-          this.validateProvider(providerId, 'Section');
-          const newSections: string[] = getNotMatchingObjects(dbSections, sections);
-          await this.createSections(newSections, user);
+    if (providerId !== 'curio') {
+      const dbSections = await this.sectionsRepo.findMany({ providerLinks: { $in: sections } });
+      let sectionsIds = dbSections.map(s => s._id);
+      if (dbSections.length !== sections.length) {
+        this.validateProvider(providerId, 'Section');
+        const newSections = sections.filter(s => dbSections.every(x => !x.providerLinks.includes(s)));
+        if (newSections.length > 0) {
+          const newDbSections = await this.createSections(newSections, user);
+          sectionsIds = Array.from(new Set(sectionsIds.concat(newDbSections.map(s => s._id))));
         }
       }
+      sections = sectionsIds;
+    }
+    if (role === Role.student) {
       await this.sectionsRepo.addStudents({ _id: { $in: sections } }, [user._id]);
     }
     if (!courses || (courses && courses.length > 0 && providerId !== 'curio')) {
       const activeCourses = await this.coursesRepo.getActiveCoursesUnderSections(sections);
-      if (courses) {
+      let coursesIds = activeCourses.map(c => c._id);
+      if (courses && providerId !== 'curio') {
         this.validateProvider(providerId, 'Course');
-        const coursesToAdd = courses.filter(c => !activeCourses.some(a => a.grade === c.grade && a.subject === c.subject));
-        if (coursesToAdd.length > 0) await this.coursesRepo.addMany(coursesToAdd);
-        courses = courses.map(c => c._id);
-      } else {
-        courses = activeCourses.map(c => c._id);
+        const newCourses = (<ICourse[]>courses).filter(c => !activeCourses.some(a => a.grade === c.grade && a.subject === c.subject));
+        if (newCourses.length > 0) {
+          const newDbCourses = await this.coursesRepo.addMany(newCourses);
+          coursesIds = Array.from(new Set(coursesIds.concat(newDbCourses.map(s => s._id))));
+        }
       }
+      courses = coursesIds;
     }
     const now = new Date();
     await this.coursesRepo.addUsersToCourses([{
