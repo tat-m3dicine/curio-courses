@@ -60,6 +60,10 @@ export class CoursesService {
     return this._uow.getRepository(Repo.courses) as CoursesRepository;
   }
 
+  protected get coursesRepoWithTransactions() {
+    return this._uow.getRepository(Repo.courses, true) as CoursesRepository;
+  }
+
   protected get inviteCodesRepo() {
     return this._uow.getRepository(Repo.inviteCodes) as InviteCodesRepository;
   }
@@ -108,7 +112,7 @@ export class CoursesService {
 
   private async doCreate(course: ICourse) {
     try {
-      const createdCourse = await this.coursesRepo.add(course);
+      const createdCourse = await this.coursesRepoWithTransactions.add(course);
       const partialRequest = {
         courseId: course._id,
         schoolId: course.schoolId,
@@ -124,6 +128,7 @@ export class CoursesService {
         usersIds: course.teachers.map(s => s._id)
       }]);
       await this._updatesProcessor.notifyCourseEvents(Events.course_created, { ...createdCourse, students: undefined, teachers: undefined });
+      this._uow.commit();
       return createdCourse;
     } catch (err) {
       if (err && err.code === 11000) { // Duplicate error
@@ -163,9 +168,8 @@ export class CoursesService {
   }
 
   private async doUpdate(filter: object, updateObj: Partial<ICourse>) {
-    const coursesRepoWithTransactions = this._uow.getRepository(Repo.courses, true) as CoursesRepository;
-    const result = await coursesRepoWithTransactions.patch(filter, updateObj);
-    const updatedCourse = await coursesRepoWithTransactions.findOne(filter);
+    const result = await this.coursesRepoWithTransactions.patch(filter, updateObj);
+    const updatedCourse = await this.coursesRepoWithTransactions.findOne(filter);
     await this._updatesProcessor.notifyCourseEvents(Events.course_updated, { ...updatedCourse, students: undefined, teachers: undefined });
     await this._uow.commit();
     return result;
@@ -179,8 +183,7 @@ export class CoursesService {
   }
 
   private async doDelete(courseId: string) {
-    const coursesRepoWithTransactions = this._uow.getRepository(Repo.courses, true) as CoursesRepository;
-    const result = await coursesRepoWithTransactions.delete({ _id: courseId });
+    const result = await this.coursesRepoWithTransactions.delete({ _id: courseId });
     await this._updatesProcessor.notifyCourseEvents(Events.course_deleted, { _id: courseId });
     await this._uow.commit();
     return result;
@@ -293,14 +296,12 @@ export class CoursesService {
       usersObjs: usersIds.map(_id => <IUserCourseInfo>{ _id, joinDate, isEnabled: true })
     }));
 
-    const coursesRepoWithTransactions = this._uow.getRepository(Repo.courses, true) as CoursesRepository;
-    const sectionsRepoWithTransactions = this._uow.getRepository(Repo.sections, true) as SectionsRepository;
-
-    const result = await coursesRepoWithTransactions.addUsersToCourses(coursesUpdates, role);
+    const result = await this.coursesRepoWithTransactions.addUsersToCourses(coursesUpdates, role);
     if (role === Role.student) {
       const sectionsUpdates = requests.map(({ sectionId, schoolId, usersIds }) => ({
         filter: { _id: sectionId, schoolId }, usersIds
       }));
+      const sectionsRepoWithTransactions = this._uow.getRepository(Repo.sections, true) as SectionsRepository;
       await sectionsRepoWithTransactions.addStudentsToSections(sectionsUpdates);
     }
 
@@ -324,11 +325,9 @@ export class CoursesService {
       filter: { _id: courseId, schoolId, ...(role === Role.student ? { sectionId } : {}) }, usersIds
     }));
 
-    const coursesRepoWithTransactions = this._uow.getRepository(Repo.courses, true) as CoursesRepository;
-    const result = await coursesRepoWithTransactions.finishUsersInCourses(coursesUpdates, role, finishDate);
-
+    const result = await this.coursesRepoWithTransactions.finishUsersInCourses(coursesUpdates, role, finishDate);
     if (commit) {
-      if (result.modifiedCount !== 0) await this.sendUsersChangesUpdates('drop', requests);
+      if (result.modifiedCount !== 0) await this.sendUsersChangesUpdates('drop', requests, false);
       await this._uow.commit();
     }
     return result;
@@ -343,18 +342,14 @@ export class CoursesService {
   }
 
   private async doSwitchUsers(enrollRequests: IUserRequest[], dropRequests: IUserRequest[], role: Role, date: Date) {
-    const results = [
-      await this.doDropUsers(dropRequests, role, date, false),
-      await this.doEnrollUsers(enrollRequests, role, date, false)
-    ];
-    if (results.some(result => result.modifiedCount !== 0)) {
-      const enrollUpdates = await this.getUserChangesUpdates('enroll', enrollRequests);
-      const dropUpdates = await this.getUserChangesUpdates('drop', dropRequests);
-      const coursesIds = [...enrollRequests, ...dropRequests].map(r => r.courseId);
-      await this._updatesProcessor.sendEnrollmentUpdatesWithActions([...enrollUpdates, ...dropUpdates], coursesIds);
-    }
+    const dropResults = await this.doDropUsers(dropRequests, role, date, false);
+    const enrollResults = await this.doEnrollUsers(enrollRequests, role, date, false);
+    const updates: IUserUpdatedEvent[] = [];
+    if (enrollResults.modifiedCount !== 0) updates.push(...await this.getUserChangesUpdates('enroll', enrollRequests));
+    if (dropResults.modifiedCount !== 0) updates.push(...await this.getUserChangesUpdates('drop', dropRequests, false));
+    if (updates.length > 0) await this._updatesProcessor.sendEnrollmentUpdatesWithActions(updates, enrollRequests.map(r => r.courseId), dropRequests.map(r => r.courseId));
     await this._uow.commit();
-    return results;
+    return { dropResults, enrollResults };
   }
 
   async join(codeId: string, byUser: IUserToken) {
@@ -403,34 +398,37 @@ export class CoursesService {
     }), Role.student, now);
   }
 
-  private async sendUsersChangesUpdates(action: 'enroll' | 'drop', requests: IUserRequest[]) {
+  private async sendUsersChangesUpdates(action: 'enroll' | 'drop', requests: IUserRequest[], transaction = true) {
     logger.debug(`Sending user changes for action: ${action} with request`, requests);
     const coursesIds = requests.map(request => request.courseId);
-    const events = await this.getUserChangesUpdates(action, requests);
-    return this._updatesProcessor.sendEnrollmentUpdatesWithActions(events, coursesIds);
+    const events = await this.getUserChangesUpdates(action, requests, transaction);
+    return this._updatesProcessor.sendEnrollmentUpdatesWithActions(events, action === 'enroll' ? coursesIds : [], action === 'drop' ? coursesIds : []);
   }
 
-  private async getUserChangesUpdates(action: 'enroll' | 'drop', requests: IUserRequest[]) {
-    const events: IUserUpdatedEvent[] = [];
+  private async getUserChangesUpdates(action: 'enroll' | 'drop', requests: IUserRequest[], transaction = true) {
+    const eventsMap: { [id: string]: IUserUpdatedEvent } = {};
     for (const request of requests) {
-      const usersIds = Array.from(new Set(request.usersIds));
+      const usersIds = Array.from(new Set(request.usersIds)).filter(id => !eventsMap[id]);
       if (usersIds.length === 0) continue;
       const users: IUser[] = await this.usersRepo.getUsersInSchool(request.schoolId, usersIds);
-      const courses: ICourse[] = await this.coursesRepo.getActiveCoursesForUsers(request.role, usersIds);
+      const coursesRepo = transaction ? this.coursesRepoWithTransactions : this.coursesRepo;
+      const courses: ICourse[] = await coursesRepo.getActiveCoursesForUsers(request.role, usersIds);
       if (courses.length === 0) continue;
       const coursesUpdates = this.transformCoursesToUpdates(courses, request.role);
-      events.push(...users.map(user => <IUserUpdatedEvent>{
-        event: action,
-        data: {
-          _id: user._id,
-          // tslint:disable-next-line: no-null-keyword
-          schoolId: user.school ? user.school._id : null,
-          status: user.registration ? user.registration.status : (user.school ? Status.active : Status.inactive),
-          courses: coursesUpdates[user._id]
-        }
-      }));
+      for (const user of users) {
+        eventsMap[user._id] = {
+          event: action,
+          data: {
+            _id: user._id,
+            // tslint:disable-next-line: no-null-keyword
+            schoolId: user.school ? user.school._id : null,
+            status: user.registration ? user.registration.status : (user.school ? Status.active : Status.inactive),
+            courses: coursesUpdates[user._id]
+          }
+        };
+      }
     }
-    return events;
+    return Object.values(eventsMap);
   }
 
   private transformCoursesToUpdates(courses: ICourse[], role: Role): { [_id: string]: IUserCourseUpdates[] } {
