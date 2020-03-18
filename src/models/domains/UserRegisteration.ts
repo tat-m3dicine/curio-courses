@@ -2,8 +2,8 @@ import { ISchool, SignupMethods } from '../entities/ISchool';
 import { Role } from '../Role';
 import { Status, IUserWithRegistration } from '../entities/IUser';
 import { IInviteCode, EnrollmentType } from '../entities/IInviteCode';
-import { ICourse, IUserCourseInfo } from '../entities/ICourse';
-import { newCourseId } from '../../utils/IdGenerator';
+import { ICourse } from '../entities/ICourse';
+import { newCourseId, newSectionId } from '../../utils/IdGenerator';
 import { InvalidRequestError } from '../../exceptions/InvalidRequestError';
 
 interface IRequirements {
@@ -91,7 +91,7 @@ export class UserRegisteration {
     }
     this._requirements = {
       status: Status.active,
-      school: this._user.registration.school,
+      school: isProvider && this._dbSchool ? { _id: this._dbSchool._id, name: this._dbSchool.locales.en.name } : this._user.registration.school,
       sections: this._user.registration.sections,
       enrollmentType: isProvider ? EnrollmentType.courses : EnrollmentType.auto,
       courses: isProvider ? this.getCoursesFromSchool() : undefined
@@ -157,16 +157,16 @@ export class UserRegisteration {
     const courses: ICourse[] = [];
     for (const section of sections) {
       for (const subject in subjects) {
+        const locales = { en: { name: section.name } };
+        const sectionId = newSectionId(schoolId, grade, locales);
         courses.push({
-          _id: newCourseId(section._id, subject, academicTerm.year),
-          grade, academicTerm, schoolId, subject,
-          sectionId: section._id,
+          _id: newCourseId(sectionId, subject, academicTerm.year),
+          grade, academicTerm, schoolId, subject, locales, sectionId,
           defaultLocale: 'en',
-          locales: { en: { name: section.name } },
           curriculum: subjects[subject][0],
           isEnabled: true,
-          teachers: <IUserCourseInfo[]>[],
-          students: [{ _id: this._user._id, joinDate: now, isEnabled: true }]
+          teachers: [],
+          students: []
         });
       }
     }

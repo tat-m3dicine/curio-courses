@@ -11,7 +11,7 @@ import { Status } from '../../src/models/entities/IUser';
 import { getTestData, Test } from '../mockdata/getTestData';
 import { SignupMethods, ISchool } from '../../src/models/entities/ISchool';
 import { IInviteCode } from '../../src/models/entities/IInviteCode';
-import { ISignupRequest } from '../../src/models/entities/IIRP';
+import { ISignupRequest, IUserData } from '../../src/models/entities/IIRP';
 import { IProvider } from '../../src/models/entities/IProvider';
 import { IUserUpdatedData } from '../../src/models/events/IUserUpdatedEvent';
 import { Role } from '../../src/models/Role';
@@ -124,7 +124,7 @@ describe('Users Service', () => {
     it('should not update user role and profile if they\'re not sent', async () => {
       let updateObj: any;
       repositoryReturns(Repo.users, { patch: (_, updates) => updateObj = updates });
-      await usersService.update({ user_id: 'user1', new_user_data: {} });
+      await usersService.update({ user_id: 'user1', new_user_data: <IUserData>{} });
       expect(updateObj).equal(undefined);
     });
   });
@@ -191,7 +191,8 @@ describe('Users Service', () => {
             signupMethods: [SignupMethods.provider],
             grades: { ['4']: {} }
           }
-        }
+        },
+        locales: { en: { name: 'Alef' } }
       });
       repositoryReturns(Repo.users, { assignSchool: () => undefined });
       repositoryReturns(Repo.courses, {
@@ -241,7 +242,8 @@ describe('Users Service', () => {
       const request: ISignupRequest = getTestData(Test.signupRequest, { provider: 'Alef' }, false);
       const school: ISchool = getTestData(Test.school, {
         academicTerms: [], provider: { _id: 'Alef' },
-        license: provider.license
+        license: provider.license,
+        locales: { en: { name: 'Alef' } }
       });
       repositoryReturns(Repo.providers, { findById: () => provider });
       repositoryReturns(Repo.schools, { findOne: () => school, add: () => undefined });

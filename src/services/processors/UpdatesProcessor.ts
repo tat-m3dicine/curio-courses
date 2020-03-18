@@ -1,5 +1,5 @@
 import config from '../../config';
-import { IUserUpdatedEvent, IUserUpdatedData } from '../../models/events/IUserUpdatedEvent';
+import { IUserUpdatedEvent, IUserUpdatedData, IUserCourseUpdates } from '../../models/events/IUserUpdatedEvent';
 import { IAppEvent } from '../../models/events/IAppEvent';
 import { KafkaService } from '@saal-oryx/event-sourcing';
 import loggerFactory from '../../utils/logging';
@@ -13,23 +13,31 @@ export class UpdatesProcessor {
     return this._kafkaService;
   }
 
-  async sendEnrollmentUpdatesWithActions(usersUpdates: IUserUpdatedEvent[], coursesIds: string[]) {
+  async sendEnrollmentUpdatesWithActions(usersUpdates: IUserUpdatedEvent[], enrolledCoursesIds: string[], droppedCoursesIds: string[] = []) {
     const now = Date.now();
     const events: IAppEvent[] = [];
     for (const userUpdate of usersUpdates) {
+      let changedCourses: IUserCourseUpdates[] = [];
+      let enrollmentCourses: IUserCourseUpdates[] = [];
+      if (userUpdate.event === 'enroll') {
+        enrollmentCourses = userUpdate.data.courses;
+        changedCourses = enrollmentCourses.filter(course => enrolledCoursesIds.includes(course._id));
+      } else if (userUpdate.event === 'drop') {
+        enrollmentCourses = userUpdate.data.courses.filter(course => !droppedCoursesIds.includes(course._id));
+        changedCourses = userUpdate.data.courses.filter(course => droppedCoursesIds.includes(course._id));
+      }
       events.push({
         event: Events[userUpdate.event],
-        data: {
-          ...userUpdate.data,
-          courses: userUpdate.data.courses.filter(course => coursesIds.includes(course._id))
-        },
+        data: { ...userUpdate.data, courses: changedCourses },
         timestamp: now,
         v: '1.0.0'
       });
+      const userId = userUpdate.data._id;
+      if (events.find(e => e.key === userId)) continue;
       events.push({
-        key: userUpdate.data._id,
+        key: userId,
         event: Events.enrollment,
-        data: userUpdate.data,
+        data: { ...userUpdate.data, courses: enrollmentCourses },
         timestamp: now,
         v: '1.0.0'
       });
