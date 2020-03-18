@@ -8,7 +8,7 @@ const logger = loggerFactory.getLogger('getDbClient');
 let _dbClient: Promise<MongoClient> | undefined;
 
 export const getDbClient = async () => {
-  if (!_dbClient) {
+  if (!_dbClient || !((await _dbClient).isConnected())) {
     _dbClient = MongoClient.connect(config.mongoDbUrl, {
       useNewUrlParser: true,
       autoReconnect: true,
