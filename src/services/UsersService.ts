@@ -91,6 +91,7 @@ export class UsersService {
         if (!dbSchool && registration.school) {
           await this.validateProvider(registration.provider, 'School');
           dbSchool = await this.createSchool(registration.school, this.provider!);
+          this.addCommandsEvent(Service.schools, 'doAdd', dbSchool);
         }
       }
     }
@@ -154,6 +155,7 @@ export class UsersService {
         const newSections = sections.filter(s => dbSections.every(x => !x.providerLinks.includes(s)));
         if (newSections.length > 0) {
           const newDbSections = await this.createSections(newSections, user);
+          for (const section of newDbSections) this.addCommandsEvent(Service.sections, 'doCreate', section);
           sectionsIds = Array.from(new Set(sectionsIds.concat(newDbSections.map(s => s._id))));
         }
       }
@@ -194,7 +196,6 @@ export class UsersService {
       users: []
     };
     await this.schoolsRepo.add(dbSchool);
-    this.addCommandsEvent(Service.schools, 'doAdd', dbSchool);
     return dbSchool;
   }
 
@@ -210,7 +211,6 @@ export class UsersService {
         providerLinks: [sectionId]
       };
       section._id = newSectionId(section.schoolId, section.grade, section.locales);
-      this.addCommandsEvent(Service.sections, 'doCreate', section);
       return section;
     });
     return this.sectionsRepo.addMany(dbSections, false);
