@@ -108,7 +108,7 @@ export class UserRegisteration {
     this._requirements = {
       ...this._requirements,
       status: this.getRegistrationStatus(SignupMethods.inviteCodes),
-      sections: [{ _id: sectionId, name: sectionId, grade: '-' }],
+      sections: [{ _id: sectionId, name: sectionId, grade: this._user.registration.grade }],
       school: { _id: schoolId, name: schoolId },
       courses: courses || [],
       enrollmentType: type
