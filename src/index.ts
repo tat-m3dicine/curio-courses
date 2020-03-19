@@ -27,6 +27,7 @@ import { KafkaService } from '@saal-oryx/event-sourcing';
 import { Server } from 'http';
 import { getFactory } from './services/ServiceFactory';
 import { FakeCommandsProcessor } from './services/processors/FakeCommandsProcessor';
+import { getDbClient } from './utils/getDbClient';
 
 const logger = loggerFactory.getLogger('Index');
 
@@ -35,6 +36,13 @@ const app = new Koa();
 
 let server: Server;
 (async () => {
+
+  try {
+    await getDbClient(true);
+  } catch (err) {
+    logger.error('Initial database connection error', err);
+    throw err;
+  }
 
   // Singletons ...
   const kafkaService = new KafkaService({

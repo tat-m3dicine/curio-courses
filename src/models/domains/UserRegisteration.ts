@@ -9,7 +9,7 @@ import { InvalidRequestError } from '../../exceptions/InvalidRequestError';
 interface IRequirements {
   status: Status;
   school?: { _id: string, name: string };
-  sections?: { _id: string, name: string }[];
+  sections?: { _id: string, name: string, grade: string }[];
   enrollmentType?: EnrollmentType;
   courses?: string[] | ICourse[];
 }
@@ -108,7 +108,7 @@ export class UserRegisteration {
     this._requirements = {
       ...this._requirements,
       status: this.getRegistrationStatus(SignupMethods.inviteCodes),
-      sections: [{ _id: sectionId, name: sectionId }],
+      sections: [{ _id: sectionId, name: sectionId, grade: this._user.registration.grade }],
       school: { _id: schoolId, name: schoolId },
       courses: courses || [],
       enrollmentType: type
@@ -125,7 +125,7 @@ export class UserRegisteration {
       if (!this._dbSchool.provider || this._dbSchool.provider._id !== this._user.registration.provider) {
         return Status.schoolHasNoLicense;
       }
-      if (!grades[this._user.registration.grade]) {
+      if (this._user.registration.sections && this._user.registration.sections.some(s => !grades[s.grade])) {
         return Status.gradeNotPurchased;
       }
     }
@@ -152,16 +152,17 @@ export class UserRegisteration {
     const { academicTerms, _id: schoolId } = this._dbSchool!;
     const academicTerm = academicTerms.find(term => term.startDate < now && now < term.endDate);
     if (!academicTerm) throw new InvalidRequestError('Provider school has no valid academic term for courses creation!');
-    const { grade, sections = [] } = this._user.registration;
-    const subjects = this.license!.package.grades[grade];
+    const { sections = [] } = this._user.registration;
     const courses: ICourse[] = [];
     for (const section of sections) {
+      const subjects = this.license!.package.grades[section.grade];
       for (const subject in subjects) {
         const locales = { en: { name: section.name } };
-        const sectionId = newSectionId(schoolId, grade, locales);
+        const sectionId = newSectionId(schoolId, section.grade, locales);
         courses.push({
           _id: newCourseId(sectionId, subject, academicTerm.year),
-          grade, academicTerm, schoolId, subject, locales, sectionId,
+          grade: section.grade,
+          academicTerm, schoolId, subject, locales, sectionId,
           defaultLocale: 'en',
           curriculum: subjects[subject][0],
           isEnabled: true,

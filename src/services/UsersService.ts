@@ -1,4 +1,3 @@
-import validators from '../utils/validators';
 import { IUnitOfWork } from '@saal-oryx/unit-of-work';
 import { UsersRepository } from '../repositories/UsersRepository';
 import { IUser, Status, IUserWithRegistration } from '../models/entities/IUser';
@@ -22,16 +21,21 @@ import config from '../config';
 import { Repo } from '../models/RepoNames';
 import { IUserUpdatedData } from '../models/events/IUserUpdatedEvent';
 import { NotFoundError } from '../exceptions/NotFoundError';
-import { KafkaService } from '@saal-oryx/event-sourcing';
+import { KafkaService, IKafkaEvent } from '@saal-oryx/event-sourcing';
 import { Events } from './processors/UpdatesProcessor';
 import { ICourse } from '../models/entities/ICourse';
-const logger = loggerFactory.getLogger('UserSchema');
+import { Service } from '../models/ServiceName';
+const logger = loggerFactory.getLogger('UsersService');
 
 export class UsersService {
 
   private provider?: IProvider;
+  private timestamp: number;
+  private events: IKafkaEvent<any>[];
 
   constructor(protected _uow: IUnitOfWork, protected _kafkaService: KafkaService) {
+    this.timestamp = Date.now();
+    this.events = [];
   }
 
   protected get usersRepo() {
@@ -87,6 +91,7 @@ export class UsersService {
         if (!dbSchool && registration.school) {
           await this.validateProvider(registration.provider, 'School');
           dbSchool = await this.createSchool(registration.school, this.provider!);
+          this.addCommandsEvent(Service.schools, 'doAdd', dbSchool);
         }
       }
     }
@@ -119,6 +124,7 @@ export class UsersService {
         curriculum: course.curriculum
       }))
     });
+    await this.sendCommandsEvents();
     return this._uow.commit();
   }
 
@@ -127,7 +133,7 @@ export class UsersService {
       data,
       key: data._id,
       event: Events.enrollment,
-      timestamp: Date.now(),
+      timestamp: this.timestamp,
       v: '1.0.0'
     });
   }
@@ -149,6 +155,7 @@ export class UsersService {
         const newSections = sections.filter(s => dbSections.every(x => !x.providerLinks.includes(s)));
         if (newSections.length > 0) {
           const newDbSections = await this.createSections(newSections, user);
+          for (const section of newDbSections) this.addCommandsEvent(Service.sections, 'doCreate', section);
           sectionsIds = Array.from(new Set(sectionsIds.concat(newDbSections.map(s => s._id))));
         }
       }
@@ -165,6 +172,7 @@ export class UsersService {
         const newCourses = (<ICourse[]>courses).filter(c => !activeCourses.some(a => a.grade === c.grade && a.subject === c.subject));
         if (newCourses.length > 0) {
           const newDbCourses = await this.coursesRepo.addMany(newCourses);
+          for (const course of newDbCourses) this.addCommandsEvent(Service.courses, 'doCreate', course);
           coursesIds = Array.from(new Set(coursesIds.concat(newDbCourses.map(s => s._id))));
         }
       }
@@ -193,19 +201,19 @@ export class UsersService {
 
   private async createSections(sectionsIds: string[], user: IUserWithRegistration) {
     const dbSections = sectionsIds.map(sectionId => {
-      const { name } = user.registration.sections!.find(s => s._id === sectionId) || { name: sectionId };
+      const { name, grade } = user.registration.sections!.find(s => s._id === sectionId) || { name: sectionId, grade: '6' };
       const section: ISection = {
         _id: '',
         locales: { en: { name } },
         schoolId: user.school!._id,
-        grade: user.registration.grade,
+        grade,
         students: [user._id],
         providerLinks: [sectionId]
       };
       section._id = newSectionId(section.schoolId, section.grade, section.locales);
       return section;
     });
-    return this.sectionsRepo.addMany(dbSections);
+    return this.sectionsRepo.addMany(dbSections, false);
   }
 
   private getRole(user: IUser): Role {
@@ -247,13 +255,28 @@ export class UsersService {
     }
   }
 
+  protected async sendCommandsEvents() {
+    return this._kafkaService.sendMany<IKafkaEvent<any>>(config.kafkaCommandsTopic, this.events);
+  }
+
+  protected addCommandsEvent(serviceName: string, proccessingFunction: string, args: any) {
+    this.events.push({
+      key: this._kafkaService.getNewKey(),
+      event: `${proccessingFunction}_${serviceName}`,
+      timestamp: this.timestamp,
+      data: [args],
+      v: '1.0.0',
+    });
+  }
+
   private transformToUser(request: ISignupRequest): IUserWithRegistration {
     const { user_id, new_user_data: data, provider } = request;
-    let sections: { _id: string; name: string }[] = [];
+    let sections: { _id: string; name: string, grade: string }[] = [];
     if (data.section instanceof Array) {
       sections = data.section.map(section => ({
         _id: section.uuid,
-        name: section.name
+        name: section.name,
+        grade: section.grade
       }));
     }
     return {

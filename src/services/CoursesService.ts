@@ -128,7 +128,7 @@ export class CoursesService {
         usersIds: course.teachers.map(s => s._id)
       }]);
       await this._updatesProcessor.notifyCourseEvents(Events.course_created, { ...createdCourse, students: undefined, teachers: undefined });
-      this._uow.commit();
+      await this._uow.commit();
       return createdCourse;
     } catch (err) {
       if (err && err.code === 11000) { // Duplicate error
