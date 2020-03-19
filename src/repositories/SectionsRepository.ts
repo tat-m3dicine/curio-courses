@@ -28,4 +28,8 @@ export class SectionsRepository extends AduitableRepository<ISection> {
       $pull: { students: { $in: studentIds } }
     });
   }
+
+  async deleteBySchool(schoolId: string) {
+    return this._collection.deleteMany({ schoolId }, { session: this._session });
+  }
 }

@@ -26,6 +26,7 @@ import { CommandsProcessor, KafkaService } from '@saal-oryx/event-sourcing';
 import { Events } from './processors/UpdatesProcessor';
 import { Service } from '../models/ServiceName';
 import { IUserCourseInfo, ICourseInfo } from '../models/entities/ICourse';
+import { InviteCodesRepository } from '../repositories/InviteCodesRepository';
 
 const logger = loggerFactory.getLogger('SchoolsService');
 
@@ -55,13 +56,25 @@ export class SchoolsService {
     return this.schoolsRepo.findById(schoolId);
   }
 
-  async delete(schoolId: string, byUser: IUserToken) {
+  async delete(schoolId: string, mode: string, byUser: IUserToken) {
     this.authorize(byUser);
-    return this._commandsProcessor.sendCommand(Service.schools, this.doDelete, schoolId);
+    return this._commandsProcessor.sendCommand(Service.schools, this.doDelete, schoolId, mode === 'force');
   }
 
-  private async doDelete(schoolId: string) {
-    return this.schoolsRepo.delete({ _id: schoolId });
+  private async doDelete(schoolId: string, force = false) {
+    const schoolsRepo = this._uow.getRepository(Repo.schools, true) as SchoolsRepository;
+    if (force) {
+      const sectionsRepo = this._uow.getRepository(Repo.sections, true) as SectionsRepository;
+      const coursesRepo = this._uow.getRepository(Repo.courses, true) as CoursesRepository;
+      const usersRepo = this._uow.getRepository(Repo.users, true) as UsersRepository;
+      const inviteCodesRepo = this._uow.getRepository(Repo.inviteCodes, true) as InviteCodesRepository;
+      await sectionsRepo.deleteBySchool(schoolId);
+      await coursesRepo.deleteBySchool(schoolId);
+      await usersRepo.deleteBySchool(schoolId);
+      await inviteCodesRepo.deleteBySchool(schoolId);
+    }
+    await schoolsRepo.delete({ _id: schoolId });
+    return this._uow.commit();
   }
 
   async list(paging = defaultPaging, byUser: IUserToken) {
