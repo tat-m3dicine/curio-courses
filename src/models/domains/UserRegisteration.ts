@@ -157,7 +157,7 @@ export class UserRegisteration {
     for (const section of sections) {
       const subjects = this.license!.package.grades[section.grade];
       for (const subject in subjects) {
-        const locales = { en: { name: section.name } };
+        const locales = { en: { name: (subject[0].toUpperCase() + subject.substring(1)) } };
         const sectionId = newSectionId(schoolId, section.grade, locales);
         courses.push({
           _id: newCourseId(sectionId, subject, academicTerm.year),
