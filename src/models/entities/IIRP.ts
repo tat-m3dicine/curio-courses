@@ -48,6 +48,7 @@ export interface IUserData {
   section?: {
     uuid: string;
     name: string;
+    grade: string;
   }[];
 }
 

@@ -201,12 +201,12 @@ export class UsersService {
 
   private async createSections(sectionsIds: string[], user: IUserWithRegistration) {
     const dbSections = sectionsIds.map(sectionId => {
-      const { name } = user.registration.sections!.find(s => s._id === sectionId) || { name: sectionId };
+      const { name, grade } = user.registration.sections!.find(s => s._id === sectionId) || { name: sectionId, grade: '6' };
       const section: ISection = {
         _id: '',
         locales: { en: { name } },
         schoolId: user.school!._id,
-        grade: user.registration.grade,
+        grade,
         students: [user._id],
         providerLinks: [sectionId]
       };
@@ -271,11 +271,12 @@ export class UsersService {
 
   private transformToUser(request: ISignupRequest): IUserWithRegistration {
     const { user_id, new_user_data: data, provider } = request;
-    let sections: { _id: string; name: string }[] = [];
+    let sections: { _id: string; name: string, grade: string }[] = [];
     if (data.section instanceof Array) {
       sections = data.section.map(section => ({
         _id: section.uuid,
-        name: section.name
+        name: section.name,
+        grade: section.grade
       }));
     }
     return {
