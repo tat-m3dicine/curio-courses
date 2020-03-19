@@ -38,7 +38,7 @@ let server: Server;
 (async () => {
 
   try {
-    await getDbClient();
+    await getDbClient(true);
   } catch (err) {
     logger.error('Initial database connection error', err);
     throw err;
