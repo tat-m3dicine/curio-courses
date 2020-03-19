@@ -39,4 +39,8 @@ export class InviteCodesRepository extends AduitableRepository<IInviteCode> {
       'isEnabled': true
     });
   }
+
+  async deleteBySchool(schoolId: string) {
+    return this._collection.deleteMany({ schoolId }, { session: this._session });
+  }
 }

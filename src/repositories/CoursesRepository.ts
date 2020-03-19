@@ -230,4 +230,8 @@ export class CoursesRepository extends AduitableRepository<ICourse> {
     }
     return this._collection.aggregate<ICourse>(pipeline, { session: this._session }).toArray().then(a => a[0]);
   }
+
+  async deleteBySchool(schoolId: string) {
+    return this._collection.deleteMany({ schoolId }, { session: this._session });
+  }
 }

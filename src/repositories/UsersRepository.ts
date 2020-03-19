@@ -58,4 +58,8 @@ export class UsersRepository extends AduitableRepository<IUser> {
   async withdraw(schoolId: string, users: string[]) {
     return this.update({ '_id': { $in: users }, 'school._id': schoolId }, { $unset: { registration: true, school: true } });
   }
+
+  async deleteBySchool(schoolId: string) {
+    return this._collection.deleteMany({ $or: [{ 'registration.school._id': schoolId }, { 'school._id': schoolId }] }, { session: this._session });
+  }
 }
