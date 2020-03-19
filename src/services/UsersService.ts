@@ -264,7 +264,7 @@ export class UsersService {
       key: this._kafkaService.getNewKey(),
       event: `${proccessingFunction}_${serviceName}`,
       timestamp: this.timestamp,
-      data: args,
+      data: [args],
       v: '1.0.0',
     });
   }
