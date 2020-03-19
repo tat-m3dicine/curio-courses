@@ -205,7 +205,7 @@ export class UsersService {
       section._id = newSectionId(section.schoolId, section.grade, section.locales);
       return section;
     });
-    return this.sectionsRepo.addMany(dbSections);
+    return this.sectionsRepo.addMany(dbSections, false);
   }
 
   private getRole(user: IUser): Role {

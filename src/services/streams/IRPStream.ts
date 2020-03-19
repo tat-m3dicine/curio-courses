@@ -36,6 +36,11 @@ export class IRPStream extends BaseStream<IKafkaEvent<any>> {
       }
       return;
     } catch (err) {
+      // Duplicate key error handling
+      if (err && err.code === 11000) {
+        this.logger.warn('Processing Warn', JSON.stringify(err), err);
+        return;
+      }
       logger.error('Processing Error', JSON.stringify(err), err);
       return {
         key: message.value.key,
