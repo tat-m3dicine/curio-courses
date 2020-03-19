@@ -1,7 +1,6 @@
 import { IUnitOfWork } from '@saal-oryx/unit-of-work';
 import { UsersRepository } from '../repositories/UsersRepository';
-import { IUser, Status, IUserWithRegistration } from '../models/entities/IUser';
-import { IProfile } from '../models/entities/Common';
+import { Status, IUserWithRegistration } from '../models/entities/IUser';
 import { ISignupRequest } from '../models/entities/IIRP';
 import loggerFactory from '../utils/logging';
 import { InviteCodesRepository } from '../repositories/InviteCodesRepository';
@@ -110,12 +109,16 @@ export class UsersService {
     } else {
       await this.usersRepo.addRegisteration(dbUser);
     }
+    await this.sendUserEnrollmentUpdates(dbUser, status);
+    return this._uow.commit();
+  }
 
-    const userCourses = await this.coursesRepo.getActiveCoursesForUsers(this.getRole(dbUser), [dbUser._id]);
+  protected async sendUserEnrollmentUpdates(user: IUserWithRegistration, status: Status = Status.active) {
+    const userCourses = await this.coursesRepo.getActiveCoursesForUsers(this.getRole(user), [user._id]);
     this.sendUpdate({
-      _id: dbUser._id, status,
+      _id: user._id, status,
       // tslint:disable-next-line: no-null-keyword
-      schoolId: dbUser.school ? dbUser.school._id : null,
+      schoolId: user.school ? user.school._id : null,
       courses: userCourses.map(course => ({
         _id: course._id,
         sectionId: course.sectionId,
@@ -124,8 +127,6 @@ export class UsersService {
         curriculum: course.curriculum
       }))
     });
-    await this.sendCommandsEvents();
-    return this._uow.commit();
   }
 
   protected sendUpdate(data: IUserUpdatedData) {
@@ -216,7 +217,7 @@ export class UsersService {
     return this.sectionsRepo.addMany(dbSections, false);
   }
 
-  private getRole(user: IUser): Role {
+  private getRole(user: { role: string[] }): Role {
     if (user.role.includes(Role.teacher)) {
       return Role.teacher;
     }
@@ -237,22 +238,38 @@ export class UsersService {
   }
 
   async update(request: ISignupRequest) {
-    if (request.provider !== 'curio' && (request.old_user_data && !request.old_user_data.school)) {
+    const isProvider = request.provider !== 'curio';
+    const user = this.transformToUser(request);
+    if (isProvider && (request.old_user_data && !request.old_user_data.school)) {
       // New Signup using provider ...
-      return this.signup(request);
+      return this.register(user);
     }
-    const user = request.new_user_data;
-    const userObj: Partial<IUser> = {};
-    if (user.role) userObj.role = user.role;
-    if (user.name || user.avatar) {
-      userObj.profile = <IProfile>{};
-      if (user.name) userObj.profile.name = user.name;
-      if (user.avatar) userObj.profile.avatar = user.avatar;
+    const { profile, role } = user;
+    await this.usersRepo.patch({ _id: user._id }, { profile, role });
+
+    if (isProvider) this.updateProviderUserRegistration(user);
+
+    return this._uow.commit();
+  }
+
+  protected async updateProviderUserRegistration(user: IUserWithRegistration) {
+    const { sections = [], school = { _id: '' } } = user.registration;
+    const currentSections = await this.sectionsRepo.findMany({ students: user._id });
+    const droppedSections = currentSections.filter(cs => sections.find(s => cs.providerLinks.includes(s._id)));
+
+    if (droppedSections.length > 0) {
+      const now = new Date();
+      const role = this.getRole(user);
+      const sectionsIds = droppedSections.map(s => s._id);
+      if (role === Role.student) await this.sectionsRepo.removeStudents({ _id: { $in: sectionsIds } }, [user._id]);
+      await this.coursesRepo.finishUsersInCourses([{ filter: { sectionId: { $in: sectionsIds } }, usersIds: [user._id] }], role, now);
     }
-    if (Object.keys(userObj).length > 0) {
-      await this.usersRepo.patch({ _id: request.user_id }, userObj);
-      return this._uow.commit();
-    }
+
+    const dbSchool = await this.schoolsRepo.findById(school._id);
+    const { dbUser, sections: newSections, courses } = new UserRegisteration(dbSchool, user);
+    await this.doEnrollCourses(dbUser, newSections, courses);
+
+    await this.sendUserEnrollmentUpdates(dbUser, Status.active);
   }
 
   protected async sendCommandsEvents() {
