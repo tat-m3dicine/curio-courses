@@ -1,6 +1,6 @@
 import { IUnitOfWork } from '@saal-oryx/unit-of-work';
 import { UsersRepository } from '../repositories/UsersRepository';
-import { Status, IUserWithRegistration } from '../models/entities/IUser';
+import { Status, IUserWithRegistration, IUser } from '../models/entities/IUser';
 import { ISignupRequest } from '../models/entities/IIRP';
 import loggerFactory from '../utils/logging';
 import { InviteCodesRepository } from '../repositories/InviteCodesRepository';
@@ -61,9 +61,28 @@ export class UsersService {
     return this._uow.getRepository(Repo.providers, true) as ProvidersRepository;
   }
 
-  async signup(request: ISignupRequest) {
+  async signupOrUpdate(request: ISignupRequest) {
+    const isProvider = request.provider !== 'curio';
     const user = this.transformToUser(request);
-    return this.register(user);
+    const dbUser = await this.usersRepo.findById(user._id);
+
+    // If provider user is updated: drop user from previous registration
+    if (isProvider && dbUser && dbUser.school) {
+      // To check if user's school is the same as the school mentioned in request
+      const sameSchool = await this.schoolsRepo.findOne({ '_id': dbUser.school._id, 'provider.links': user.school!._id });
+      const role = this.getRole(user);
+      if (sameSchool) {
+        const sections = (user.registration.sections || []).map(s => s._id);
+        this.dropCoursesIfDifferentSections(user._id, role, sections);
+      } else this.doWithdrawFromSchool(user._id, role, dbUser.school._id);
+    }
+
+    if (isProvider || !dbUser) {
+      await this.register(user);
+    }
+    await this.usersRepo.patch({ _id: user._id }, { profile: user.profile });
+
+    return this._uow.commit();
   }
 
   private async register(user: IUserWithRegistration) {
@@ -100,7 +119,7 @@ export class UsersService {
   protected async completeRegisteration(user: IUserWithRegistration, dbSchool?: ISchool, inviteCode?: IInviteCode) {
     const { dbUser, sections, courses, status, enrollmentType } = new UserRegisteration(dbSchool, user, inviteCode);
     if (dbUser.school) {
-      await this.doRegisterUser(dbUser, dbUser.school._id, inviteCode && inviteCode._id);
+      await this.doRegisterInSchool(dbUser, dbUser.school._id, inviteCode && inviteCode._id);
       if (enrollmentType === EnrollmentType.auto) {
         await this.doEnrollCourses(dbUser, sections);
       } else if (enrollmentType === EnrollmentType.courses) {
@@ -110,36 +129,11 @@ export class UsersService {
       await this.usersRepo.addRegisteration(dbUser);
     }
     await this.sendUserEnrollmentUpdates(dbUser, status);
-    return this._uow.commit();
   }
 
-  protected async sendUserEnrollmentUpdates(user: IUserWithRegistration, status: Status = Status.active) {
-    const userCourses = await this.coursesRepo.getActiveCoursesForUsers(this.getRole(user), [user._id]);
-    this.sendUpdate({
-      _id: user._id, status,
-      // tslint:disable-next-line: no-null-keyword
-      schoolId: user.school ? user.school._id : null,
-      courses: userCourses.map(course => ({
-        _id: course._id,
-        sectionId: course.sectionId,
-        grade: course.grade,
-        subject: course.subject,
-        curriculum: course.curriculum
-      }))
-    });
-  }
-
-  protected sendUpdate(data: IUserUpdatedData) {
-    this._kafkaService.send(config.kafkaUpdatesTopic, {
-      data,
-      key: data._id,
-      event: Events.enrollment,
-      timestamp: this.timestamp,
-      v: '1.0.0'
-    });
-  }
-
-  async doRegisterUser(user: IUserWithRegistration, schoolId: string, inviteCodeId: string | undefined) {
+  async doRegisterInSchool(user: IUserWithRegistration, schoolId: string, inviteCodeId: string | undefined) {
+    const alreadyRegistered = await this.usersRepo.findOne({ '_id': user._id, 'school._id': schoolId });
+    if (alreadyRegistered) return;
     await this.usersRepo.assignSchool(user);
     await this.schoolsRepo.consumeLicense(schoolId, this.getRole(user), +1);
     if (inviteCodeId) await this.inviteCodesRepo.incrementConsumedCount(inviteCodeId);
@@ -186,7 +180,7 @@ export class UsersService {
     }], role);
   }
 
-  private async createSchool(school: { _id: string; name: string; }, provider: IProvider): Promise<ISchool> {
+  private async createSchool(school: { _id: string; name: string; }, provider: IProvider) {
     const dbSchool: ISchool = {
       _id: newSchoolId(school.name),
       locales: { en: { name: school.name } },
@@ -196,8 +190,7 @@ export class UsersService {
       license: provider.license,
       users: []
     };
-    await this.schoolsRepo.add(dbSchool);
-    return dbSchool;
+    return this.schoolsRepo.add(dbSchool);
   }
 
   private async createSections(sectionsIds: string[], user: IUserWithRegistration) {
@@ -237,39 +230,45 @@ export class UsersService {
     }
   }
 
-  async update(request: ISignupRequest) {
-    const isProvider = request.provider !== 'curio';
-    const user = this.transformToUser(request);
-    if (isProvider && (request.old_user_data && !request.old_user_data.school)) {
-      // New Signup using provider ...
-      return this.register(user);
-    }
-    const { profile, role } = user;
-    await this.usersRepo.patch({ _id: user._id }, { profile, role });
-
-    if (isProvider) this.updateProviderUserRegistration(user);
-
-    return this._uow.commit();
-  }
-
-  protected async updateProviderUserRegistration(user: IUserWithRegistration) {
-    const { sections = [], school = { _id: '' } } = user.registration;
-    const currentSections = await this.sectionsRepo.findMany({ students: user._id });
-    const droppedSections = currentSections.filter(cs => sections.find(s => cs.providerLinks.includes(s._id)));
+  protected async dropCoursesIfDifferentSections(userId: string, role: Role, sectionsIds: string[]) {
+    const currentSections = await this.sectionsRepo.findMany({ students: userId });
+    const droppedSections = currentSections.filter(cs => sectionsIds.find(id => cs.providerLinks.includes(id)));
 
     if (droppedSections.length > 0) {
       const now = new Date();
-      const role = this.getRole(user);
       const sectionsIds = droppedSections.map(s => s._id);
-      if (role === Role.student) await this.sectionsRepo.removeStudents({ _id: { $in: sectionsIds } }, [user._id]);
-      await this.coursesRepo.finishUsersInCourses([{ filter: { sectionId: { $in: sectionsIds } }, usersIds: [user._id] }], role, now);
+      if (role === Role.student) await this.sectionsRepo.removeStudents({ _id: { $in: sectionsIds } }, [userId]);
+      await this.coursesRepo.finishUsersInCourses([{ filter: { sectionId: { $in: sectionsIds } }, usersIds: [userId] }], role, now);
     }
+  }
 
-    const dbSchool = await this.schoolsRepo.findById(school._id);
-    const { dbUser, sections: newSections, courses } = new UserRegisteration(dbSchool, user);
-    await this.doEnrollCourses(dbUser, newSections, courses);
+  protected async doWithdrawFromSchool(userId: string, role: Role, schoolId: string) {
+    const now = new Date();
+    if (role === Role.student) await this.sectionsRepo.removeStudents({ schoolId }, [userId]);
+    await this.coursesRepo.finishUsersInCourses([{ filter: { schoolId }, usersIds: [userId] }], role, now);
+    await this.schoolsRepo.releaseLicense(schoolId, role, 1);
+  }
 
-    await this.sendUserEnrollmentUpdates(dbUser, Status.active);
+  protected async sendUserEnrollmentUpdates(user: IUserWithRegistration, status: Status = Status.active) {
+    const userCourses = await this.coursesRepo.getActiveCoursesForUsers(this.getRole(user), [user._id]);
+    this._kafkaService.send(config.kafkaUpdatesTopic, {
+      key: user._id,
+      timestamp: this.timestamp,
+      event: Events.enrollment,
+      data: {
+        _id: user._id, status,
+        // tslint:disable-next-line: no-null-keyword
+        schoolId: user.school ? user.school._id : null,
+        courses: userCourses.map(course => ({
+          _id: course._id,
+          sectionId: course.sectionId,
+          grade: course.grade,
+          subject: course.subject,
+          curriculum: course.curriculum
+        }))
+      },
+      v: '1.0.0'
+    });
   }
 
   protected async sendCommandsEvents() {
