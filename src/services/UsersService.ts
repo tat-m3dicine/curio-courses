@@ -29,11 +29,11 @@ const logger = loggerFactory.getLogger('UsersService');
 export class UsersService {
 
   private provider?: IProvider;
-  private timestamp: number;
+  private now: Date;
   private events: IKafkaEvent<any>[];
 
   constructor(protected _uow: IUnitOfWork, protected _kafkaService: KafkaService) {
-    this.timestamp = Date.now();
+    this.now = new Date();
     this.events = [];
   }
 
@@ -173,10 +173,9 @@ export class UsersService {
       }
       courses = coursesIds;
     }
-    const now = new Date();
     await this.coursesRepo.addUsersToCourses([{
       filter: { _id: { $in: courses } },
-      usersObjs: [{ _id: user._id, joinDate: now, isEnabled: true }]
+      usersObjs: [{ _id: user._id, joinDate: this.now, isEnabled: true }]
     }], role);
   }
 
@@ -194,18 +193,16 @@ export class UsersService {
   }
 
   private async createSections(sectionsIds: string[], user: IUserWithRegistration) {
+    const schoolId = user.school!._id;
     const dbSections = sectionsIds.map(sectionId => {
       const { name, grade } = user.registration.sections!.find(s => s._id === sectionId) || { name: sectionId, grade: '6' };
-      const section: ISection = {
-        _id: '',
-        locales: { en: { name } },
-        schoolId: user.school!._id,
-        grade,
+      const locales = { en: { name } };
+      return {
+        _id: newSectionId(schoolId, grade, locales),
+        schoolId, grade, locales,
         students: [user._id],
         providerLinks: [sectionId]
       };
-      section._id = newSectionId(section.schoolId, section.grade, section.locales);
-      return section;
     });
     return this.sectionsRepo.addMany(dbSections, false);
   }
@@ -232,20 +229,18 @@ export class UsersService {
 
   protected async dropCoursesIfDifferentSections(userId: string, role: Role, sectionsIds: string[]) {
     const currentSections = await this.sectionsRepo.findMany({ students: userId });
-    const droppedSections = currentSections.filter(cs => sectionsIds.find(id => cs.providerLinks.includes(id)));
+    const droppedSections = currentSections.filter(cs => !sectionsIds.find(id => cs.providerLinks.includes(id)));
 
     if (droppedSections.length > 0) {
-      const now = new Date();
       const sectionsIds = droppedSections.map(s => s._id);
       if (role === Role.student) await this.sectionsRepo.removeStudents({ _id: { $in: sectionsIds } }, [userId]);
-      await this.coursesRepo.finishUsersInCourses([{ filter: { sectionId: { $in: sectionsIds } }, usersIds: [userId] }], role, now);
+      await this.coursesRepo.finishUsersInCourses([{ filter: { sectionId: { $in: sectionsIds } }, usersIds: [userId] }], role, this.now);
     }
   }
 
   protected async doWithdrawFromSchool(userId: string, role: Role, schoolId: string) {
-    const now = new Date();
     if (role === Role.student) await this.sectionsRepo.removeStudents({ schoolId }, [userId]);
-    await this.coursesRepo.finishUsersInCourses([{ filter: { schoolId }, usersIds: [userId] }], role, now);
+    await this.coursesRepo.finishUsersInCourses([{ filter: { schoolId }, usersIds: [userId] }], role, this.now);
     await this.schoolsRepo.releaseLicense(schoolId, role, 1);
   }
 
@@ -253,7 +248,7 @@ export class UsersService {
     const userCourses = await this.coursesRepo.getActiveCoursesForUsers(this.getRole(user), [user._id]);
     this._kafkaService.send(config.kafkaUpdatesTopic, {
       key: user._id,
-      timestamp: this.timestamp,
+      timestamp: this.now.getTime(),
       event: Events.enrollment,
       data: {
         _id: user._id, status,
@@ -279,7 +274,7 @@ export class UsersService {
     this.events.push({
       key: this._kafkaService.getNewKey(),
       event: `${proccessingFunction}_${serviceName}`,
-      timestamp: this.timestamp,
+      timestamp: this.now.getTime(),
       data: [args],
       v: '1.0.0',
     });
