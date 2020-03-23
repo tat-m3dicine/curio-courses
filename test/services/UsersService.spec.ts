@@ -84,39 +84,24 @@ describe('Users Service', () => {
       await usersService.signupOrUpdate(request);
     });
 
-    it('should accept student in school and enroll in active courses', async () => {
-      const request: ISignupRequest = getTestData(Test.signupRequest, {}, false);
-      const school = getTestData(Test.school);
-      repositoryReturns(Repo.users, { assignSchool: () => undefined, findOne: () => undefined });
-      repositoryReturns(Repo.schools, { findById: () => school, consumeLicense: () => undefined });
-      repositoryReturns(Repo.sections, {
-        findMany: () => request.new_user_data.section,
-        addStudents: () => undefined
-      });
-      repositoryReturns(Repo.courses, {
-        getActiveCoursesUnderSections: () => [{ _id: 'course_id_1' }],
-        addUsersToCourses: () => undefined
-      });
-      validateOutput(data => expect(data.status).equals(Status.active));
-      await usersService.signupOrUpdate(request);
-    });
-
-    it('should accept teacher in school and enroll in active courses', async () => {
-      const request: ISignupRequest = getTestData(Test.signupRequest, {}, false);
-      request.new_user_data.role = [Role.teacher];
-      const school = getTestData(Test.school);
-      repositoryReturns(Repo.users, { assignSchool: () => undefined, findOne: () => undefined });
-      repositoryReturns(Repo.schools, { findById: () => school, consumeLicense: () => undefined });
-      repositoryReturns(Repo.sections, {
-        findMany: () => request.new_user_data.section,
-        addStudents: () => undefined
-      });
-      repositoryReturns(Repo.courses, {
-        getActiveCoursesUnderSections: () => [{ _id: 'course_id_1' }],
-        addUsersToCourses: () => undefined
-      });
-      validateOutput(data => expect(data.status).equals(Status.active));
-      await usersService.signupOrUpdate(request);
+    it('should accept student/teacher/principal in school and enroll in active courses', async () => {
+      for (const role of Object.values(Role)) {
+        const request: ISignupRequest = getTestData(Test.signupRequest, {}, false);
+        request.new_user_data.role = [role];
+        const school = getTestData(Test.school);
+        repositoryReturns(Repo.users, { assignSchool: () => undefined, findOne: () => undefined });
+        repositoryReturns(Repo.schools, { findById: () => school, consumeLicense: () => undefined });
+        repositoryReturns(Repo.sections, {
+          findMany: () => request.new_user_data.section,
+          addStudents: () => undefined
+        });
+        repositoryReturns(Repo.courses, {
+          getActiveCoursesUnderSections: () => [{ _id: 'course_id_1' }],
+          addUsersToCourses: () => undefined
+        });
+        validateOutput(data => expect(data.status).equals(Status.active));
+        await usersService.signupOrUpdate(request);
+      }
     });
 
     it('should succeed to update already registered user profile', async () => {
@@ -256,6 +241,60 @@ describe('Users Service', () => {
       repositoryReturns(Repo.providers, { findById: () => ({ config: { autoCreateSchool: false } }) });
       repositoryReturns(Repo.schools, { findOne: () => undefined });
       await tryAndExpect(() => usersService.signupOrUpdate(request), InvalidRequestError);
+    });
+
+    it('should succeed to update provider user by drop old and enrolling new courses/section', async () => {
+      let done = 0;
+      const markDone = () => done++;
+      const school = getTestData(Test.school, {
+        locales: { en: { name: 'Alef' } },
+        provider: { _id: 'Alef' },
+        license: {
+          students: { consumed: 0, max: 100 },
+          package: {
+            signupMethods: [SignupMethods.provider],
+            grades: { ['4']: {} }
+          }
+        },
+      });
+      const user = { _id: 'user1', school: { _id: 'school1' } };
+      const request: ISignupRequest = getTestData(Test.signupRequest, { provider: 'Alef' }, false);
+      repositoryReturns(Repo.schools, { findOne: () => school });
+      repositoryReturns(Repo.users, { findById: () => user, findOne: () => user });
+      repositoryReturns(Repo.courses, { finishUsersInCourses: markDone, addUsersToCourses: markDone });
+      repositoryReturns(Repo.sections, {
+        findMany: () => [{ providerLinks: ['alef_section'] }],
+        removeStudents: markDone, addStudents: markDone
+      });
+      await usersService.signupOrUpdate(request);
+      expect(done).equal(4);
+    });
+
+    it('should succeed to update provider user by drop old school and enrolling in new one', async () => {
+      let done = 0;
+      const markDone = () => done++;
+      const user = { _id: 'user1', school: { _id: 'school1' } };
+      const school = getTestData(Test.school, {
+        locales: { en: { name: 'Alef' } },
+        provider: { _id: 'Alef' },
+        license: {
+          students: { consumed: 0, max: 100 },
+          package: {
+            signupMethods: [SignupMethods.provider],
+            grades: { ['4']: {} }
+          }
+        },
+      });
+      const request: ISignupRequest = getTestData(Test.signupRequest, { provider: 'Alef' }, false);
+      repositoryReturns(Repo.schools, { findOne: ({ _id }) => _id ? undefined : school, releaseLicense: markDone });
+      repositoryReturns(Repo.users, { findById: () => user, findOne: () => user });
+      repositoryReturns(Repo.courses, { finishUsersInCourses: markDone, addUsersToCourses: markDone });
+      repositoryReturns(Repo.sections, {
+        findMany: () => [{ providerLinks: ['alef_section'] }],
+        removeStudents: markDone, addStudents: markDone
+      });
+      await usersService.signupOrUpdate(request);
+      expect(done).equal(5);
     });
   });
 

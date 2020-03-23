@@ -40,13 +40,13 @@ describe('IRP Stream', () => {
   });
 
   it('should succeed to call signupOrUpdate method if event is "user_created" or "user_updated"', async () => {
-    const done: any[] = [];
-    _userServiceStub.signupOrUpdate = () => done.push(true);
+    let done = 0;
+    _userServiceStub.signupOrUpdate = () => done++;
     // tslint:disable-next-line: no-string-literal
     await irpStream['processMessage'](<any>{ value: { ...testEvent, event: 'user_created' } });
     // tslint:disable-next-line: no-string-literal
     await irpStream['processMessage'](<any>{ value: { ...testEvent, event: 'user_updated' } });
-    expect(done).to.have.lengthOf(2);
+    expect(done).equal(2);
   });
 
   it('should succeed to not process an event with unknown method', async () => {

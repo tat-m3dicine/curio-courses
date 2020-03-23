@@ -15,10 +15,8 @@ import { IProvider } from '../models/entities/IProvider';
 import { InvalidRequestError } from '../exceptions/InvalidRequestError';
 import { ISchool } from '../models/entities/ISchool';
 import { newSchoolId, newSectionId } from '../utils/IdGenerator';
-import { ISection } from '../models/entities/ISection';
 import config from '../config';
 import { Repo } from '../models/RepoNames';
-import { IUserUpdatedData } from '../models/events/IUserUpdatedEvent';
 import { NotFoundError } from '../exceptions/NotFoundError';
 import { KafkaService, IKafkaEvent } from '@saal-oryx/event-sourcing';
 import { Events } from './processors/UpdatesProcessor';
@@ -67,14 +65,14 @@ export class UsersService {
     const dbUser = await this.usersRepo.findById(user._id);
 
     // If provider user is updated: drop user from previous registration
-    if (isProvider && dbUser && dbUser.school) {
+    if (isProvider && dbUser && dbUser.school && user.registration.school) {
       // To check if user's school is the same as the school mentioned in request
-      const sameSchool = await this.schoolsRepo.findOne({ '_id': dbUser.school._id, 'provider.links': user.school!._id });
+      const sameSchool = await this.schoolsRepo.findOne({ '_id': dbUser.school._id, 'provider.links': user.registration.school._id });
       const role = this.getRole(user);
       if (sameSchool) {
         const sections = (user.registration.sections || []).map(s => s._id);
-        this.dropCoursesIfDifferentSections(user._id, role, sections);
-      } else this.doWithdrawFromSchool(user._id, role, dbUser.school._id);
+        await this.dropCoursesIfDifferentSections(user._id, role, sections);
+      } else await this.doWithdrawFromSchool(user._id, role, dbUser.school._id);
     }
 
     if (isProvider || !dbUser) {
@@ -129,6 +127,7 @@ export class UsersService {
       await this.usersRepo.addRegisteration(dbUser);
     }
     await this.sendUserEnrollmentUpdates(dbUser, status);
+    await this.sendAllCommandsEvents();
   }
 
   async doRegisterInSchool(user: IUserWithRegistration, schoolId: string, inviteCodeId: string | undefined) {
@@ -266,8 +265,10 @@ export class UsersService {
     });
   }
 
-  protected async sendCommandsEvents() {
-    return this._kafkaService.sendMany<IKafkaEvent<any>>(config.kafkaCommandsTopic, this.events);
+  protected async sendAllCommandsEvents() {
+    if (this.events.length > 0) {
+      await this._kafkaService.sendMany<IKafkaEvent<any>>(config.kafkaCommandsTopic, this.events);
+    }
   }
 
   protected addCommandsEvent(serviceName: string, proccessingFunction: string, args: any) {
