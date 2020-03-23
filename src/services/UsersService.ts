@@ -1,6 +1,6 @@
 import { IUnitOfWork } from '@saal-oryx/unit-of-work';
 import { UsersRepository } from '../repositories/UsersRepository';
-import { Status, IUserWithRegistration, IUser } from '../models/entities/IUser';
+import { Status, IUserWithRegistration } from '../models/entities/IUser';
 import { ISignupRequest } from '../models/entities/IIRP';
 import loggerFactory from '../utils/logging';
 import { InviteCodesRepository } from '../repositories/InviteCodesRepository';
