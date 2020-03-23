@@ -45,7 +45,8 @@ const dataMap = {
       section: [
         {
           uuid: '6_A_SAAL56ND02',
-          name: 'A'
+          name: 'A',
+          grade: '4'
         }
       ]
     }

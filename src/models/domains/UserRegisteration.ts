@@ -1,5 +1,4 @@
 import { ISchool, SignupMethods } from '../entities/ISchool';
-import { Role } from '../Role';
 import { Status, IUserWithRegistration } from '../entities/IUser';
 import { IInviteCode, EnrollmentType } from '../entities/IInviteCode';
 import { ICourse } from '../entities/ICourse';
@@ -22,7 +21,7 @@ export class UserRegisteration {
   constructor(
     protected _dbSchool: ISchool | undefined,
     protected _user: IUserWithRegistration,
-    protected _inviteCode: IInviteCode | undefined
+    protected _inviteCode?: IInviteCode
   ) {
     if (this._inviteCode) {
       this.processInviteCode();
@@ -50,10 +49,6 @@ export class UserRegisteration {
 
   get enrollmentType() {
     return this._requirements.enrollmentType;
-  }
-
-  get role(): Role {
-    return this._user.role.includes(Role.student) ? Role.student : Role.teacher;
   }
 
   get dbUser(): IUserWithRegistration {
@@ -118,7 +113,8 @@ export class UserRegisteration {
   protected getRegistrationStatus(neededMethod: SignupMethods) {
     if (!this._dbSchool) return Status.schoolNotRegistered;
     if (!this.license) return Status.schoolHasNoLicense;
-    const { consumed, max } = this.license[`${this.role}s`];
+    const usersType = this._user.role.includes('student') ? 'students' : 'teachers';
+    const { consumed, max } = this.license[usersType];
     if (max - consumed < 1) return Status.outOfQuota;
     const { signupMethods, grades } = this.license.package;
     if (neededMethod === SignupMethods.provider) {
@@ -157,12 +153,11 @@ export class UserRegisteration {
     for (const section of sections) {
       const subjects = this.license!.package.grades[section.grade];
       for (const subject in subjects) {
-        const locales = { en: { name: section.name } };
-        const sectionId = newSectionId(schoolId, section.grade, locales);
+        const sectionId = newSectionId(schoolId, section.grade, { en: section });
         courses.push({
           _id: newCourseId(sectionId, subject, academicTerm.year),
-          grade: section.grade,
-          academicTerm, schoolId, subject, locales, sectionId,
+          grade: section.grade, academicTerm, schoolId, subject, sectionId,
+          locales: { en: { name: (subject[0].toUpperCase() + subject.substring(1)) } },
           defaultLocale: 'en',
           curriculum: subjects[subject][0],
           isEnabled: true,

@@ -28,10 +28,8 @@ export class IRPStream extends BaseStream<IKafkaEvent<any>> {
 
       switch (appEvent.event) {
         case 'user_created':
-          await usersService.signup(appEvent.data);
-          break;
         case 'user_updated':
-          await usersService.update(appEvent.data);
+          await usersService.signupOrUpdate(appEvent.data);
           break;
       }
       return;
