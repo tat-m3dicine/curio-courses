@@ -109,7 +109,7 @@ export class CoursesRepository extends AduitableRepository<ICourse> {
     });
   }
 
-  async getActiveCoursesForUser(role: Role, usersId: string) {
+  async getActiveCoursesForUser(role: Role, usersId: string, includeProfiles = true) {
     const currentDate = new Date();
     const pipeline: any[] = [
       {
@@ -124,7 +124,7 @@ export class CoursesRepository extends AduitableRepository<ICourse> {
 
     if (role === Role.student) {
       pipeline.push({ $project: { students: 0, teachers: 0 } });
-    } else {
+    } else if (includeProfiles) {
       pipeline.push(
         {
           $addFields: {

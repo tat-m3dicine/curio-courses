@@ -1,6 +1,6 @@
 import { IUnitOfWork } from '@saal-oryx/unit-of-work';
 import { UsersRepository } from '../repositories/UsersRepository';
-import { Status, IUserWithRegistration } from '../models/entities/IUser';
+import { Status, IUserWithRegistration, IRegistrationSection as IRegistrationSection } from '../models/entities/IUser';
 import { ISignupRequest } from '../models/entities/IIRP';
 import loggerFactory from '../utils/logging';
 import { InviteCodesRepository } from '../repositories/InviteCodesRepository';
@@ -70,7 +70,7 @@ export class UsersService {
       const sameSchool = await this.schoolsRepo.findOne({ '_id': dbUser.school._id, 'provider.links': user.registration.school._id });
       const role = this.getRole(user);
       if (sameSchool) {
-        const sections = (user.registration.sections || []).map(s => s._id);
+        const sections = (user.registration.sections || []);
         await this.dropCoursesIfDifferentSections(user._id, role, sections);
       } else await this.doWithdrawFromSchool(user._id, role, dbUser.school._id);
     }
@@ -226,14 +226,31 @@ export class UsersService {
     }
   }
 
-  protected async dropCoursesIfDifferentSections(userId: string, role: Role, sectionsIds: string[]) {
-    const currentSections = await this.sectionsRepo.findMany({ students: userId });
-    const droppedSections = currentSections.filter(cs => !sectionsIds.find(id => cs.providerLinks.includes(id)));
+  protected async dropCoursesIfDifferentSections(userId: string, role: Role, sections: IRegistrationSection[]) {
+    const currentCourses = await this.coursesRepo.getActiveCoursesForUser(role, userId, false);
+    const currentSections = await this.sectionsRepo.findMany({ _id: { $in: currentCourses.map(c => c.sectionId) } }, { _id: 1, providerLinks: 1, subject: 1 });
+    const droppedCourses: ICourse[] = [];
+    const keptCourses: ICourse[] = [];
+    for (const course of currentCourses) {
+      const dbSection = currentSections.find(s => s._id === course.sectionId);
+      if (!dbSection) continue;
+      for (const regSection of sections) {
+        if (!dbSection.providerLinks.includes(regSection._id)) {
+          droppedCourses.push(course);
+        } else if (regSection.subjects && !regSection.subjects.includes(course.subject)) {
+          droppedCourses.push(course);
+        } else {
+          keptCourses.push(course);
+        }
+      }
+    }
 
-    if (droppedSections.length > 0) {
-      const sectionsIds = droppedSections.map(s => s._id);
-      if (role === Role.student) await this.sectionsRepo.removeStudents({ _id: { $in: sectionsIds } }, [userId]);
-      await this.coursesRepo.finishUsersInCourses([{ filter: { sectionId: { $in: sectionsIds } }, usersIds: [userId] }], role, this.now);
+    if (droppedCourses.length > 0) {
+      if (role === Role.student) {
+        const droppedSections = droppedCourses.map(s => s.sectionId).filter(id => !keptCourses.find(c => c.sectionId === id));
+        if (droppedSections.length) await this.sectionsRepo.removeStudents({ _id: { $in: droppedSections } }, [userId]);
+      }
+      await this.coursesRepo.finishUsersInCourses([{ filter: { _id: { $in: droppedCourses.map(c => c._id) } }, usersIds: [userId] }], role, this.now);
     }
   }
 
@@ -283,12 +300,13 @@ export class UsersService {
 
   private transformToUser(request: ISignupRequest): IUserWithRegistration {
     const { user_id, new_user_data: data, provider } = request;
-    let sections: { _id: string; name: string, grade: string }[] = [];
+    let sections: { _id: string; name: string, grade: string, subjects?: string[] }[] = [];
     if (data.section instanceof Array) {
       sections = data.section.map(section => ({
         _id: section.uuid,
         name: section.name,
-        grade: section.grade
+        grade: section.grade,
+        subjects: section.subjects && section.subjects.map(x => String(x).toLowerCase())
       }));
     }
     return {
