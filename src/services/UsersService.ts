@@ -245,14 +245,12 @@ export class UsersService {
         }
       }
     }
-
-    if (droppedCourses.length > 0) {
-      if (role === Role.student) {
-        const droppedSections = droppedCourses.map(s => s.sectionId).filter(id => !keptCourses.find(c => c.sectionId === id));
-        if (droppedSections.length) await this.sectionsRepo.removeStudents({ _id: { $in: droppedSections } }, [userId]);
-      }
-      await this.coursesRepo.finishUsersInCourses([{ filter: { _id: { $in: droppedCourses.map(c => c._id) } }, usersIds: [userId] }], role, this.now);
+    if (droppedCourses.length === 0) return;
+    if (role === Role.student) {
+      const droppedSections = droppedCourses.map(s => s.sectionId).filter(id => !keptCourses.find(c => c.sectionId === id));
+      if (droppedSections.length) await this.sectionsRepo.removeStudents({ _id: { $in: droppedSections } }, [userId]);
     }
+    await this.coursesRepo.finishUsersInCourses([{ filter: { _id: { $in: droppedCourses.map(c => c._id) } }, usersIds: [userId] }], role, this.now);
   }
 
   protected async doWithdrawFromSchool(userId: string, role: Role, schoolId: string) {
