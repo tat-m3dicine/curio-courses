@@ -80,6 +80,9 @@ export class UsersService {
     }
     await this.usersRepo.patch({ _id: user._id }, { profile: user.profile });
 
+    await this.sendUserEnrollmentUpdates(user._id);
+    await this.sendAllCommandsEvents();
+
     return this._uow.commit();
   }
 
@@ -115,7 +118,7 @@ export class UsersService {
   }
 
   protected async completeRegisteration(user: IUserWithRegistration, dbSchool?: ISchool, inviteCode?: IInviteCode) {
-    const { dbUser, sections, courses, status, enrollmentType } = new UserRegisteration(dbSchool, user, inviteCode);
+    const { dbUser, sections, courses, enrollmentType } = new UserRegisteration(dbSchool, user, inviteCode);
     if (dbUser.school) {
       await this.doRegisterInSchool(dbUser, dbUser.school._id, inviteCode && inviteCode._id);
       if (enrollmentType === EnrollmentType.auto) {
@@ -126,8 +129,6 @@ export class UsersService {
     } else {
       await this.usersRepo.addRegisteration(dbUser);
     }
-    await this.sendUserEnrollmentUpdates(dbUser, status);
-    await this.sendAllCommandsEvents();
   }
 
   async doRegisterInSchool(user: IUserWithRegistration, schoolId: string, inviteCodeId: string | undefined) {
@@ -260,14 +261,17 @@ export class UsersService {
     await this.schoolsRepo.releaseLicense(schoolId, role, 1);
   }
 
-  protected async sendUserEnrollmentUpdates(user: IUserWithRegistration, status: Status = Status.active) {
-    const userCourses = await this.coursesRepo.getActiveCoursesForUsers(this.getRole(user), [user._id]);
-    this._kafkaService.send(config.kafkaUpdatesTopic, {
-      key: user._id,
+  protected async sendUserEnrollmentUpdates(userId: string) {
+    const user = await this.usersRepo.findById(userId);
+    if (!user) return;
+    const userCourses = await this.coursesRepo.getActiveCoursesForUsers(this.getRole(user), [userId]);
+    return this._kafkaService.send(config.kafkaUpdatesTopic, {
+      key: userId,
       timestamp: this.now.getTime(),
       event: Events.enrollment,
       data: {
-        _id: user._id, status,
+        _id: userId,
+        status: user.registration ? user.registration.status : Status.active,
         // tslint:disable-next-line: no-null-keyword
         schoolId: user.school ? user.school._id : null,
         courses: userCourses.map(course => ({

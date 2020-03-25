@@ -109,7 +109,7 @@ describe('Users Service', () => {
       const request: ISignupRequest = getTestData(Test.signupRequest, {}, false);
       repositoryReturns(Repo.users, {
         patch: (_, updates) => updateObj = updates,
-        findById: () => ({ _id: 'user1', school: { _id: 'school1' } })
+        findById: () => ({ _id: 'user1', school: { _id: 'school1' }, role: [] })
       });
       await usersService.signupOrUpdate(request);
       expect(updateObj.profile).to.have.property('name');
@@ -257,7 +257,7 @@ describe('Users Service', () => {
           }
         },
       });
-      const user = { _id: 'user1', school: { _id: 'school1' } };
+      const user = { _id: 'user1', school: { _id: 'school1' }, role: [] };
       const request: ISignupRequest = getTestData(Test.signupRequest, { provider: 'Alef' }, false);
       repositoryReturns(Repo.schools, { findOne: () => school });
       repositoryReturns(Repo.users, { findById: () => user, findOne: () => user });
@@ -273,7 +273,7 @@ describe('Users Service', () => {
     it('should succeed to update provider user by drop old school and enrolling in new one', async () => {
       let done = 0;
       const markDone = () => done++;
-      const user = { _id: 'user1', school: { _id: 'school1' } };
+      const user = { _id: 'user1', school: { _id: 'school1' }, role: [] };
       const school = getTestData(Test.school, {
         locales: { en: { name: 'Alef' } },
         provider: { _id: 'Alef' },
