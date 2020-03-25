@@ -49,6 +49,7 @@ export interface IUserData {
     uuid: string;
     name: string;
     grade: string;
+    subjects?: string[];
   }[];
 }
 

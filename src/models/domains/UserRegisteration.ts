@@ -1,5 +1,5 @@
 import { ISchool, SignupMethods } from '../entities/ISchool';
-import { Status, IUserWithRegistration } from '../entities/IUser';
+import { Status, IUserWithRegistration, IRegistrationSection } from '../entities/IUser';
 import { IInviteCode, EnrollmentType } from '../entities/IInviteCode';
 import { ICourse } from '../entities/ICourse';
 import { newCourseId, newSectionId } from '../../utils/IdGenerator';
@@ -8,7 +8,7 @@ import { InvalidRequestError } from '../../exceptions/InvalidRequestError';
 interface IRequirements {
   status: Status;
   school?: { _id: string, name: string };
-  sections?: { _id: string, name: string, grade: string }[];
+  sections?: IRegistrationSection[];
   enrollmentType?: EnrollmentType;
   courses?: string[] | ICourse[];
 }
@@ -153,6 +153,7 @@ export class UserRegisteration {
     for (const section of sections) {
       const subjects = this.license!.package.grades[section.grade];
       for (const subject in subjects) {
+        if (section.subjects && !(section.subjects.includes(subject))) continue;
         const sectionId = newSectionId(schoolId, section.grade, { en: section });
         courses.push({
           _id: newCourseId(sectionId, subject, academicTerm.year),

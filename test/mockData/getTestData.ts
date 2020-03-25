@@ -46,7 +46,8 @@ const dataMap = {
         {
           uuid: '6_A_SAAL56ND02',
           name: 'A',
-          grade: '4'
+          grade: '4',
+          subjects: ['arabic', 'english']
         }
       ]
     }

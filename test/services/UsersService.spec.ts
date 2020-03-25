@@ -109,7 +109,7 @@ describe('Users Service', () => {
       const request: ISignupRequest = getTestData(Test.signupRequest, {}, false);
       repositoryReturns(Repo.users, {
         patch: (_, updates) => updateObj = updates,
-        findById: () => ({ _id: 'user1', school: { _id: 'school1' } })
+        findById: () => ({ _id: 'user1', school: { _id: 'school1' }, role: [] })
       });
       await usersService.signupOrUpdate(request);
       expect(updateObj.profile).to.have.property('name');
@@ -253,15 +253,21 @@ describe('Users Service', () => {
           students: { consumed: 0, max: 100 },
           package: {
             signupMethods: [SignupMethods.provider],
-            grades: { ['4']: {} }
+            grades: { ['4']: { math: ['moe'] } }
           }
         },
       });
-      const user = { _id: 'user1', school: { _id: 'school1' } };
+      const user = { _id: 'user1', school: { _id: 'school1' }, role: ['student'] };
       const request: ISignupRequest = getTestData(Test.signupRequest, { provider: 'Alef' }, false);
       repositoryReturns(Repo.schools, { findOne: () => school });
       repositoryReturns(Repo.users, { findById: () => user, findOne: () => user });
-      repositoryReturns(Repo.courses, { finishUsersInCourses: markDone, addUsersToCourses: markDone });
+      repositoryReturns(Repo.courses, {
+        addMany: courses => courses,
+        finishUsersInCourses: markDone,
+        addUsersToCourses: markDone,
+        getActiveCoursesForUser: () => [{ _id: 'course_id_1', sectionId: '1', subject: 'math' }],
+        getActiveCoursesUnderSections: () => [{ _id: 'course_id_1' }]
+      });
       repositoryReturns(Repo.sections, {
         findMany: () => [{ providerLinks: ['alef_section'] }],
         removeStudents: markDone, addStudents: markDone
@@ -273,7 +279,7 @@ describe('Users Service', () => {
     it('should succeed to update provider user by drop old school and enrolling in new one', async () => {
       let done = 0;
       const markDone = () => done++;
-      const user = { _id: 'user1', school: { _id: 'school1' } };
+      const user = { _id: 'user1', school: { _id: 'school1' }, role: [] };
       const school = getTestData(Test.school, {
         locales: { en: { name: 'Alef' } },
         provider: { _id: 'Alef' },
