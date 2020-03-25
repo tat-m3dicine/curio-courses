@@ -253,15 +253,21 @@ describe('Users Service', () => {
           students: { consumed: 0, max: 100 },
           package: {
             signupMethods: [SignupMethods.provider],
-            grades: { ['4']: {} }
+            grades: { ['4']: { math: ['moe'] } }
           }
         },
       });
-      const user = { _id: 'user1', school: { _id: 'school1' }, role: [] };
+      const user = { _id: 'user1', school: { _id: 'school1' }, role: ['student'] };
       const request: ISignupRequest = getTestData(Test.signupRequest, { provider: 'Alef' }, false);
       repositoryReturns(Repo.schools, { findOne: () => school });
       repositoryReturns(Repo.users, { findById: () => user, findOne: () => user });
-      repositoryReturns(Repo.courses, { finishUsersInCourses: markDone, addUsersToCourses: markDone });
+      repositoryReturns(Repo.courses, {
+        addMany: courses => courses,
+        finishUsersInCourses: markDone,
+        addUsersToCourses: markDone,
+        getActiveCoursesForUser: () => [{ _id: 'course_id_1', sectionId: '1', subject: 'math' }],
+        getActiveCoursesUnderSections: () => [{ _id: 'course_id_1' }]
+      });
       repositoryReturns(Repo.sections, {
         findMany: () => [{ providerLinks: ['alef_section'] }],
         removeStudents: markDone, addStudents: markDone

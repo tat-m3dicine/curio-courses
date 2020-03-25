@@ -234,9 +234,8 @@ export class UsersService {
     const keptCourses: ICourse[] = [];
     for (const course of currentCourses) {
       const dbSection = currentSections.find(s => s._id === course.sectionId);
-      if (!dbSection) continue;
       for (const regSection of sections) {
-        if (!dbSection.providerLinks.includes(regSection._id)) {
+        if (dbSection && !dbSection.providerLinks.includes(regSection._id)) {
           droppedCourses.push(course);
         } else if (regSection.subjects && !regSection.subjects.includes(course.subject)) {
           droppedCourses.push(course);
