@@ -21,12 +21,19 @@ export interface IUserWithCourses extends IUser {
 
 export interface IRegistration {
   school?: { _id: string, name: string };
-  sections?: { _id: string, name: string, grade: string }[];
+  sections?: IRegistrationSection[];
   inviteCode?: string;
   status: Status;
   curriculum: string;
   provider: string;
   grade: string;
+}
+
+export interface IRegistrationSection {
+  _id: string;
+  name: string;
+  grade: string;
+  subjects?: string[];
 }
 
 export enum Status {

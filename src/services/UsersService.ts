@@ -1,7 +1,6 @@
 import { IUnitOfWork } from '@saal-oryx/unit-of-work';
 import { UsersRepository } from '../repositories/UsersRepository';
-import { IUser, Status, IUserWithRegistration } from '../models/entities/IUser';
-import { IProfile } from '../models/entities/Common';
+import { Status, IUserWithRegistration, IRegistrationSection as IRegistrationSection } from '../models/entities/IUser';
 import { ISignupRequest } from '../models/entities/IIRP';
 import loggerFactory from '../utils/logging';
 import { InviteCodesRepository } from '../repositories/InviteCodesRepository';
@@ -16,10 +15,8 @@ import { IProvider } from '../models/entities/IProvider';
 import { InvalidRequestError } from '../exceptions/InvalidRequestError';
 import { ISchool } from '../models/entities/ISchool';
 import { newSchoolId, newSectionId } from '../utils/IdGenerator';
-import { ISection } from '../models/entities/ISection';
 import config from '../config';
 import { Repo } from '../models/RepoNames';
-import { IUserUpdatedData } from '../models/events/IUserUpdatedEvent';
 import { NotFoundError } from '../exceptions/NotFoundError';
 import { KafkaService, IKafkaEvent } from '@saal-oryx/event-sourcing';
 import { Events } from './processors/UpdatesProcessor';
@@ -30,11 +27,11 @@ const logger = loggerFactory.getLogger('UsersService');
 export class UsersService {
 
   private provider?: IProvider;
-  private timestamp: number;
+  private now: Date;
   private events: IKafkaEvent<any>[];
 
   constructor(protected _uow: IUnitOfWork, protected _kafkaService: KafkaService) {
-    this.timestamp = Date.now();
+    this.now = new Date();
     this.events = [];
   }
 
@@ -62,9 +59,31 @@ export class UsersService {
     return this._uow.getRepository(Repo.providers, true) as ProvidersRepository;
   }
 
-  async signup(request: ISignupRequest) {
+  async signupOrUpdate(request: ISignupRequest) {
+    const isProvider = request.provider !== 'curio';
     const user = this.transformToUser(request);
-    return this.register(user);
+    const dbUser = await this.usersRepo.findById(user._id);
+
+    // If provider user is updated: drop user from previous registration
+    if (isProvider && dbUser && dbUser.school && user.registration.school) {
+      // To check if user's school is the same as the school mentioned in request
+      const sameSchool = await this.schoolsRepo.findOne({ '_id': dbUser.school._id, 'provider.links': user.registration.school._id });
+      const role = this.getRole(user);
+      if (sameSchool) {
+        const sections = (user.registration.sections || []);
+        await this.dropCoursesIfDifferentSections(user._id, role, sections);
+      } else await this.doWithdrawFromSchool(user._id, role, dbUser.school._id);
+    }
+
+    if (isProvider || !dbUser) {
+      await this.register(user);
+    }
+    await this.usersRepo.patch({ _id: user._id }, { profile: user.profile });
+
+    await this.sendUserEnrollmentUpdates(user._id);
+    await this.sendAllCommandsEvents();
+
+    return this._uow.commit();
   }
 
   private async register(user: IUserWithRegistration) {
@@ -99,9 +118,9 @@ export class UsersService {
   }
 
   protected async completeRegisteration(user: IUserWithRegistration, dbSchool?: ISchool, inviteCode?: IInviteCode) {
-    const { dbUser, sections, courses, status, enrollmentType } = new UserRegisteration(dbSchool, user, inviteCode);
+    const { dbUser, sections, courses, enrollmentType } = new UserRegisteration(dbSchool, user, inviteCode);
     if (dbUser.school) {
-      await this.doRegisterUser(dbUser, dbUser.school._id, inviteCode && inviteCode._id);
+      await this.doRegisterInSchool(dbUser, dbUser.school._id, inviteCode && inviteCode._id);
       if (enrollmentType === EnrollmentType.auto) {
         await this.doEnrollCourses(dbUser, sections);
       } else if (enrollmentType === EnrollmentType.courses) {
@@ -110,35 +129,11 @@ export class UsersService {
     } else {
       await this.usersRepo.addRegisteration(dbUser);
     }
-
-    const userCourses = await this.coursesRepo.getActiveCoursesForUsers(this.getRole(dbUser), [dbUser._id]);
-    this.sendUpdate({
-      _id: dbUser._id, status,
-      // tslint:disable-next-line: no-null-keyword
-      schoolId: dbUser.school ? dbUser.school._id : null,
-      courses: userCourses.map(course => ({
-        _id: course._id,
-        sectionId: course.sectionId,
-        grade: course.grade,
-        subject: course.subject,
-        curriculum: course.curriculum
-      }))
-    });
-    await this.sendCommandsEvents();
-    return this._uow.commit();
   }
 
-  protected sendUpdate(data: IUserUpdatedData) {
-    this._kafkaService.send(config.kafkaUpdatesTopic, {
-      data,
-      key: data._id,
-      event: Events.enrollment,
-      timestamp: this.timestamp,
-      v: '1.0.0'
-    });
-  }
-
-  async doRegisterUser(user: IUserWithRegistration, schoolId: string, inviteCodeId: string | undefined) {
+  async doRegisterInSchool(user: IUserWithRegistration, schoolId: string, inviteCodeId: string | undefined) {
+    const alreadyRegistered = await this.usersRepo.findOne({ '_id': user._id, 'school._id': schoolId });
+    if (alreadyRegistered) return;
     await this.usersRepo.assignSchool(user);
     await this.schoolsRepo.consumeLicense(schoolId, this.getRole(user), +1);
     if (inviteCodeId) await this.inviteCodesRepo.incrementConsumedCount(inviteCodeId);
@@ -169,7 +164,7 @@ export class UsersService {
       let coursesIds = activeCourses.map(c => c._id);
       if (courses && providerId !== 'curio') {
         this.validateProvider(providerId, 'Course');
-        const newCourses = (<ICourse[]>courses).filter(c => !activeCourses.some(a => a.grade === c.grade && a.subject === c.subject));
+        const newCourses = (<ICourse[]>courses).filter(c => !activeCourses.some(a => a.grade === c.grade && a.subject === c.subject && c.sectionId === a.sectionId));
         if (newCourses.length > 0) {
           const newDbCourses = await this.coursesRepo.addMany(newCourses);
           for (const course of newDbCourses) this.addCommandsEvent(Service.courses, 'doCreate', course);
@@ -178,14 +173,13 @@ export class UsersService {
       }
       courses = coursesIds;
     }
-    const now = new Date();
     await this.coursesRepo.addUsersToCourses([{
       filter: { _id: { $in: courses } },
-      usersObjs: [{ _id: user._id, joinDate: now, isEnabled: true }]
+      usersObjs: [{ _id: user._id, joinDate: this.now, isEnabled: true }]
     }], role);
   }
 
-  private async createSchool(school: { _id: string; name: string; }, provider: IProvider): Promise<ISchool> {
+  private async createSchool(school: { _id: string; name: string; }, provider: IProvider) {
     const dbSchool: ISchool = {
       _id: newSchoolId(school.name),
       locales: { en: { name: school.name } },
@@ -195,28 +189,25 @@ export class UsersService {
       license: provider.license,
       users: []
     };
-    await this.schoolsRepo.add(dbSchool);
-    return dbSchool;
+    return this.schoolsRepo.add(dbSchool);
   }
 
   private async createSections(sectionsIds: string[], user: IUserWithRegistration) {
+    const schoolId = user.school!._id;
     const dbSections = sectionsIds.map(sectionId => {
       const { name, grade } = user.registration.sections!.find(s => s._id === sectionId) || { name: sectionId, grade: '6' };
-      const section: ISection = {
-        _id: '',
-        locales: { en: { name } },
-        schoolId: user.school!._id,
-        grade,
+      const locales = { en: { name } };
+      return {
+        _id: newSectionId(schoolId, grade, locales),
+        schoolId, grade, locales,
         students: [user._id],
         providerLinks: [sectionId]
       };
-      section._id = newSectionId(section.schoolId, section.grade, section.locales);
-      return section;
     });
     return this.sectionsRepo.addMany(dbSections, false);
   }
 
-  private getRole(user: IUser): Role {
+  private getRole(user: { role: string[] }): Role {
     if (user.role.includes(Role.teacher)) {
       return Role.teacher;
     }
@@ -236,34 +227,72 @@ export class UsersService {
     }
   }
 
-  async update(request: ISignupRequest) {
-    if (request.provider !== 'curio' && (request.old_user_data && !request.old_user_data.school)) {
-      // New Signup using provider ...
-      return this.signup(request);
+  protected async dropCoursesIfDifferentSections(userId: string, role: Role, sections: IRegistrationSection[]) {
+    const currentCourses = await this.coursesRepo.getActiveCoursesForUser(role, userId, false);
+    const currentSections = await this.sectionsRepo.findMany({ _id: { $in: currentCourses.map(c => c.sectionId) } }, { _id: 1, providerLinks: 1 });
+    const droppedCourses: ICourse[] = [];
+    const keptCourses: ICourse[] = [];
+    for (const course of currentCourses) {
+      const dbSection = currentSections.find(s => s._id === course.sectionId);
+      const regSection = sections.find(x => dbSection && dbSection.providerLinks.includes(x._id));
+      if (!dbSection || !regSection) {
+        droppedCourses.push(course);
+      } else if (regSection.subjects && !regSection.subjects.includes(course.subject)) {
+        droppedCourses.push(course);
+      } else {
+        keptCourses.push(course);
+      }
     }
-    const user = request.new_user_data;
-    const userObj: Partial<IUser> = {};
-    if (user.role) userObj.role = user.role;
-    if (user.name || user.avatar) {
-      userObj.profile = <IProfile>{};
-      if (user.name) userObj.profile.name = user.name;
-      if (user.avatar) userObj.profile.avatar = user.avatar;
+    if (droppedCourses.length === 0) return;
+    if (role === Role.student) {
+      const droppedSections = droppedCourses.map(s => s.sectionId).filter(id => !keptCourses.find(c => c.sectionId === id));
+      if (droppedSections.length) await this.sectionsRepo.removeStudents({ _id: { $in: droppedSections } }, [userId]);
     }
-    if (Object.keys(userObj).length > 0) {
-      await this.usersRepo.patch({ _id: request.user_id }, userObj);
-      return this._uow.commit();
-    }
+    await this.coursesRepo.finishUsersInCourses([{ filter: { _id: { $in: droppedCourses.map(c => c._id) } }, usersIds: [userId] }], role, this.now);
   }
 
-  protected async sendCommandsEvents() {
-    return this._kafkaService.sendMany<IKafkaEvent<any>>(config.kafkaCommandsTopic, this.events);
+  protected async doWithdrawFromSchool(userId: string, role: Role, schoolId: string) {
+    if (role === Role.student) await this.sectionsRepo.removeStudents({ schoolId }, [userId]);
+    await this.coursesRepo.finishUsersInCourses([{ filter: { schoolId }, usersIds: [userId] }], role, this.now);
+    await this.schoolsRepo.releaseLicense(schoolId, role, 1);
+  }
+
+  protected async sendUserEnrollmentUpdates(userId: string) {
+    const user = await this.usersRepo.findById(userId);
+    if (!user) return;
+    const userCourses = await this.coursesRepo.getActiveCoursesForUsers(this.getRole(user), [userId]);
+    return this._kafkaService.send(config.kafkaUpdatesTopic, {
+      key: userId,
+      timestamp: this.now.getTime(),
+      event: Events.enrollment,
+      data: {
+        _id: userId,
+        status: user.registration ? user.registration.status : Status.active,
+        // tslint:disable-next-line: no-null-keyword
+        schoolId: user.school ? user.school._id : null,
+        courses: userCourses.map(course => ({
+          _id: course._id,
+          sectionId: course.sectionId,
+          grade: course.grade,
+          subject: course.subject,
+          curriculum: course.curriculum
+        }))
+      },
+      v: '1.0.0'
+    });
+  }
+
+  protected async sendAllCommandsEvents() {
+    if (this.events.length > 0) {
+      await this._kafkaService.sendMany<IKafkaEvent<any>>(config.kafkaCommandsTopic, this.events);
+    }
   }
 
   protected addCommandsEvent(serviceName: string, proccessingFunction: string, args: any) {
     this.events.push({
       key: this._kafkaService.getNewKey(),
       event: `${proccessingFunction}_${serviceName}`,
-      timestamp: this.timestamp,
+      timestamp: this.now.getTime(),
       data: [args],
       v: '1.0.0',
     });
@@ -271,12 +300,13 @@ export class UsersService {
 
   private transformToUser(request: ISignupRequest): IUserWithRegistration {
     const { user_id, new_user_data: data, provider } = request;
-    let sections: { _id: string; name: string, grade: string }[] = [];
+    let sections: { _id: string; name: string, grade: string, subjects?: string[] }[] = [];
     if (data.section instanceof Array) {
       sections = data.section.map(section => ({
         _id: section.uuid,
         name: section.name,
-        grade: section.grade
+        grade: section.grade,
+        subjects: section.subjects && section.subjects.map(x => String(x).toLowerCase())
       }));
     }
     return {

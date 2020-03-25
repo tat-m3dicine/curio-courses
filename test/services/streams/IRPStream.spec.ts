@@ -39,24 +39,18 @@ describe('IRP Stream', () => {
     expect(result).equal(undefined);
   });
 
-  it('should succeed to call signup method if event it "user_created"', async () => {
-    let done = false;
-    _userServiceStub.signup = () => done = true;
+  it('should succeed to call signupOrUpdate method if event is "user_created" or "user_updated"', async () => {
+    let done = 0;
+    _userServiceStub.signupOrUpdate = () => done++;
     // tslint:disable-next-line: no-string-literal
     await irpStream['processMessage'](<any>{ value: { ...testEvent, event: 'user_created' } });
-    expect(done).equal(true);
-  });
-
-  it('should succeed to call signup method if event it "user_updated"', async () => {
-    let done = false;
-    _userServiceStub.update = () => done = true;
     // tslint:disable-next-line: no-string-literal
     await irpStream['processMessage'](<any>{ value: { ...testEvent, event: 'user_updated' } });
-    expect(done).equal(true);
+    expect(done).equal(2);
   });
 
   it('should succeed to not process an event with unknown method', async () => {
-    _userServiceStub.update = () => { throw 500; };
+    _userServiceStub.signupOrUpdate = () => { throw 500; };
     // tslint:disable-next-line: no-string-literal
     const result = await irpStream['processMessage'](<any>{ value: { ...testEvent, event: 'user_updated' } });
     expect(result && JSON.parse(result.value).error).equal('500');
