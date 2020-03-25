@@ -229,19 +229,18 @@ export class UsersService {
 
   protected async dropCoursesIfDifferentSections(userId: string, role: Role, sections: IRegistrationSection[]) {
     const currentCourses = await this.coursesRepo.getActiveCoursesForUser(role, userId, false);
-    const currentSections = await this.sectionsRepo.findMany({ _id: { $in: currentCourses.map(c => c.sectionId) } }, { _id: 1, providerLinks: 1, subject: 1 });
+    const currentSections = await this.sectionsRepo.findMany({ _id: { $in: currentCourses.map(c => c.sectionId) } }, { _id: 1, providerLinks: 1 });
     const droppedCourses: ICourse[] = [];
     const keptCourses: ICourse[] = [];
     for (const course of currentCourses) {
       const dbSection = currentSections.find(s => s._id === course.sectionId);
-      for (const regSection of sections) {
-        if (dbSection && !dbSection.providerLinks.includes(regSection._id)) {
-          droppedCourses.push(course);
-        } else if (regSection.subjects && !regSection.subjects.includes(course.subject)) {
-          droppedCourses.push(course);
-        } else {
-          keptCourses.push(course);
-        }
+      const regSection = sections.find(x => dbSection && dbSection.providerLinks.includes(x._id));
+      if (!dbSection || !regSection) {
+        droppedCourses.push(course);
+      } else if (regSection.subjects && !regSection.subjects.includes(course.subject)) {
+        droppedCourses.push(course);
+      } else {
+        keptCourses.push(course);
       }
     }
     if (droppedCourses.length === 0) return;
