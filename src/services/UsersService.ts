@@ -164,7 +164,7 @@ export class UsersService {
       let coursesIds = activeCourses.map(c => c._id);
       if (courses && providerId !== 'curio') {
         this.validateProvider(providerId, 'Course');
-        const newCourses = (<ICourse[]>courses).filter(c => !activeCourses.some(a => a.grade === c.grade && a.subject === c.subject));
+        const newCourses = (<ICourse[]>courses).filter(c => !activeCourses.some(a => a.grade === c.grade && a.subject === c.subject && c.sectionId === a.sectionId));
         if (newCourses.length > 0) {
           const newDbCourses = await this.coursesRepo.addMany(newCourses);
           for (const course of newDbCourses) this.addCommandsEvent(Service.courses, 'doCreate', course);
