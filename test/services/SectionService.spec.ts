@@ -15,7 +15,7 @@ import { NotFoundError } from '../../src/exceptions/NotFoundError';
 import { ISchool } from '../../src/models/entities/ISchool';
 import { IUser } from '../../src/models/entities/IUser';
 import { ISection } from '../../src/models/entities/ISection';
-import { tryAndExpect } from '../tryAndExpect';
+import { tryAndExpect } from '../utils/tryAndExpect';
 import { UpdatesProcessor } from '../../src/services/processors/UpdatesProcessor';
 import { CommandsProcessor } from '@saal-oryx/event-sourcing';
 

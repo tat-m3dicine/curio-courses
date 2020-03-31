@@ -14,7 +14,7 @@ export class SectionsController {
   constructor(protected sectionsService: SectionsService) {
   }
 
-  async create(ctx: Context, next: () => void) {
+  async create(ctx: Context) {
     const createObject = { ...ctx.request.body, schoolId: ctx.params.schoolId };
     validators.validateCreateSection(createObject);
     const result = await this.sectionsService.create(createObject, ctx.user);
@@ -23,7 +23,7 @@ export class SectionsController {
     ctx.type = 'json';
   }
 
-  async list(ctx: Context, next: () => void) {
+  async list(ctx: Context) {
     const { grade } = ctx.query;
     const { schoolId } = ctx.params;
     const result = await this.sectionsService.list({ schoolId, grade }, this.extractPaging(ctx.query), ctx.user);
@@ -32,7 +32,7 @@ export class SectionsController {
     ctx.type = 'json';
   }
 
-  async get(ctx: Context, next: () => void) {
+  async get(ctx: Context) {
     const { schoolId, sectionId } = ctx.params;
     const result = await this.sectionsService.get(schoolId, sectionId, ctx.user);
     if (!result) throw new NotFoundError(`Couldn't find section '${sectionId}' in school '${schoolId}'`);
@@ -41,7 +41,7 @@ export class SectionsController {
     ctx.type = 'json';
   }
 
-  async delete(ctx: Context, next: () => void) {
+  async delete(ctx: Context) {
     const { schoolId, sectionId } = ctx.params;
     const result = await this.sectionsService.delete(schoolId, sectionId, ctx.user);
     ctx.status = result.done ? 200 : 202;
@@ -49,7 +49,7 @@ export class SectionsController {
     ctx.type = 'json';
   }
 
-  async getStudents(ctx: Context, next: () => void) {
+  async getStudents(ctx: Context) {
     const { schoolId, sectionId } = ctx.params;
     const result = await this.sectionsService.getStudents(schoolId, sectionId, ctx.user);
     if (!result) throw new NotFoundError(`Couldn't find section '${sectionId}' of '${schoolId}' school`);
@@ -58,7 +58,7 @@ export class SectionsController {
     ctx.type = 'json';
   }
 
-  async registerStudents(ctx: Context, next: () => void) {
+  async registerStudents(ctx: Context) {
     validators.validateStudentsList(ctx.request.body);
     const { schoolId, sectionId } = ctx.params;
     const result = await this.sectionsService.registerStudents(schoolId, sectionId, ctx.request.body.students, ctx.user);
@@ -68,7 +68,7 @@ export class SectionsController {
     ctx.type = 'json';
   }
 
-  async removeStudents(ctx: Context, next: () => void) {
+  async removeStudents(ctx: Context) {
     validators.validateStudentsList(ctx.request.body);
     const { schoolId, sectionId } = ctx.params;
     const result = await this.sectionsService.removeStudents(schoolId, sectionId, ctx.request.body.students, ctx.user);

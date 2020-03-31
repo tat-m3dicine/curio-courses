@@ -8,7 +8,7 @@ import { InviteCodesService } from '../../src/services/InviteCodesService';
 import { Repo } from '../../src/models/RepoNames';
 import { IUserToken } from '../../src/models/IUserToken';
 import config from '../../src/config';
-import { tryAndExpect } from '../tryAndExpect';
+import { tryAndExpect } from '../utils/tryAndExpect';
 import { ForbiddenError } from '../../src/exceptions/ForbiddenError';
 import { Role } from '../../src/models/Role';
 import { UnauthorizedError } from '../../src/exceptions/UnauthorizedError';
