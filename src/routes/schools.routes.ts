@@ -48,6 +48,10 @@ export default (commandsProccessor: CommandsProcessor, kafkaService: KafkaServic
       const controller = new SchoolsController(new SchoolsService(ctx.uow, commandsProccessor, kafkaService));
       return controller.patch(ctx, next);
     })
+    .patch('/:schoolId/academics/:termId', (ctx: Koa.Context, next: () => void) => {
+      const controller = new SchoolsController(new SchoolsService(ctx.uow, commandsProccessor, kafkaService));
+      return controller.extendTerm(ctx, next);
+    })
     .delete('/:schoolId', (ctx: Koa.Context, next: () => void) => {
       const controller = new SchoolsController(new SchoolsService(ctx.uow, commandsProccessor, kafkaService));
       return controller.delete(ctx, next);

@@ -49,3 +49,7 @@ export enum SignupMethods {
   manual = 'manual',
   auto = 'auto'
 }
+
+export enum SchoolModes {
+  inactiveTerms = 'inactive_terms',
+}

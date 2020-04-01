@@ -2,6 +2,7 @@ import {
   validateCreateSchool,
   validateUpdateSchool,
   validateUpdateSchoolAcademicTerm,
+  validatePatchSchoolAcademicTerm,
   validateUpdateSchoolUsers,
   validateDeleteSchoolUsers,
   validateUserRegisteration
@@ -31,6 +32,7 @@ const validators = {
   validateUpdateUser,
   validateUpdateCourse,
   validateUpdateSchoolAcademicTerm,
+  validatePatchSchoolAcademicTerm,
   validateUpdateSchoolUsers,
   validateDeleteSchoolUsers,
   validateStudentsList,
