@@ -12,6 +12,12 @@ export interface IUpdateSchoolRequest {
   location: string;
 }
 
+export interface IPatchSchoolTermRequest {
+  _id: string;
+  endDate: Date;
+  gracePeriod: number;
+}
+
 export interface ICreateLicenseRequest {
   students: number;
   teachers: number;

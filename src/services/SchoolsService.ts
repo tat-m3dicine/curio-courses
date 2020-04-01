@@ -4,8 +4,8 @@ import { IUser, Status, IUserWithCourses } from '../models/entities/IUser';
 import { IUserToken } from '../models/IUserToken';
 import { IAcademicTerm, ILocales } from '../models/entities/Common';
 import { ILicenseRequest } from '../models/requests/ILicenseRequest';
-import { ISchool, ISchoolUserPermissions, ILicense } from '../models/entities/ISchool';
-import { ICreateSchoolRequest, IUpdateSchoolRequest, ICreateLicenseRequest, IDeleteAcademicTermRequest, IUpdateUserRequest, IUpdateAcademicTermRequest } from '../models/requests/ISchoolRequests';
+import { ISchool, ISchoolUserPermissions, ILicense, SchoolModes } from '../models/entities/ISchool';
+import { ICreateSchoolRequest, IUpdateSchoolRequest, ICreateLicenseRequest, IDeleteAcademicTermRequest, IUpdateUserRequest, IUpdateAcademicTermRequest, IPatchSchoolTermRequest } from '../models/requests/ISchoolRequests';
 import { IUnitOfWork, defaultPaging, IPaging, IPage } from '@saal-oryx/unit-of-work';
 import { SchoolsRepository } from '../repositories/SchoolsRepository';
 import { SectionsRepository } from '../repositories/SectionsRepository';
@@ -27,6 +27,7 @@ import { Events } from './processors/UpdatesProcessor';
 import { Service } from '../models/ServiceName';
 import { IUserCourseInfo, ICourseInfo } from '../models/entities/ICourse';
 import { InviteCodesRepository } from '../repositories/InviteCodesRepository';
+import { NotFoundError } from '../exceptions/NotFoundError';
 
 const logger = loggerFactory.getLogger('SchoolsService');
 
@@ -77,9 +78,14 @@ export class SchoolsService {
     return this._uow.commit();
   }
 
-  async list(paging = defaultPaging, byUser: IUserToken) {
+  async list(paging = defaultPaging, mode: string, byUser: IUserToken) {
     this.authorize(byUser);
-    return this.schoolsRepo.findManyPage({}, paging);
+    switch (mode) {
+      case SchoolModes.inactiveTerms:
+        return this.schoolsRepo.getInactiveSchools(paging);
+      default:
+        return this.schoolsRepo.findManyPage({}, paging);
+    }
   }
 
   async add(createObj: ICreateSchoolRequest, byUser: IUserToken) {
@@ -359,6 +365,36 @@ export class SchoolsService {
 
   private async doPatch(schoolId: string, updateObj: IUpdateSchoolRequest) {
     return this.schoolsRepo.patch({ _id: schoolId }, updateObj);
+  }
+
+  async patchTerm(schoolId: string, updateObj: IPatchSchoolTermRequest, byUser: IUserToken) {
+    this.authorize(byUser);
+    if (!updateObj) throw new InvalidRequestError('Request should not be empty!');
+    validators.validatePatchSchoolAcademicTerm(updateObj);
+    return this._commandsProcessor.sendCommand(Service.schools, this.doPatchTerm, schoolId, updateObj);
+  }
+
+  private async doPatchTerm(schoolId: string, updateObj: IPatchSchoolTermRequest) {
+    const schoolsRepo = this._uow.getRepository(Repo.schools, true) as SchoolsRepository;
+    const coursesRepo = this._uow.getRepository(Repo.courses, true) as CoursesRepository;
+
+    const { _id: termId, endDate, gracePeriod } = updateObj;
+    const school = await schoolsRepo.findOneAndUpdate({ _id: schoolId }, {
+      $set: {
+        'academicTerms.$[term].endDate': endDate,
+        ...(gracePeriod ? { 'academicTerms.$[term].gracePeriod': gracePeriod } : {})
+      }
+    }, {
+      arrayFilters: [{ 'term._id': termId }]
+    });
+    if (!school) throw new NotFoundError(`school '${schoolId}' was not found!`);
+    await coursesRepo.update({ schoolId, 'academicTerm._id': termId }, {
+      $set: {
+        'academicTerm.endDate': endDate,
+        ...(gracePeriod ? { 'academicTerm.gracePeriod': gracePeriod } : {})
+      }
+    });
+    return this._uow.commit();
   }
 
   async patchLicense(licenseObj: ICreateLicenseRequest, schoolId: string, byUser: IUserToken) {

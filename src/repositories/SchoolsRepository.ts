@@ -4,10 +4,27 @@ import { IUpdateAcademicTermRequest } from '../models/requests/ISchoolRequests';
 import { AduitableRepository } from './AduitableRepository';
 import { IAcademicTerm } from '../models/entities/Common';
 import { Repo } from '../models/RepoNames';
+import { IPaging } from '@saal-oryx/unit-of-work';
 
 export class SchoolsRepository extends AduitableRepository<ISchool> {
   constructor(collection: Collection, session?: ClientSession) {
     super(Repo.schools, collection, session);
+  }
+
+  async getInactiveSchools(paging: IPaging) {
+    const now = new Date();
+    return this.findManyPage({
+      academicTerms: {
+        $not: {
+          $elemMatch: {
+            $and: [
+              { startDate: { $lt: now } },
+              { endDate: { $gt: now } }
+            ]
+          }
+        }
+      },
+    }, paging);
   }
 
   async updateAcademicTerm(schoolId: string, updateObj: IUpdateAcademicTermRequest, academicTerm: IAcademicTerm) {

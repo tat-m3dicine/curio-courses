@@ -56,8 +56,16 @@ export class SchoolsController {
     ctx.body = { result, ok: true };
     ctx.type = 'json';
   }
+  async extendTerm(ctx: Context, next: () => void) {
+    const { schoolId, termId } = ctx.params;
+    const request = { ...ctx.request.body, endDate: new Date(ctx.request.body.endDate), _id: termId };
+    const result = await this.schoolService.patchTerm(schoolId, request, ctx.user);
+    ctx.status = 200;
+    ctx.body = { result, ok: true };
+    ctx.type = 'json';
+  }
   async list(ctx: Context, next: () => void) {
-    const result = await this.schoolService.list(this.extractPaging(ctx.request.query), ctx.user);
+    const result = await this.schoolService.list(this.extractPaging(ctx.query), ctx.query.mode, ctx.user);
     ctx.status = 200;
     ctx.body = result;
     ctx.type = 'json';
@@ -108,7 +116,7 @@ export class SchoolsController {
     ctx.type = 'json';
   }
 
-  extractPaging(object: any) {
+  private extractPaging(object: any) {
     const { index, size } = object;
     let parsedIndex = parseInt(index);
     let parsedSize = parseInt(size);

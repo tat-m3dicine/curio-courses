@@ -1,6 +1,6 @@
 import Validator from 'fastest-validator';
 import { ValidationError } from '../../exceptions/ValidationError';
-import { ICreateSchoolRequest, IUpdateSchoolRequest, IUpdateUserRequest } from '../../models/requests/ISchoolRequests';
+import { ICreateSchoolRequest, IUpdateSchoolRequest, IUpdateUserRequest, IPatchSchoolTermRequest } from '../../models/requests/ISchoolRequests';
 import { IAcademicTerm } from '../../models/entities/Common';
 import { localesSchema } from './LocalesSchema';
 
@@ -54,6 +54,16 @@ const updateAcademicTermSchema = {
   $$strict: true
 };
 
+const patchAcademicTermSchema = {
+  _id: 'string',
+  endDate: 'date',
+  gracePeriod: {
+    type: 'number',
+    optional: true
+  },
+  $$strict: true
+};
+
 const updateUsersSchema = {
   users: {
     type: 'array',
@@ -92,6 +102,7 @@ const registerUserSchema = {
 const validator = new Validator();
 const validateCreate = validator.compile(createSchoolsSchema);
 const validateUpdate = validator.compile(updateSchoolsSchema);
+const validatePatchAcademicTerm = validator.compile(patchAcademicTermSchema);
 const validateUpdateAcademicTerm = validator.compile(updateAcademicTermSchema);
 const validateUpdateUsers = validator.compile(updateUsersSchema);
 const validateDeleteUsers = validator.compile(deleteUsersSchema);
@@ -108,6 +119,15 @@ export const validateCreateSchool = (request: ICreateSchoolRequest) => {
 
 export const validateUpdateSchool = (request: IUpdateSchoolRequest) => {
   const isValidationPassed = validateUpdate(request);
+  if (typeof isValidationPassed === 'boolean') {
+    return isValidationPassed;
+  } else {
+    throw new ValidationError(isValidationPassed);
+  }
+};
+
+export const validatePatchSchoolAcademicTerm = (request: IPatchSchoolTermRequest) => {
+  const isValidationPassed = validatePatchAcademicTerm(request);
   if (typeof isValidationPassed === 'boolean') {
     return isValidationPassed;
   } else {
