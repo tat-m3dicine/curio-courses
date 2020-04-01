@@ -18,6 +18,7 @@ const config: {
   redisHost: string;
   redisPort: number;
   irpUrl: string;
+  retryFailures: boolean;
 } = <any>{
   port: 80,
   production: false,
@@ -30,7 +31,8 @@ const config: {
   authorizedRole: 'root',
   guestSchoolId: 'FREE_SCHOOL',
   servicePrefix: 'courses',
-  historyLength: 50
+  historyLength: 50,
+  retryFailures: false
 };
 
 if (process.env.PORT) config.port = parseInt(process.env.PORT);
@@ -39,6 +41,7 @@ if (process.env.KAFKA_PRODUCERS_GROUP) config.kafkaProducersGroup = process.env.
 if (process.env.KAFKA_CLIENT_ID) config.kafkaClientId = process.env.KAFKA_CLIENT_ID;
 if (process.env.AUTHORIZED_ROLE) config.authorizedRole = process.env.AUTHORIZED_ROLE;
 if (process.env.COMMANDS_TIMEOUT) config.commandsTimeout = parseInt(process.env.COMMANDS_TIMEOUT);
+if (process.env.RETRY_FAILURES) config.retryFailures = process.env.RETRY_FAILURES === 'true';
 
 if (process.env.NODE_ENV === 'test') {
   process.env.LOGGER_CONFIG = '{"disableClustering":true,"appenders":{"out":{"type":"stdout","layout":{"type":"pattern","pattern":"%[ [%d] [%p] %] %c - %x{correlationId} - %m"}}},"categories":{"default":{"appenders":["out"],"level":"fatal"}}}';
