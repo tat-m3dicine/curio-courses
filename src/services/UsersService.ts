@@ -78,7 +78,10 @@ export class UsersService {
     if (isProvider || !dbUser) {
       await this.register(user);
     }
-    await this.usersRepo.patch({ _id: user._id }, { profile: user.profile });
+
+    await this.usersRepo
+      .patch({ _id: user._id }, { profile: user.profile })
+      .catch(err => logger.error(err));
 
     await this.sendUserEnrollmentUpdates(user._id);
     await this.sendAllCommandsEvents();
