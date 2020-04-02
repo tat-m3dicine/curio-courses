@@ -311,7 +311,7 @@ export class UsersService {
     }
     return {
       _id: user_id,
-      role: data.role,
+      role: this.convertRoleToArray(data.role),
       profile: {
         name: data.name,
         avatar: data.avatar
@@ -329,5 +329,14 @@ export class UsersService {
         inviteCode: data.inviteCode
       }
     };
+  }
+
+  private convertRoleToArray(role: string | string[]) {
+    const result: string[] = [];
+    if (role.includes(Role.teacher)) result.push(Role.teacher);
+
+    if (role.includes(Role.student)) result.push(Role.student);
+    else if (role.includes(Role.principal)) result.push(Role.principal);
+    return result;
   }
 }
