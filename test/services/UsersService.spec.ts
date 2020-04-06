@@ -43,7 +43,7 @@ describe('Users Service', () => {
     repositoryReturns(Repo.users, {
       addRegisteration: () => undefined,
       findById: () => undefined,
-      patch: () => undefined
+      patch: () => ({ catch: () => undefined })
     });
   });
 
@@ -108,8 +108,11 @@ describe('Users Service', () => {
       let updateObj: any;
       const request: ISignupRequest = getTestData(Test.signupRequest, {}, false);
       repositoryReturns(Repo.users, {
-        patch: (_, updates) => updateObj = updates,
-        findById: () => ({ _id: 'user1', school: { _id: 'school1' }, role: [] })
+        findById: () => ({ _id: 'user1', school: { _id: 'school1' }, role: [] }),
+        patch: (_, updates) => {
+          updateObj = updates;
+          return { catch: () => undefined };
+        }
       });
       await usersService.signupOrUpdate(request);
       expect(updateObj.profile).to.have.property('name');
