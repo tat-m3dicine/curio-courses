@@ -102,7 +102,7 @@ export class CoursesService {
     return this._commandsProcessor.sendCommand(Service.courses, this.doCreate, <ICourse>{
       _id: newCourseId(sectionId, subject, academicTerm.year),
       schoolId, sectionId, curriculum, grade, subject, academicTerm,
-      defaultLocale: course.defaultLocale || Object.keys(course.locales)[0] || 'en',
+      defaultLocale: course.defaultLocale || Object.keys(course.locales)[0], // || 'en' will never be reached
       isEnabled: course.isEnabled === undefined ? true : course.isEnabled,
       locales: course.locales,
       teachers: teachersObjs,

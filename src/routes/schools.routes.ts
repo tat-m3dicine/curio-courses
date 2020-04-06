@@ -8,72 +8,72 @@ import { CommandsProcessor, KafkaService } from '@saal-oryx/event-sourcing';
 export default (commandsProccessor: CommandsProcessor, kafkaService: KafkaService) => {
   const schoolRoutes = new KoaRoute();
   schoolRoutes
-    .post('/', (ctx: Koa.Context, next: () => void) => {
+    .post('/', (ctx: Koa.Context) => {
       const controller = new SchoolsController(new SchoolsService(ctx.uow, commandsProccessor, kafkaService));
-      return controller.create(ctx, next);
+      return controller.create(ctx);
     })
-    .post('/:schoolId/license', (ctx: Koa.Context, next: () => void) => {
+    .post('/:schoolId/license', (ctx: Koa.Context) => {
       const controller = new SchoolsController(new SchoolsService(ctx.uow, commandsProccessor, kafkaService));
-      return controller.addLicense(ctx, next);
+      return controller.addLicense(ctx);
     })
-    .post('/:schoolId/academics', (ctx: Koa.Context, next: () => void) => {
+    .post('/:schoolId/academics', (ctx: Koa.Context) => {
       const controller = new SchoolsController(new SchoolsService(ctx.uow, commandsProccessor, kafkaService));
-      return controller.updateAcademics(ctx, next);
+      return controller.updateAcademics(ctx);
     })
-    .delete('/:schoolId/academics/:academicTermId', (ctx: Koa.Context, next: () => void) => {
+    .delete('/:schoolId/academics/:academicTermId', (ctx: Koa.Context) => {
       const controller = new SchoolsController(new SchoolsService(ctx.uow, commandsProccessor, kafkaService));
-      return controller.deleteAcademics(ctx, next);
+      return controller.deleteAcademics(ctx);
     })
-    .post('/:schoolId/users/update', (ctx: Koa.Context, next: () => void) => {
+    .post('/:schoolId/users/update', (ctx: Koa.Context) => {
       const controller = new SchoolsController(new SchoolsService(ctx.uow, commandsProccessor, kafkaService));
-      return controller.updateUsers(ctx, next);
+      return controller.updateUsers(ctx);
     })
-    .post('/:schoolId/users/delete', (ctx: Koa.Context, next: () => void) => {
+    .post('/:schoolId/users/delete', (ctx: Koa.Context) => {
       const controller = new SchoolsController(new SchoolsService(ctx.uow, commandsProccessor, kafkaService));
-      return controller.deleteUsers(ctx, next);
+      return controller.deleteUsers(ctx);
     })
-    .get('/', (ctx: Koa.Context, next: () => void) => {
+    .get('/', (ctx: Koa.Context) => {
       const controller = new SchoolsController(new SchoolsService(ctx.uow, commandsProccessor, kafkaService));
-      return controller.list(ctx, next);
+      return controller.list(ctx);
     })
-    .get('/:schoolId', (ctx: Koa.Context, next: () => void) => {
+    .get('/:schoolId', (ctx: Koa.Context) => {
       const controller = new SchoolsController(new SchoolsService(ctx.uow, commandsProccessor, kafkaService));
-      return controller.get(ctx, next);
+      return controller.get(ctx);
     })
-    .put('/:schoolId', (ctx: Koa.Context, next: () => void) => {
+    .put('/:schoolId', (ctx: Koa.Context) => {
       const controller = new SchoolsController(new SchoolsService(ctx.uow, commandsProccessor, kafkaService));
-      return controller.update(ctx, next);
+      return controller.update(ctx);
     })
-    .patch('/:schoolId', (ctx: Koa.Context, next: () => void) => {
+    .patch('/:schoolId', (ctx: Koa.Context) => {
       const controller = new SchoolsController(new SchoolsService(ctx.uow, commandsProccessor, kafkaService));
-      return controller.patch(ctx, next);
+      return controller.patch(ctx);
     })
-    .delete('/:schoolId', (ctx: Koa.Context, next: () => void) => {
+    .delete('/:schoolId', (ctx: Koa.Context) => {
       const controller = new SchoolsController(new SchoolsService(ctx.uow, commandsProccessor, kafkaService));
-      return controller.delete(ctx, next);
+      return controller.delete(ctx);
     })
-    .get('/:schoolId/students', (ctx: Koa.Context, next: () => void) => {
+    .get('/:schoolId/students', (ctx: Koa.Context) => {
       const controller = new SchoolsController(new SchoolsService(ctx.uow, commandsProccessor, kafkaService));
-      return controller.getStudents(ctx, next);
+      return controller.getStudents(ctx);
     })
-    .get('/:schoolId/teachers', (ctx: Koa.Context, next: () => void) => {
+    .get('/:schoolId/teachers', (ctx: Koa.Context) => {
       const controller = new SchoolsController(new SchoolsService(ctx.uow, commandsProccessor, kafkaService));
-      return controller.getTeachers(ctx, next);
+      return controller.getTeachers(ctx);
     })
 
-    .post('/:schoolId/students/approve', (ctx: Koa.Context, next: () => void) => registerUsers(ctx, next, 'approve', Role.student))
-    .post('/:schoolId/students/reject', (ctx: Koa.Context, next: () => void) => registerUsers(ctx, next, 'reject', Role.student))
-    .post('/:schoolId/students/withdraw', (ctx: Koa.Context, next: () => void) => registerUsers(ctx, next, 'withdraw', Role.student))
+    .post('/:schoolId/students/approve', (ctx: Koa.Context) => registerUsers(ctx, 'approve', Role.student))
+    .post('/:schoolId/students/reject', (ctx: Koa.Context) => registerUsers(ctx, 'reject', Role.student))
+    .post('/:schoolId/students/withdraw', (ctx: Koa.Context) => registerUsers(ctx, 'withdraw', Role.student))
 
-    .post('/:schoolId/teachers/reject', (ctx: Koa.Context, next: () => void) => registerUsers(ctx, next, 'reject', Role.teacher))
-    .post('/:schoolId/teachers/approve', (ctx: Koa.Context, next: () => void) => registerUsers(ctx, next, 'approve', Role.teacher))
-    .post('/:schoolId/teachers/withdraw', (ctx: Koa.Context, next: () => void) => registerUsers(ctx, next, 'withdraw', Role.teacher));
+    .post('/:schoolId/teachers/reject', (ctx: Koa.Context) => registerUsers(ctx, 'reject', Role.teacher))
+    .post('/:schoolId/teachers/approve', (ctx: Koa.Context) => registerUsers(ctx, 'approve', Role.teacher))
+    .post('/:schoolId/teachers/withdraw', (ctx: Koa.Context) => registerUsers(ctx, 'withdraw', Role.teacher));
 
-  const registerUsers = (ctx: Koa.Context, next: () => void, action: string, role: Role) => {
+  const registerUsers = (ctx: Koa.Context, action: string, role: Role) => {
     const controller = new SchoolsController(new SchoolsService(ctx.uow, commandsProccessor, kafkaService));
     ctx.params.action = action;
     ctx.params.role = role;
-    return controller.registerUsers(ctx, next);
+    return controller.registerUsers(ctx);
   };
 
   return schoolRoutes;

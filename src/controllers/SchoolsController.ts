@@ -69,7 +69,7 @@ export class SchoolsController {
     ctx.type = 'json';
   }
   async delete(ctx: Context) {
-    const result = await this.schoolService.delete(ctx.params.schoolId, ctx.query.mode, ctx.user);
+    const result = await this.schoolService.delete(ctx.params.schoolId, ctx.user, ctx.query.mode);
     ctx.status = 200;
     ctx.body = { result: result.data.result, done: result.done };
     ctx.type = 'json';

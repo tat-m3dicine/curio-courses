@@ -3,6 +3,7 @@ import sinon from 'sinon';
 import chai, { expect } from 'chai';
 chai.use(require('sinon-chai'));
 
+import clone from '../utils/clone';
 import { UnitOfWork, IPaging } from '@saal-oryx/unit-of-work';
 import { InviteCodesService } from '../../src/services/InviteCodesService';
 import { Repo } from '../../src/models/RepoNames';
@@ -14,16 +15,18 @@ import { Role } from '../../src/models/Role';
 import { UnauthorizedError } from '../../src/exceptions/UnauthorizedError';
 import { NotFoundError } from '../../src/exceptions/NotFoundError';
 import { ICreateInviteCodeRequest } from '../../src/models/requests/IInviteCodeRequests';
-import { EnrollmentType } from '../../src/models/entities/IInviteCode';
+import { EnrollmentType, IInviteCode } from '../../src/models/entities/IInviteCode';
 import { InvalidRequestError } from '../../src/exceptions/InvalidRequestError';
 import { getTestData, Test } from '../mockdata/getTestData';
 import { InvalidLicenseError } from '../../src/exceptions/InvalidLicenseError';
-import { SignupMethods } from '../../src/models/entities/ISchool';
+import { SignupMethods, ISchool } from '../../src/models/entities/ISchool';
 import { CommandsProcessor } from '@saal-oryx/event-sourcing';
+import { ICourse } from '../../src/models/entities/ICourse';
 
 const unitOfWorkStub = sinon.spy(() => sinon.createStubInstance(UnitOfWork));
 const commandsProcessorStub = sinon.spy(() => sinon.createStubInstance(CommandsProcessor));
 
+const course = <ICourse>{ _id: 'course1', schoolId: 'school1', sectionId: 'section1' };
 const token = <IUserToken>{ role: [config.authorizedRole] };
 const request: ICreateInviteCodeRequest = {
   schoolId: 'school1',
@@ -39,12 +42,16 @@ const request: ICreateInviteCodeRequest = {
 };
 
 describe('Invite Codes Service', () => {
+  let invCode: IInviteCode;
+  let school: ISchool;
   let _unitOfWorkStub: any;
   let _commandsProcessorStub: any;
   let inviteCodesService: InviteCodesService;
   const repositoryReturns = (repo: Repo, methods: object) => _unitOfWorkStub.getRepository.withArgs(repo).returns(methods);
 
   beforeEach(() => {
+    invCode = clone(getTestData(Test.inviteCode));
+    school = clone(getTestData(Test.school));
     _unitOfWorkStub = new unitOfWorkStub();
     _commandsProcessorStub = new commandsProcessorStub();
     _commandsProcessorStub.sendCommand = (service, method, ...args) => inviteCodesService[method.name](...args);
@@ -120,6 +127,13 @@ describe('Invite Codes Service', () => {
     expect(result).to.have.lengthOf(2);
   });
 
+  it(`should succeed to list all invite codes in a school with enrollment type filter (as principal)`, async () => {
+    const schoolId = 'schoolId';
+    repositoryReturns(Repo.inviteCodes, { findManyPage: () => ['code1', 'code2'] });
+    const result = await inviteCodesService.list({ schoolId, type: EnrollmentType.auto }, <IPaging>{}, <any>{ role: Role.principal, schooluuid: schoolId });
+    expect(result).to.have.lengthOf(2);
+  });
+
   it('should fail to delete an invite code due to not found error', async () => {
     repositoryReturns(Repo.inviteCodes, { findOne: () => undefined });
     await tryAndExpect(() => inviteCodesService.delete('school1', 'code1', token), NotFoundError);
@@ -129,5 +143,49 @@ describe('Invite Codes Service', () => {
     repositoryReturns(Repo.inviteCodes, { findOne: () => 'code1', delete: () => true });
     const result = await inviteCodesService.delete('school1', 'code1', token);
     expect(result).equal(true);
+  });
+
+  it('should fail to get invite code from a school with all info because invite code is missing', async () => {
+    repositoryReturns(Repo.inviteCodes, { getValidCode: () => undefined });
+    await tryAndExpect(async () => inviteCodesService.getWithAllInfo('code1', token), NotFoundError);
+  });
+
+  it('should fail to get invite code from a school because invite code is out of quota', async () => {
+    invCode!.quota!.consumed = 10;
+    invCode!.quota!.max = 9;
+    repositoryReturns(Repo.inviteCodes, { getValidCode: () => invCode });
+    await tryAndExpect(async () => inviteCodesService.getWithAllInfo('code1', token), InvalidRequestError);
+  });
+
+  it('should fail to get invite code from a school because section is undefined', async () => {
+    repositoryReturns(Repo.inviteCodes, { getValidCode: () => invCode });
+    repositoryReturns(Repo.schools, { findById: () => ({}) });
+    repositoryReturns(Repo.sections, { findById: () => undefined });
+    await tryAndExpect(async () => inviteCodesService.getWithAllInfo('code1', token), NotFoundError);
+  });
+
+  it('should succeed in getting invite code from a school (enrollment type: courses)', async () => {
+    invCode.enrollment.type = EnrollmentType.courses;
+    invCode.enrollment.courses = ['course1'];
+    invCode!.quota!.consumed = 9;
+    invCode!.quota!.max = 10;
+    repositoryReturns(Repo.inviteCodes, { getValidCode: () => invCode });
+    repositoryReturns(Repo.schools, { findById: () => school });
+    repositoryReturns(Repo.sections, { findById: () => ({}) });
+    repositoryReturns(Repo.courses, { findMany: () => [course] });
+    const result = await inviteCodesService.getWithAllInfo('code1', token);
+    expect(Object.keys(result)).to.have.lengthOf(5); // change?
+  });
+
+  it('should succeed in getting invite code from a school (enrollment type: auto)', async () => {
+    invCode.enrollment.courses = ['course1'];
+    invCode!.quota!.consumed = 9;
+    invCode!.quota!.max = 10;
+    repositoryReturns(Repo.inviteCodes, { getValidCode: () => invCode });
+    repositoryReturns(Repo.schools, { findById: () => school });
+    repositoryReturns(Repo.sections, { findById: () => ({}) });
+    repositoryReturns(Repo.courses, { findMany: () => [course] });
+    const result = await inviteCodesService.getWithAllInfo('code1', token);
+    expect(Object.keys(result)).to.have.lengthOf(5);
   });
 });

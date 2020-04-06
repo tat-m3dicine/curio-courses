@@ -33,7 +33,7 @@ export class UpdatesProcessor {
         v: '1.0.0'
       });
       const userId = userUpdate.data._id;
-      if (events.find(e => e.key === userId)) continue;
+      if (events.find(e => e.key === userId)) continue; // this left
       events.push({
         key: userId,
         event: Events.enrollment,

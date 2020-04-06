@@ -55,4 +55,15 @@ describe('IRP Stream', () => {
     const result = await irpStream['processMessage'](<any>{ value: { ...testEvent, event: 'user_updated' } });
     expect(result && JSON.parse(result.value).error).equal('500');
   });
+
+  it('should fail to process "user_updated" event because of duplication error', async () => {
+    _userServiceStub.signupOrUpdate = async () => Promise.reject({ code: 11000 });
+    try {
+      // tslint:disable-next-line: no-string-literal
+      await irpStream['processMessage'](<any>{ value: { ...testEvent, event: 'user_updated' } });
+    } catch (err) {
+      expect(err).equal(11000);
+    }
+
+  });
 });

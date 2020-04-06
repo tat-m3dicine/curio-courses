@@ -10,9 +10,9 @@ export default (commandsProccessor: CommandsProcessor) => {
   const externalRoutes = new KoaRoute();
 
   externalRoutes
-    .get('/invite_codes/:codeId', (ctx: Koa.Context, next: () => void) => {
+    .get('/invite_codes/:codeId', (ctx: Koa.Context) => {
       const controller = new InviteCodesController(new InviteCodesService(ctx.uow, commandsProccessor));
-      return controller.get(ctx, next);
+      return controller.get(ctx);
     });
   return externalRoutes;
 };

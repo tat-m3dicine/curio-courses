@@ -95,7 +95,7 @@ export class ProvidersService {
     if (academicTermIds) {
       const activeCourses = await this.coursesRepo.findMany({ 'academicTerm._id': { $in: academicTermIds } });
       if (activeCourses.length !== 0) {
-        const coursesIds = activeCourses.map(course => course._id).join("', '");
+        const coursesIds = activeCourses.map(course => course._id).join("', '"); // whats the point of this if an error is thrown after it
         throw new ConditionalBadRequest(`Unable to delete the Academic Term because ['${coursesIds}'] are active within.`);
       }
     }

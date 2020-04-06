@@ -56,7 +56,7 @@ export class SchoolsService {
     return this.schoolsRepo.findById(schoolId);
   }
 
-  async delete(schoolId: string, mode: string, byUser: IUserToken) {
+  async delete(schoolId: string, byUser: IUserToken, mode?: string) {
     this.authorize(byUser);
     return this._commandsProcessor.sendCommand(Service.schools, this.doDelete, schoolId, mode === 'force');
   }
@@ -133,12 +133,12 @@ export class SchoolsService {
       _filter['registration.schoolId'] = filter.schoolId;
     }
     else {
-      if (filter.status) _filter.registration.status = filter.status;
+      if (filter.status) _filter['registration.status'] = filter.status; // check this
       _filter['registration.school._id'] = filter.schoolId;
     }
     logger.debug('getUsers filter:', _filter);
     const users = await this.usersRepo.findManyPage(_filter, paging);
-    if (filter.courses === 'true') {
+    if (filter.courses === 'true') { // why is it string and not boolean ?
       const usersWithCourses: { [id: string]: IUserWithCourses } = users.items.reduce((map, user) => ({ ...map, [user._id]: { ...user, courses: [] } }), {});
       const courses = await this.coursesRepo.getActiveCoursesForUsers(filter.role, Object.keys(usersWithCourses));
       const sections = await this.sectionsRepo.findMany({ _id: { $in: courses.map(c => c.sectionId) } });
@@ -364,7 +364,7 @@ export class SchoolsService {
   async patchLicense(licenseObj: ICreateLicenseRequest, schoolId: string, byUser: IUserToken) {
     this.authorize(byUser);
     validators.validateCreateLicense(licenseObj);
-    const { grades, features = [], signupMethods = [] } = licenseObj.package;
+    const { grades, features = [], signupMethods } = licenseObj.package; // signupMethods can't be undefined (from validator)
     const license: ILicenseRequest = {
       students: { max: licenseObj.students },
       teachers: { max: licenseObj.teachers },

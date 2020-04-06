@@ -7,7 +7,7 @@ import { tryAndExpect } from '../utils/tryAndExpect';
 import { UnitOfWork } from '@saal-oryx/unit-of-work';
 import { UsersService } from '../../src/services/UsersService';
 import { Repo } from '../../src/models/RepoNames';
-import { Status } from '../../src/models/entities/IUser';
+import { Status, IRegistrationSection } from '../../src/models/entities/IUser';
 import { getTestData, Test } from '../mockdata/getTestData';
 import { SignupMethods, ISchool } from '../../src/models/entities/ISchool';
 import { IInviteCode } from '../../src/models/entities/IInviteCode';
@@ -18,9 +18,21 @@ import { Role } from '../../src/models/Role';
 import { NotFoundError } from '../../src/exceptions/NotFoundError';
 import { InvalidRequestError } from '../../src/exceptions/InvalidRequestError';
 import { KafkaService } from '@saal-oryx/event-sourcing';
+import { ICourse } from '../../src/models/entities/ICourse';
+import { ISection } from '../../src/models/entities/ISection';
 
 const unitOfWorkStub = sinon.spy(() => sinon.createStubInstance(UnitOfWork));
 const kafkaServiceStub = sinon.spy(() => sinon.createStubInstance(KafkaService));
+
+const course = <ICourse>{ _id: 'course1', schoolId: 'school1', sectionId: 'sectionId', subject: 'courseSubject' };
+const section = <ISection>{
+  _id: 'sectionId',
+  locales: { en: { name: 'en' } },
+  schoolId: 'schoolId',
+  grade: '5',
+  students: ['user1', 'user2'],
+  providerLinks: ['section1', 'link2']
+};
 
 // tslint:disable-next-line: no-big-function
 describe('Users Service', () => {
@@ -441,5 +453,24 @@ describe('Users Service', () => {
       });
       await usersService.signupOrUpdate(request);
     });
+  });
+
+
+  it(`should succeed in dropping courses if the sections are different`, async () => {
+    let called = false;
+    const sections = <IRegistrationSection[]>[
+      {
+        _id: 'section1',
+        name: 'name',
+        grade: '5',
+        subjects: ['courseSubject2']
+      }];
+
+    repositoryReturns(Repo.courses, { getActiveCoursesForUser: () => [course], finishUsersInCourses: () => { called = true; } });
+    repositoryReturns(Repo.sections, {
+      findMany: () => [section], removeStudents: () => Promise.resolve()
+    });
+    await usersService['dropCoursesIfDifferentSections']('userId', Role.student, sections);
+    expect(called).equal(true);
   });
 });

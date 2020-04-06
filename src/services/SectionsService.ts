@@ -60,7 +60,7 @@ export class SectionsService {
       createCourses = courses.map(({ subject, curriculum, enroll }) => <ICourse>{
         _id: newCourseId(sectionId, subject, academicTerm.year),
         schoolId, sectionId, curriculum, grade, subject, academicTerm,
-        defaultLocale: Object.keys(locales)[0] || 'en',
+        defaultLocale: Object.keys(locales)[0], // || 'en' will never be reached because validator requires 1 locale at least
         locales: { en: { name: subject, description: `${subject} course` } },
         students: enroll ? students.map(s => <IUserCourseInfo>{ _id: s, isEnabled: true, joinDate }) : [],
         teachers: [], isEnabled: true
@@ -69,7 +69,7 @@ export class SectionsService {
     return this._commandsProcessor.sendCommand(Service.sections, this.doCreate, <ISection>{
       _id: sectionId,
       locales, schoolId, grade,
-      students: students || []
+      students // no need for || [] here, its default to [] above
     }, createCourses);
   }
 
@@ -79,7 +79,11 @@ export class SectionsService {
     try {
       result = await sectionsRepo.add(section);
     } catch (err) {
-      if (err && err.code !== 11000) throw err;
+      if (err && err.code === 11000) { // check this
+        return result;
+      } else {
+        throw err;
+      }
     }
     if (courses) {
       await this._commandsProcessor.sendManyCommandsAsync(Service.courses, <any>{ name: 'doCreate' }, courses.map(c => [c]));
@@ -120,12 +124,11 @@ export class SectionsService {
 
   async registerStudents(schoolId: string, sectionId: string, studentIds: string[], byUser: IUserToken) {
     this.authorize(byUser, schoolId);
-    if (!studentIds || studentIds.length === 0) return new InvalidRequestError('No students were provided!');
+    if (!studentIds || studentIds.length === 0) throw new InvalidRequestError('No students were provided!');
     const section: ISection | undefined = await this.sectionsRepo.findOne({ _id: sectionId, schoolId });
     if (!section) throw new NotFoundError(`Couldn't find section '${sectionId}' in school '${schoolId}'`);
-
-    studentIds = studentIds.filter(studentId => !section.students.includes(studentId));
-    if (studentIds.length === 0) return new InvalidRequestError(`All students were already registered in section ${sectionId}`);
+    const studentsDifference = studentIds.filter(studentId => !section.students.includes(studentId));
+    if (studentsDifference.length === 0) throw new InvalidRequestError(`All students were already registered in section ${sectionId}`);
     await this.validateStudentsInSchool(studentIds, schoolId);
     return this._commandsProcessor.sendCommand(Service.sections, this.doRegisterStudents, schoolId, sectionId, studentIds);
   }
