@@ -30,8 +30,6 @@ export class FakeCommandsProcessor extends CommandsProcessor {
     return this.handleEvent(event);
   }
 
-
-
   protected async resolveFunction(eventName: string) {
     const [methodName, serviceName] = eventName.split('_');
     const service = await this._serviceFactory(serviceName);
