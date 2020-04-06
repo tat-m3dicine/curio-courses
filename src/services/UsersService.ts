@@ -1,6 +1,6 @@
 import { IUnitOfWork } from '@saal-oryx/unit-of-work';
 import { UsersRepository } from '../repositories/UsersRepository';
-import { Status, IUserWithRegistration, IRegistrationSection as IRegistrationSection } from '../models/entities/IUser';
+import { Status, IUserWithRegistration, IRegistrationSection } from '../models/entities/IUser';
 import { ISignupRequest } from '../models/entities/IIRP';
 import loggerFactory from '../utils/logging';
 import { InviteCodesRepository } from '../repositories/InviteCodesRepository';
@@ -22,6 +22,7 @@ import { KafkaService, IKafkaEvent } from '@saal-oryx/event-sourcing';
 import { Events } from './processors/UpdatesProcessor';
 import { ICourse } from '../models/entities/ICourse';
 import { Service } from '../models/ServiceName';
+import { IProfile } from '../models/entities/Common';
 const logger = loggerFactory.getLogger('UsersService');
 
 export class UsersService {
@@ -79,9 +80,9 @@ export class UsersService {
       await this.register(user);
     }
 
-    await this.usersRepo
-      .patch({ _id: user._id }, { profile: user.profile })
-      .catch(err => logger.error(err));
+    const { name, avatar } = user.profile;
+    const profile = <IProfile>{ ...(name ? { name } : {}), ...(avatar ? { avatar } : {}) };
+    await this.usersRepo.patch({ _id: user._id }, { profile }).catch(err => logger.error(err));
 
     await this.sendUserEnrollmentUpdates(user._id);
     await this.sendAllCommandsEvents();
