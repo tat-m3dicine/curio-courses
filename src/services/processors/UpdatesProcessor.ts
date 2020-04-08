@@ -31,9 +31,10 @@ export class UpdatesProcessor {
         data: { ...userUpdate.data, courses: changedCourses },
         timestamp: now,
         v: '1.0.0'
+        // no key
       });
       const userId = userUpdate.data._id;
-      if (events.find(e => e.key === userId)) continue; // this left
+      if (events.find(e => e.key === userId)) continue; // this will never happen because event don't have 'key' property
       events.push({
         key: userId,
         event: Events.enrollment,

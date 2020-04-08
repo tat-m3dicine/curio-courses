@@ -70,7 +70,7 @@ export class UsersService {
       const sameSchool = await this.schoolsRepo.findOne({ '_id': dbUser.school._id, 'provider.links': user.registration.school._id });
       const role = this.getRole(user);
       if (sameSchool) {
-        const sections = (user.registration.sections || []);
+        const sections = (user.registration.sections || []); // || [] wont work, sections are undefined when there is invite code, and when there is invite code then user school is undefined and that means this whole if block will be skipped
         await this.dropCoursesIfDifferentSections(user._id, role, sections);
       } else await this.doWithdrawFromSchool(user._id, role, dbUser.school._id);
     }
@@ -147,7 +147,7 @@ export class UsersService {
       let sectionsIds = dbSections.map(s => s._id);
       if (dbSections.length !== sections.length) {
         this.validateProvider(providerId, 'Section');
-        const newSections = sections.filter(s => dbSections.every(x => !x.providerLinks.includes(s)));
+        const newSections = sections.filter(s => dbSections.length ? dbSections.every(x => !x.providerLinks.includes(s)) : true); // it was giving error when dbSections was []
         if (newSections.length > 0) {
           const newDbSections = await this.createSections(newSections, user);
           for (const section of newDbSections) this.addCommandsEvent(Service.sections, 'doCreate', section);
